@@ -14,9 +14,6 @@ response = requests.get(URL)
 if response.status_code != 200:
     print('Request returned non-200', response.status_code)
     exit
-    
-with open(local_zip_path, 'wb') as zip_file:
-        zip_file.write(response.content)
 
 zip_file = zipfile.ZipFile(io.BytesIO(response.content))
 temp_dir = gettempdir()
