@@ -29,7 +29,7 @@ df = df.drop(columns=columns_to_drop)
 df = df.melt(id_vars=['Country Name', 'Country Code'], var_name='year', value_name='CPI', ignore_index=False)
 df = df.astype({'year': int})
 
-df.columns = df.columns.str.replace('\W', '', regex=True)
+df.columns = df.columns.str.lower().str.replace('\W', '_', regex=True)
 
 df
 
