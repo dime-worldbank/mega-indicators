@@ -8,7 +8,14 @@ library(magrittr)
 
 # COMMAND ----------
 
-sess <- gdl_session(Sys.getenv("GDL_API_TOKEN"))
+# general purpose alternative
+# api_token <- Sys.getenv("GDL_API_TOKEN")
+
+# Databricks specific
+dbutils.widgets.text("GDL_API_TOKEN", "", "GDL API Token")
+api_token <- dbutils.widgets.get("GDL_API_TOKEN")
+
+sess <- gdl_session(api_token)
 
 # COMMAND ----------
 
