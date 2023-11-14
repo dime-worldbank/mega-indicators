@@ -54,7 +54,7 @@ df_no_extrapolation <- df %>%
   filter(!is.na(population_millions)) %>%  # Drop rows where population_millions is null
   group_by(Country, Region) %>%
   arrange(Country, Region, desc(year)) %>%  
-  filter(row_number() > 3) %>%  # Drop extrapolated years (last 3 years given Country, Region)
+  filter(row_number() > 3, row_number() <= n() - 3) %>%  # Drop extrapolated years (first & last 3 years given Country, Region)
   ungroup()
 
 sdf <- createDataFrame(df_no_extrapolation)
