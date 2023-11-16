@@ -24,6 +24,7 @@ def remove_accents(text):
 
 df = pd.concat([pop_07_16, pop_17_50], ignore_index=True)
 df['region'] = df['region'].apply(remove_accents)
+df.loc[df.region == 'Cidade De Maputo', 'region'] = 'Cidade de Maputo'
 df.rename(columns={'region': 'adm1_name_alt', 'Date': 'year', 'Value': 'population'}, inplace=True)
 
 df['country_name'] = 'Mozambique'
