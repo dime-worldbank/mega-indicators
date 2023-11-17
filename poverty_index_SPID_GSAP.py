@@ -1,26 +1,21 @@
 # Databricks notebook source
 import requests
 import pandas as pd
-from io import BytesIO
 
-spid_url = 'https://datacatalogfiles.worldbank.org/ddh-published/0064796/DR0092191/subnational-poverty-inequality-spid-poverty.xlsx?versionId=2023-09-11T14:24:15.5456758Z'
-gsap_url = 'https://datacatalogfiles.worldbank.org/ddh-published/0042041/DR0052555/global-subnational-poverty-gsap-2019-data.xlsx?versionId=2023-09-11T14:26:49.3938437Z'
+SPID_id, GSAP_id = 'DR0092191', 'DR0052555'
 
-#
-response = requests.get(spid_url)
-if response.status_code == 200:
-    df_SPID = pd.read_excel(BytesIO(response.content))
-else:
-    print(f"Failed to download the file. Status code: {response.status_code}")
-    exit
+SPID_url = f'https://datacatalogapi.worldbank.org/ddhxext/ResourceFileData?resource_unique_id={SPID_id}&rowLimit=100000'
+GSAP_url = f'https://datacatalogapi.worldbank.org/ddhxext/ResourceFileData?resource_unique_id={GSAP_id}&rowLimit=100000'
 
-response = requests.get(gsap_url)
-if response.status_code == 200:
-    df_GSAP = pd.read_excel(BytesIO(response.content))
-else:
-    print(f"Failed to download the file. Status code: {response.status_code}")
-    exit
+SPID_resp = requests.get(SPID_url, timeout=30)
+df_SPID = pd.DataFrame(SPID_resp.json()['Details'])
+assert df_SPID.code.nunique() > 140
+assert df_SPID.pip_reg.nunique() > 6
 
+GSAP_resp = requests.get(GSAP_url, timeout=30)
+df_GSAP = pd.DataFrame(GSAP_resp.json()['Details'])
+assert df_GSAP.code.nunique()>140
+assert df_GSAP.region.nunique()>6
 
 GSAP_2_SPID_cols = {
     'region':'pip_reg',
@@ -39,12 +34,13 @@ GSAP_2_SPID_cols = {
 
 df_GSAP_mod = df_GSAP[GSAP_2_SPID_cols.keys()]
 df_GSAP_mod.columns = [GSAP_2_SPID_cols[x] for x in df_GSAP_mod.columns]
-SPID_regions_2019 = [tuple(x) for x in df_SPID[df_SPID.year==2019][['code', 'year', 'sample']].drop_duplicates().values.tolist()]
+SPID_regions_2019 = [tuple(x) for x in df_SPID[df_SPID.year=='2019'][['code', 'year', 'sample']].drop_duplicates().values.tolist()]
 df_GSAP_mod_missing = df_GSAP_mod[df_GSAP_mod.apply(lambda x: (x['code'], x['year'], x['sample']) not in SPID_regions_2019, axis=1)]
+df_GSAP_mod_missing['SPID_GSAP'] = ['GSAP']*df_GSAP_mod_missing.shape[0]
+df_SPID['SPID_GSAP'] = ['SPID']*df_SPID.shape[0]
 
 df_combined = pd.concat([df_SPID, df_GSAP_mod_missing], ignore_index=True, sort=False)
 df_combined = df_combined.sort_values(['code', 'year', 'sample'])
-
 
 sdf = spark.createDataFrame(df_combined)
 sdf.write.mode("overwrite").saveAsTable("indicator.poverty_index_SPID_GSAP")
