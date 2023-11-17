@@ -1,30 +1,40 @@
 # Databricks notebook source
 import dlt
-from pyspark.sql.functions import col, regexp_replace, trim, when
+import pyspark.sql.functions as F
 
-@dlt.table(name=f'subnational_poverty_index')
-def subnational_poverty_index():
+@dlt.table(name=f'subnational_poverty_index_silver')
+def subnational_poverty_index_silver():
     countries = spark.table(f'indicator.country').select('country_name', 'country_code')
+
     return (spark.table(f'indicator_intermediate.poverty_index_spid_gsap')
         .withColumn('region_name_tmp', 
-                    regexp_replace(
-                        trim(
-                            regexp_replace(
-                                col("region_name"),
-                                 "[-\[\]–]+", " ")
-                        ),
+                    F.trim(F.regexp_replace(
+                        F.regexp_replace(
+                            F.col("region_name"),
+                            "[-\[\]–]+", " ")
+                        ,
                         "[\\d]+", ""
-                    ))
+                    )))
         .withColumn('region_name_alt',
-                     when(
-                         col("region_name_tmp").contains('Maputo City') | col("region_name_tmp").contains('Maputo Cidade'),
+                     F.when(
+                         F.col("region_name_tmp").isin(['Maputo City', 'Maputo Cidade']),
                         'Cidade de Maputo'
                      ).otherwise(
-                         when(
-                            col("region_name_tmp").contains('Maputo Province'),
+                         F.when(
+                            F.col("region_name_tmp") == 'Maputo Province',
                             'Maputo'
-                         ).otherwise(col("region_name_tmp"))
+                         ).otherwise(F.col("region_name_tmp"))
                      ))
         .drop('region_name_tmp')
         .join(countries, ["country_code"], "inner") # TODO: change to left & investigate dropped
+    )
+
+@dlt.table(name=f'subnational_poverty_index')
+def subnational_poverty_index():
+    year_ranges = (dlt.read('subnational_poverty_index_silver')
+        .groupBy("country_name", "region_name_alt")
+        .agg(F.min("year").alias("earliest_year"), F.max("year").alias("latest_year"))
+    )
+    return (dlt.read('subnational_poverty_index_silver')
+            .join(year_ranges, on=['country_name', "region_name_alt"], how='left')
     )
