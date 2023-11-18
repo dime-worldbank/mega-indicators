@@ -15,7 +15,7 @@ def subnational_poverty_index_silver():
                         ,
                         "[\\d]+", ""
                     )))
-        .withColumn('region_name_alt',
+        .withColumn('region_name',
                      F.when(
                          F.col("region_name_tmp").isin(['Maputo City', 'Maputo Cidade']),
                         'Cidade de Maputo'
@@ -32,9 +32,9 @@ def subnational_poverty_index_silver():
 @dlt.table(name=f'subnational_poverty_index')
 def subnational_poverty_index():
     year_ranges = (dlt.read('subnational_poverty_index_silver')
-        .groupBy("country_name", "region_name_alt")
+        .groupBy("country_name", "region_name")
         .agg(F.min("year").alias("earliest_year"), F.max("year").alias("latest_year"))
     )
     return (dlt.read('subnational_poverty_index_silver')
-            .join(year_ranges, on=['country_name', "region_name_alt"], how='left')
+            .join(year_ranges, on=['country_name', "region_name"], how='left')
     )
