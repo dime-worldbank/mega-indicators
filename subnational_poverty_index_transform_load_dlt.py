@@ -17,14 +17,12 @@ def subnational_poverty_index_silver():
                     )))
         .withColumn('region_name',
                      F.when(
-                         F.col("region_name_tmp").isin(['Maputo City', 'Maputo Cidade']),
+                        F.col("region_name_tmp").isin(['Maputo City', 'Maputo Cidade']),
                         'Cidade de Maputo'
-                     ).otherwise(
-                         F.when(
-                            F.col("region_name_tmp") == 'Maputo Province',
-                            'Maputo'
-                         ).otherwise(F.col("region_name_tmp"))
-                     ))
+                     ).when(
+                        F.col("region_name_tmp") == 'Maputo Province',
+                        'Maputo'
+                     ).otherwise(F.col("region_name_tmp"))
         .drop('region_name_tmp')
         .join(countries, ["country_code"], "inner") # TODO: change to left & investigate dropped
     )
