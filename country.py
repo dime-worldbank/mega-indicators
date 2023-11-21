@@ -8,7 +8,7 @@ import wbgapi as wb
 
 # COMMAND ----------
 
-df = wb.economy.DataFrame(skipAggs=True)
+df = wb.economy.DataFrame()
 df
 
 # COMMAND ----------
@@ -23,3 +23,7 @@ df_cleaned
 
 sdf = spark.createDataFrame(df_cleaned)
 sdf.write.mode("overwrite").saveAsTable("indicator.country")
+
+# COMMAND ----------
+
+df.loc[df['aggregate'] == True]
