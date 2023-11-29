@@ -3,7 +3,7 @@ import dlt
 from pyspark.sql import functions as F
 
 # Adding a new country requires adding the country here
-country_codes = ['moz', 'pry', 'ken']
+country_codes = ['moz', 'pry', 'ken', 'pak', 'bfa']
 
 @dlt.table(name=f'subnational_population')
 def subnational_population():
