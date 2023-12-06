@@ -22,7 +22,7 @@ def subnational_poverty_index_silver():
                      ).when(
                         F.col("region_name_tmp") == 'Maputo Province',
                         'Maputo'
-                     ).otherwise(F.col("region_name_tmp"))
+                     ).otherwise(F.col("region_name_tmp")))
         .drop('region_name_tmp')
         .join(countries, ["country_code"], "inner") # TODO: change to left & investigate dropped
     )
@@ -35,4 +35,11 @@ def subnational_poverty_index():
     )
     return (dlt.read('subnational_poverty_index_silver')
             .join(year_ranges, on=['country_name', "region_name"], how='left')
+            .withColumn("region_name_for_map", 
+                F.when(
+                    ((F.col("country_name") == 'Pakistan') & (F.col("region_name") == 'Punjab')),
+                    F.lit("PK-PB")
+                ).otherwise(
+                    F.col("region_name")
+                ))
     )
