@@ -22,7 +22,15 @@ sess <- gdl_session(api_token)
 START_YEAR <- 1990
 INDICATORS <- c('healthindex', 'edindex', 'incindex')
 DATASET <- 'shdi'
-END_YEAR = as.integer(format(Sys.Date(), "%Y"))
+END_YEAR <- as.integer(format(Sys.Date(), "%Y"))
+
+# COMMAND ----------
+
+sess <- sess %>%
+    set_dataset('shdi') %>%
+    set_countries(c('BEL', 'LUX', 'NLD')) %>%
+    set_indicators(c('healthindex', 'edindex', 'incindex'))
+shdi_benelux <- gdl_request(sess)
 
 # COMMAND ----------
 
@@ -66,12 +74,14 @@ for (dimension in c('health', 'ed', 'inc')) {
   key <- paste0(dimension, 'index_')
   value <- paste0(dimension, "index")
   
-  df <- gather(shdi_merged, key = key, value = value, -Country, -Continent, -ISO_Code, -Level, -GDLCODE, -Region) %>%
+  df <-  shdi_merged %>% 
+    dplyr::select(Country, Continent, ISO_Code, Level, GDLCODE, Region, starts_with(key)) %>%
+    gather(key = key, value = value, -Country, -Continent, -ISO_Code, -Level, -GDLCODE, -Region) %>%
     dplyr::mutate(year = parse_number(key)) %>%
     dplyr::select(-key)
 
   sdf <- createDataFrame(df)
-  table_name <- paste0("indicator.global_data_lab_", dimension, "_index")
+  table_name <- paste0("indicator_intermediate.global_data_lab_", dimension, "_index")
   saveAsTable(sdf, tableName = table_name, mode = "overwrite")
 
   print(paste(table_name, 'nrow:', nrow(df)))
