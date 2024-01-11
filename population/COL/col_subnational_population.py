@@ -5,6 +5,16 @@
 
 import numpy as np
 import pandas as pd
+import unicodedata
+
+# COMMAND ----------
+
+def normalize_cell(cell_value):
+    if pd.notna(cell_value) and isinstance(cell_value, str):
+        return ''.join(c for c in unicodedata.normalize('NFD', cell_value)
+                       if unicodedata.category(c) != 'Mn')
+    else:
+        return cell_value
 
 # COMMAND ----------
 
@@ -15,6 +25,7 @@ def usecols(col):
 
 df_raw = pd.read_excel(URL, sheet_name=-1, skiprows=3, usecols=usecols)
 df_raw.columns = df_raw.columns.str.lower()
+df_raw['adm1_name'] = df_raw.adm1_name.str.title().apply(normalize_cell)
 df_raw
 
 # COMMAND ----------
