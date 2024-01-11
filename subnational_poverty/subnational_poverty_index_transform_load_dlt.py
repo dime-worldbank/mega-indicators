@@ -39,6 +39,12 @@ def subnational_poverty_index():
                 F.when(
                     ((F.col("country_name") == 'Pakistan') & (F.col("region_name") == 'Punjab')),
                     F.lit("PK-PB")
+                ).when(
+                    ((F.col("country_name") == 'Colombia') & (F.col("region_name") == 'Valle')),
+                    F.concat(F.lit("Valle del Cauca"))
+                ).when(
+                    ((F.col("country_name") == 'Colombia')),
+                    F.concat(F.col("region_name"), F.lit(" Department Colombia"))
                 ).otherwise(
                     F.col("region_name")
                 ))
