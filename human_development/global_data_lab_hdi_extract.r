@@ -27,14 +27,6 @@ END_YEAR <- as.integer(format(Sys.Date(), "%Y"))
 # COMMAND ----------
 
 sess <- sess %>%
-    set_dataset('shdi') %>%
-    set_countries(c('BEL', 'LUX', 'NLD')) %>%
-    set_indicators(c('healthindex', 'edindex', 'incindex'))
-shdi_benelux <- gdl_request(sess)
-
-# COMMAND ----------
-
-sess <- sess %>%
     set_dataset(DATASET) %>%
     set_countries_all() %>%
     set_year(START_YEAR) %>%
