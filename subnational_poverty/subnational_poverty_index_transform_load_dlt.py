@@ -16,13 +16,19 @@ def subnational_poverty_index_silver():
                         "[\\d]+", ""
                     )))
         .withColumn('region_name',
-                     F.when(
+                    F.when(
                         F.col("region_name_tmp").isin(['Maputo City', 'Maputo Cidade']),
                         'Cidade de Maputo'
                      ).when(
                         F.col("region_name_tmp") == 'Maputo Province',
                         'Maputo'
-                     ).otherwise(F.col("region_name_tmp")))
+                     ).when(
+                        F.col("region_name_tmp") == "Murang'a",
+                        "Murang'a County"
+                     ).when(
+                        F.col("region_name_tmp") == "Tana River",
+                        "Tana River County"                         
+                    ).otherwise(F.col("region_name_tmp")))
         .drop('region_name_tmp')
         .join(countries, ["country_code"], "inner") # TODO: change to left & investigate dropped
     )
@@ -45,6 +51,12 @@ def subnational_poverty_index():
                 ).when(
                     ((F.col("country_name") == 'Colombia')),
                     F.concat(F.col("region_name"), F.lit(" Department Colombia"))
+                ).when(
+                    ((F.col("country_name") == 'Burkina Faso') & (F.col("region_name") != 'Centre')),
+                    F.concat(F.col("region_name"), F.lit(" Region Burkina Faso"))                    
+                ).when(
+                    ((F.col("country_name") == 'Burkina Faso') & (F.col("region_name") == 'Centre')),
+                    'BFA Centre region'
                 ).otherwise(
                     F.col("region_name")
                 ))
