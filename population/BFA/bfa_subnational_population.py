@@ -1,11 +1,22 @@
 # Databricks notebook source
-! pip install openpyxl
+! pip install openpyxl wbgapi
 
 # COMMAND ----------
 
 import pandas as pd
+import wbgapi as wb
 
-# population data for 2015 and after from census.gov
+# Helper functions
+def modify_name(name):
+    if not name:
+        return
+    mod_name = name.split('_BF.')[0].split('BFA_')[-1]
+    return mod_name.replace('_', ' ').replace('-', ' ').title()
+
+# COMMAND ----------
+
+# post 2015 population estimates from census.gov
+
 URL = 'https://www2.census.gov/programs-surveys/international-programs/tables/time-series/pepfar/burkina-faso.xlsx'
 
 df_raw = pd.read_excel(URL, sheet_name='2015 - 2030', skiprows=2, header=None)
@@ -27,14 +38,45 @@ df_pop['data_source'] = URL
 df_pop = df_pop.astype({'year': 'int', 'population': 'int'})
 df_pop = df_pop.sort_values(['adm1_name', 'year'], ignore_index=True)
 
+# Pre 2015 spopulation estimates from the World Bank subnational population database 
+wb.db = 50 # Database ID
+ddf_raw = wb.data.DataFrame('SP.POP.TOTL', skipBlanks=True)
+ddf = ddf_raw[ddf_raw.index.map(lambda x: x.split('_')[0]=='BFA')][1:]
+ddf['adm1_name'] = ddf.index.map(lambda x: modify_name(x))
+ddf_pop = pd.melt(ddf, id_vars=['adm1_name'], var_name='year', value_name='population')
+ddf_pop['year'] = ddf_pop.year.map(lambda x: int(x[2:]))
+# select the years on or before 2014
+ddf_pop = ddf_pop[ddf_pop.year<2015]
+ddf_pop['country_name'] = 'Burkina Faso'
+ddf_pop['data_source'] = "WB API Database ID 50"
+
+# Final concatenated dataset
+pop =  pd.concat([df_pop, ddf_pop]).sort_values(['adm1_name', 'year'])
+
+# name changes to show correct regions in the Power BI viz
+name_changes = {
+    'Est': 'Est Region Burkina Faso',
+    'Centre Sud': 'Centre Sud Region Burkina Faso'
+}
+pop['adm1_name'] = pop.adm1_name.map(lambda x: name_changes.get(x, x))
+pop['population'] = pop.population.astype(int)
+
 # COMMAND ----------
 
-num_adm1_units = df_pop.adm1_name.nunique()
+
+
+# COMMAND ----------
+
+num_adm1_units_src1 = df_pop.adm1_name.nunique()
+num_adm1_units_src2 = ddf_pop.adm1_name.nunique()
 
 assert df_pop.shape[0] >= 208, f'Expect at least 208 rows, got {df_pop.shape[0]}'
+assert ddf_pop.shape[0] >= 195, f'Expect at least 195 rows, gor{ddf_pop.shape[0]}'
 assert all(df_pop.population.notnull()), f'Expect no missing values in population field, got {sum(df_pop.population.isnull())} null values'
-# Note that Federally Administrative Tribal Areas appears in some lists as an admin1 region and not in some
-assert num_adm1_units==13
+assert all(ddf_pop.population.notnull()), f'Expect no missing values in population field, got {sum(ddf_pop.population.isnull())} null values'
+
+assert num_adm1_units_src1 == 13
+assert num_adm1_units_src2 == 13
 
 # COMMAND ----------
 
@@ -46,6 +88,14 @@ if not spark.catalog.databaseExists(database_name):
     print(f"Database '{database_name}' does not exist. Creating the database.")
     spark.sql(f"CREATE DATABASE {database_name}")
 
-sdf = spark.createDataFrame(df_pop)
+sdf = spark.createDataFrame(pop)
 sdf.write.mode("overwrite").saveAsTable(f"{database_name}.bfa_subnational_population")
+
+
+# COMMAND ----------
+
+
+
+# COMMAND ----------
+
 
