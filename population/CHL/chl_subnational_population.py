@@ -58,3 +58,17 @@ assert ddf_pop.adm1_name.nunique() >14, f'Expect 15 adm1 regions (districts) if 
 if 2019 in ddf_pop.year.unique():
     assert ddf_pop.adm1_name.nunique() >15, f'Expect 16 adm1 regions (districts) if data is after 2018, got {ddf_pop.adm1_name.nunique()}'
 
+
+# COMMAND ----------
+
+# Write to indicator_intermediate
+
+database_name = "indicator_intermediate"
+
+if not spark.catalog.databaseExists(database_name):
+    print(f"Database '{database_name}' does not exist. Creating the database.")
+    spark.sql(f"CREATE DATABASE {database_name}")
+
+sdf = spark.createDataFrame(ddf_pop)
+sdf.write.mode("overwrite").saveAsTable(f"{database_name}.chl_subnational_population")
+
