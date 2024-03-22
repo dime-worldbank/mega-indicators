@@ -75,31 +75,3 @@ if not spark.catalog.databaseExists(database_name):
     spark.sql(f"CREATE DATABASE {database_name}")
 sdf = spark.createDataFrame(merged_df)
 sdf.write.format("delta").mode("overwrite").option("mergeSchema", "true").saveAsTable(f"{database_name}.health_expenditure")
-
-# COMMAND ----------
-
-
-
-# COMMAND ----------
-
-
-
-# COMMAND ----------
-
-
-
-# COMMAND ----------
-
-
-
-# COMMAND ----------
-
-
-
-# COMMAND ----------
-
-
-
-# COMMAND ----------
-
-
