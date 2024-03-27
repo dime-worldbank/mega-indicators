@@ -54,27 +54,41 @@ colnames(shdi_merged)
 
 # COMMAND ----------
 
-library(tidyr)
 library(readr)
-library(SparkR)
-hive_config <- list("spark.sql.catalogImplementation" = "hive")
-sparkR.session(appName = "global_data_lab", config = hive_config)
+library(dplyr)
+library(tidyr)
+
+combined_df <- shdi_merged %>%
+  dplyr::select(Country, ISO_Code, Region, starts_with(c('healthindex_', 'edindex_', 'incindex_'))) %>%
+  pivot_longer(cols = starts_with(c('healthindex_', 'edindex_', 'incindex_')), 
+               names_to = "dimension", 
+               values_to = "index") %>%
+  dplyr::mutate(year = parse_number(gsub(".*_(\\d+)$", "\\1", dimension)),
+         dimension = gsub("index_.*", "", dimension)) %>%
+  pivot_wider(names_from = dimension, values_from = index)
+
+combined_df
 
 # COMMAND ----------
 
-for (dimension in c('health', 'ed', 'inc')) {
-  key <- paste0(dimension, 'index_')
-  value <- paste0(dimension, "index")
-  
-  df <-  shdi_merged %>% 
-    dplyr::select(Country, Continent, ISO_Code, Level, GDLCODE, Region, starts_with(key)) %>%
-    gather(key = key, value = value, -Country, -Continent, -ISO_Code, -Level, -GDLCODE, -Region) %>%
-    dplyr::mutate(year = parse_number(key)) %>%
-    dplyr::select(-key)
+grouped_counts <- combined_df %>%
+  dplyr::group_by(Country, Region, year) %>%
+  dplyr::summarize(obs_count = dplyr::n())
 
-  sdf <- createDataFrame(df)
-  table_name <- paste0("indicator_intermediate.global_data_lab_", dimension, "_index")
-  saveAsTable(sdf, tableName = table_name, mode = "overwrite")
-
-  print(paste(table_name, 'nrow:', nrow(df)))
+if (!all(grouped_counts$obs_count == 1)) {
+  stop(paste("Some groups do not have exactly one observation:",
+             paste(grouped_counts[grouped_counts$obs_count != 1, ], collapse = ", ")))
 }
+
+# COMMAND ----------
+
+library(SparkR)
+
+hive_config <- list("spark.sql.catalogImplementation" = "hive")
+sparkR.session(appName = "global_data_lab", config = hive_config)
+
+sdf <- createDataFrame(combined_df)
+table_name <- paste0("indicator_intermediate.global_data_lab_hd_index")
+saveAsTable(sdf, tableName = table_name, mode = "overwrite")
+
+print(paste(table_name, 'nrow:', nrow(df)))

@@ -2,11 +2,11 @@
 import dlt
 import pyspark.sql.functions as F
 
-@dlt.table(name=f'global_data_lab_ed_index')
-def hid_ed_index():
+@dlt.table(name=f'global_data_lab_hd_index')
+def global_data_lab_hd_index():
     countries = spark.table(f'indicator.country').select('country_name', 'country_code')
 
-    ed = (spark.table(f'indicator_intermediate.global_data_lab_ed_index')
+    return (spark.table(f'indicator_intermediate.global_data_lab_hd_index')
         .withColumnRenamed("ISO_Code", 'country_code')
         .join(countries, on=["country_code"], how="inner")
         .withColumn("Region", F.trim(F.regexp_replace(F.col("Region"), "\\(.*\\)", "")))
@@ -51,10 +51,9 @@ def hid_ed_index():
         .select(
             'country_name',
             'adm1_name',
-            F.col('Level').alias('level'),
             'year',
-            F.col('value').alias('education_index'),
+            F.col('ed').alias('education_index'),
+            F.col('health').alias('health_index'),
+            F.col('inc').alias('income_index'),
         )
     )
-
-    return ed
