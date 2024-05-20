@@ -23,6 +23,18 @@ def global_data_lab_hd_index():
                 ).otherwise(
                     F.regexp_replace(F.col("Region"), "-", " ")
                 )
+            ).when(F.col("country_name") == 'Bhutan',
+                F.when(F.col("Region") == 'Chukha',
+                    F.lit("Chhukha")
+                ).when(F.col("Region") == 'Lhuntse',
+                    F.lit("Lhuentse")
+                ).when(F.col("Region") == 'Samdrup jongkhar',
+                    F.lit("Samdrup Jongkhar")
+                ).when(F.col("Region") == 'Wangdi',
+                    F.lit("Wangduephodrang")    
+                ).otherwise(
+                    F.col("Region")
+                )
             ).when(F.col("country_name") == 'Colombia',
                 F.when(F.col("Region").contains('Valle'),
                     F.lit("Valle Del Cauca")
