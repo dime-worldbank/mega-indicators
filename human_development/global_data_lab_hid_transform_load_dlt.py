@@ -14,6 +14,12 @@ def global_data_lab_hd_index():
             F.when(F.col("country_name") == 'Burkina Faso',
                 F.when(F.col("Region") == 'Boucle de Mouhoun',
                     F.lit("Boucle Du Mouhoun")
+                ).when(F.col("Region") == 'Centre (incl Ouagadougou)',
+                    F.lit("Centre")
+                ).when(F.col("Region") == 'Centre-Sud',
+                    F.lit("Centre Sud Region Burkina Faso")
+                ).when(F.col("Region") == 'Est',
+                    F.lit("Est Region Burkina Faso")    
                 ).otherwise(
                     F.regexp_replace(F.col("Region"), "-", " ")
                 )
