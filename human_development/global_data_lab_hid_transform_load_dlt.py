@@ -35,6 +35,16 @@ def global_data_lab_hd_index():
                 ).otherwise(
                     F.col("Region")
                 )
+            ).when(F.col("country_name") == 'Nigeria',
+                F.when(F.col("Region") == 'Abuja FCT',
+                    F.lit("Federal Capital Territory")
+                ).when(F.col("Region") == 'Nassarawa',
+                    F.lit("Nasarawa")
+                ).when(F.col("Region") == 'Zamfora',
+                    F.lit("Zamfara")    
+                ).otherwise(
+                    F.col("Region")
+                )
             ).when(F.col("country_name") == 'Colombia',
                 F.when(F.col("Region").contains('Valle'),
                     F.lit("Valle Del Cauca")
