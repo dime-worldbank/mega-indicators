@@ -73,9 +73,12 @@ def global_data_lab_hd_index():
                 ).otherwise(
                     F.col("Region")
                 )
+            ).when(F.col("country_name") == 'Congo Democratic Republic',
+                F.initcap(F.regexp_replace(F.col("Region"), "-", " "))   
             ).otherwise(
                 F.col("Region")
-            ))
+            )
+        )
         .select(
             'country_name',
             'adm1_name',
