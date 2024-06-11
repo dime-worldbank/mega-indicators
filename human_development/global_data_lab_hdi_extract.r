@@ -31,8 +31,8 @@ sess <- sess %>%
     set_countries_all() %>%
     set_year(START_YEAR) %>%
     set_indicators(INDICATORS)
-shdi_merged <- gdl_request(sess)
-print(paste(START_YEAR, 'nrow:', nrow(shdi_merged)))
+indicator_merged <- gdl_request(sess)
+print(paste(START_YEAR, 'nrow:', nrow(indicator_merged)))
 
 # COMMAND ----------
 
@@ -44,13 +44,30 @@ for (year in (START_YEAR+1):END_YEAR) {
     set_indicators(INDICATORS)
   shdi <- gdl_request(sess)
 
-  shdi_merged <- merge(shdi_merged, shdi, all = TRUE)
-  print(paste(year, 'nrow:', nrow(shdi), ', merged:', nrow(shdi_merged)))
+  indicator_merged <- merge(indicator_merged, shdi, all = TRUE)
+  print(paste(year, 'nrow:', nrow(shdi), ', merged:', nrow(indicator_merged)))
 }
 
 # COMMAND ----------
 
-colnames(shdi_merged)
+# Get the school attendance data from areadata
+
+START_YEAR <- 1990
+INDICATORS <- c("lprimary", "uprimary", "lsecondary", "usecondary")
+DATASET <- 'areadata'
+END_YEAR <- as.integer(format(Sys.Date(), "%Y"))
+
+for (year in START_YEAR:END_YEAR) {
+  sess <- sess %>%
+      set_dataset(DATASET) %>%
+      set_countries_all() %>%
+      set_year(year) %>%
+      set_indicators(INDICATORS)
+      areadata <- gdl_request(sess)
+      indicator_merged <- merge(indicator_merged, areadata, all = TRUE)
+      print(paste(year, 'nrow:', nrow(areadata), ', merged:', nrow(indicator_merged)))
+}
+
 
 # COMMAND ----------
 
@@ -58,16 +75,29 @@ library(readr)
 library(dplyr)
 library(tidyr)
 
-combined_df <- shdi_merged %>%
-  dplyr::select(Country, ISO_Code, Region, starts_with(c('healthindex_', 'edindex_', 'incindex_'))) %>%
-  pivot_longer(cols = starts_with(c('healthindex_', 'edindex_', 'incindex_')), 
+combined_df <- indicator_merged %>%
+  dplyr::select(Country, ISO_Code, Region, starts_with(c('healthindex_', 'edindex_', 'incindex_', 'lprimary_', 'uprimary_', 'lsecondary_', 'usecondary_'))) %>%
+  pivot_longer(cols = starts_with(c('healthindex_', 'edindex_', 'incindex_', 'lprimary_', 'uprimary_', 'lsecondary_', 'usecondary_')), 
                names_to = "dimension", 
                values_to = "index") %>%
   dplyr::mutate(year = parse_number(gsub(".*_(\\d+)$", "\\1", dimension)),
-         dimension = gsub("index_.*", "", dimension)) %>%
+         dimension = gsub("_.*", "", dimension)) %>%
   pivot_wider(names_from = dimension, values_from = index)
 
-combined_df
+
+# COMMAND ----------
+
+# take the weighted average for the attendance data
+INTERVAL = 2
+combined_df <- combined_df %>%
+dplyr::mutate(attendance = (lprimary * INTERVAL + uprimary* INTERVAL + lsecondary*INTERVAL + usecondary * INTERVAL)/(INTERVAL * 4) ,.keep ="unused" )
+
+# COMMAND ----------
+
+# Quality check: missing values
+grouped_counts <- combined_df %>%
+  dplyr::group_by(Country) %>%
+  dplyr::summarize_all(~ mean(is.na(.)))
 
 # COMMAND ----------
 
@@ -89,6 +119,6 @@ sparkR.session(appName = "global_data_lab", config = hive_config)
 
 sdf <- createDataFrame(combined_df)
 table_name <- paste0("indicator_intermediate.global_data_lab_hd_index")
-saveAsTable(sdf, tableName = table_name, mode = "overwrite")
+# saveAsTable(sdf, tableName = table_name, mode = "overwrite")
 
 print(paste(table_name, 'nrow:', nrow(df)))
