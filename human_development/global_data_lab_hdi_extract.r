@@ -119,6 +119,6 @@ sparkR.session(appName = "global_data_lab", config = hive_config)
 
 sdf <- createDataFrame(combined_df)
 table_name <- paste0("indicator_intermediate.global_data_lab_hd_index")
-# saveAsTable(sdf, tableName = table_name, mode = "overwrite")
+saveAsTable(sdf, tableName = table_name, mode = "overwrite",  overwriteSchema = "true")
 
 print(paste(table_name, 'nrow:', nrow(df)))
