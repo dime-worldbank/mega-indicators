@@ -80,8 +80,9 @@ def global_data_lab_hd_index():
             'country_name',
             'adm1_name',
             'year',
-            F.col('ed').alias('education_index'),
-            F.col('health').alias('health_index'),
-            F.col('inc').alias('income_index'),
+            F.col('edindex').alias('education_index'),
+            F.col('healthindex').alias('health_index'),
+            F.col('incindex').alias('income_index'),
+            F.col('attendance').alias('attendance'),
         )
     )
