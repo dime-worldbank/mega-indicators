@@ -8,16 +8,23 @@ import pandas as pd
 
 # COMMAND ----------
 
-# wb.db = 71 # ICP 2005, only 2005, 9120000:EDUCATION (Analytical Category)
-# wb.db = 62 # ICP 2011, only 2011
-wb.db = 78 # ICP 2017, 2011 & 2017
+# wb.source.info()
+# wb.db = 71 # ICP 2005: only 2005, 9120000:EDUCATION (Analytical Category)
+# wb.db = 62 # ICP 2011: only 2011
+# wb.db = 78 # ICP 2017: 2011 & 2017
+# wb.db = 90 # ICP 2021: 2017 & 2021
 # wb.series.info()
 
 # COMMAND ----------
 
 edu_household_exp_key = '9120000'
+wb.db = 78
 outcome_df = wb.data.DataFrame([edu_household_exp_key], skipBlanks=True).reset_index()
 outcome_df
+
+# COMMAND ----------
+
+# TODO: add 2021 data
 
 # COMMAND ----------
 
