@@ -17,14 +17,20 @@ import pandas as pd
 
 # COMMAND ----------
 
-edu_household_exp_key = '9120000'
-wb.db = 78
-outcome_df = wb.data.DataFrame([edu_household_exp_key], skipBlanks=True).reset_index()
+db_values = [71, 62, 90]
+edu_exp_key = '9120000'
+
+dataframes = []
+for db_value in db_values:
+    wb.db = db_value
+    df = wb.data.DataFrame([edu_exp_key], skipBlanks=True).reset_index()
+    dataframes.append(df)
+
+outcome_df = dataframes[0]
+for df in dataframes[1:]:
+    outcome_df = pd.merge(outcome_df, df, on=['classification', 'economy'], how='outer')
+
 outcome_df
-
-# COMMAND ----------
-
-# TODO: add 2021 data
 
 # COMMAND ----------
 
@@ -40,8 +46,8 @@ def create_long_df(outcome_df, classification, col_name, multi_factor):
 # COMMAND ----------
 
 long_df_conversion_args = [
-    ('CN', 'edu_household_spending_current_lcu_icp', 1e9), # original data in billion, so convert to unit term 
-    ('ZS', 'edu_household_spending_gdp_share', 0.01) # convert to [0, 1]
+    ('CN', 'edu_spending_current_lcu_icp', 1e9), # original data in billion, so convert to unit term 
+    ('ZS', 'edu_spending_gdp_share', 0.01) # convert to [0, 1]
 ]
 
 lcu_df = create_long_df(outcome_df, *long_df_conversion_args[0])
@@ -54,7 +60,7 @@ long_df
 # COMMAND ----------
 
 # quick check of data availability
-countries = ['COL', 'PRY', 'KEN', 'MOZ', 'BFA', 'PAK', 'COD']
+countries = ['BTN', 'COL', 'PRY', 'KEN', 'MOZ', 'BFA', 'PAK', 'COD', 'TUN', 'NGA']
 long_df[long_df.economy.isin(countries)]
 
 # COMMAND ----------
@@ -72,4 +78,4 @@ result_df
 # COMMAND ----------
 
 sdf = spark.createDataFrame(result_df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("indicator.edu_household_spending")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("indicator.edu_spending")
