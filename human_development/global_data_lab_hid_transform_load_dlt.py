@@ -73,20 +73,45 @@ def global_data_lab_hd_index():
                 ).otherwise(
                     F.col("Region")
                 )
-            ).when(F.col("country_name") == 'Congo Democratic Republic',
-                F.lit("Congo, Dem. Rep.")    
-            ).when(F.col("country_name") == 'Congo, Dem. Rep.',
-                F.initcap(F.regexp_replace(F.col("Region"), "-", " "))   
+            ).when(F.col("country_name") == 'Tunisia',
+                F.when(F.col("Region") == 'Grand Tunis (Tunis, Ariana, Ben Arous, Manouba)',
+                    F.lit("Grand Tunis")
+                ).when(F.col("Region") == 'Nord Ouest (Beja, Jendouba, Kef, Siliana)',
+                    F.lit("Nord Ouest")
+                ).when(F.col("Region") == 'Centre Ouest (Kairouan, Kasserine, Sidi Bouzid)',
+                    F.lit("Centre Ouest")
+                ).when(F.col("Region") == 'Centre Est (Sousse, Monastir, Mahdia, Sfax)',
+                    F.lit("Centre Est")
+                ).when(F.col("Region") == 'Sud Est (Gabes, Medinine, Tataouine)',
+                    F.lit("Sud Est")
+                ).when(F.col("Region") == 'Nord Est (Nabeul, Zaghouan, Bizerte)',
+                    F.lit("Nord Est")
+                ).when(F.col("Region") == 'Sud Ouest (Gafsa, Tozeur, Kebili)',
+                    F.lit("Sud Ouest")
+                ).otherwise(
+                F.col("Region"))
+            ).when(F.col("country_name") == 'Paraguay',
+                F.when(F.col("Region") == 'South-West (Caazapa, Itapua)',
+                    F.lit("South-West")
+                ).when(F.col("Region") == 'South-East (Guaira, Misiones, Paraguari, Neembucu)',
+                    F.lit("South-East")
+                ).when(F.col("Region") == 'Central (Asuncion, Central)',
+                    F.lit("Central")
+                ).when(F.col("Region") == 'North-East (Caaguazu, Alto Parana, Canideyu)',
+                    F.lit("North-East")
+                ).otherwise(
+                F.col("Region"))
             ).otherwise(
-                F.col("Region")
+                F.col("Region"))
             )
-        )
         .select(
             'country_name',
             'adm1_name',
             'year',
-            F.col('ed').alias('education_index'),
-            F.col('health').alias('health_index'),
-            F.col('inc').alias('income_index'),
+            F.col('edindex').alias('education_index'),
+            F.col('healthindex').alias('health_index'),
+            F.col('incindex').alias('income_index'),
+            F.col('attendance').alias('attendance'),
         )
     )
+
