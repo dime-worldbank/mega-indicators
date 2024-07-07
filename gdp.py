@@ -9,8 +9,22 @@ import pandas as pd
 # COMMAND ----------
 
 wb.db = 2
-indicators = ['NY.GDP.MKTP.CN', 'NY.GDP.PCAP.PP.KD']
-col_names = ['gdp_current_lcu', 'gdp_per_capita_2017_ppp']
+indicators = [
+    'NY.GDP.MKTP.CN',
+    'NY.GDP.MKTP.CD',
+    'NY.GDP.MKTP.KD',
+    'NY.GDP.MKTP.PP.CD',
+    'NY.GDP.MKTP.PP.KD',
+    'NY.GDP.PCAP.PP.KD'
+]
+col_names = [
+    'gdp_current_lcu',
+    'gdp_current_usd',
+    'gdp_2015_usd',
+    'gdp_current_ppp',
+    'gdp_2021_ppp',
+    'gdp_per_capita_2017_ppp'
+]
 
 # COMMAND ----------
 
@@ -27,7 +41,7 @@ merged_df = long_dfs[0]
 for df in long_dfs[1:]:
     merged_df = pd.merge(merged_df, df, on=['economy', 'year'])
 
-merged_df['data_source'] = 'WB & OECD National Accounts'
+merged_df['data_source'] = 'WB & OECD National Accounts, WB International Comparison Program, Eurostat-OECD PPP Programme'
 merged_df
 
 # COMMAND ----------
