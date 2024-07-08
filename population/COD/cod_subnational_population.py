@@ -36,7 +36,3 @@ if not spark.catalog.databaseExists(database_name):
 
 sdf = spark.createDataFrame(pop)
 sdf.write.mode("overwrite").saveAsTable(f"{database_name}.cod_subnational_population")
-
-# COMMAND ----------
-
-
