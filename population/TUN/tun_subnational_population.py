@@ -1,4 +1,8 @@
 # Databricks notebook source
+# MAGIC %pip install openpyxl
+
+# COMMAND ----------
+
 import requests
 from zipfile import ZipFile
 import pandas as pd
@@ -61,7 +65,3 @@ if not spark.catalog.databaseExists(database_name):
 
 sdf = spark.createDataFrame(ddf_pop)
 sdf.write.mode("overwrite").saveAsTable(f"{database_name}.tun_subnational_population")
-
-# COMMAND ----------
-
-
