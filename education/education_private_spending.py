@@ -12,7 +12,8 @@ df
 
 df_edu_private_exp = df[df.SUBJECT.isin(['PRY_TRY', 'EARLYCHILDEDU'])].groupby(['LOCATION', 'TIME_PERIOD']).agg('sum')[['OBS_VALUE']].reset_index()
 df_edu_private_exp['edu_private_spending_share_gdp'] = df_edu_private_exp.OBS_VALUE / 100
-df_edu_private_exp.rename(columns={'LOCATION': 'country_code', 'TIME': 'year'}, inplace=True)
+df_edu_private_exp.rename(columns={'LOCATION': 'country_code', 'TIME_PERIOD': 'year'}, inplace=True)
+df_edu_private_exp['year'] = df_edu_private_exp['year'].astype(int)
 df_edu_private_exp
 
 # COMMAND ----------
