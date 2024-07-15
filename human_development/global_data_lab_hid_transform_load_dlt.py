@@ -9,7 +9,7 @@ def global_data_lab_hd_index():
     return (spark.table(f'indicator_intermediate.global_data_lab_hd_index')
         .withColumnRenamed("ISO_Code", 'country_code')
         .join(countries, on=["country_code"], how="inner")
-        .withColumn("Region", F.trim(F.regexp_replace(F.col("Region"), "\\(.*\\)", "")))
+        .withColumn("Region", F.trim(F.regexp_replace(F.col("Region"), "\\(.*?\\)", "")))
         .withColumn("adm1_name", 
             F.when(F.col("country_name") == 'Burkina Faso',
                 F.when(F.col("Region") == 'Boucle de Mouhoun',
@@ -74,33 +74,35 @@ def global_data_lab_hd_index():
                     F.col("Region")
                 )
             ).when(F.col("country_name") == 'Tunisia',
-                F.when(F.col("Region") == 'Grand Tunis (Tunis, Ariana, Ben Arous, Manouba)',
+                F.when(F.col("Region").like('%Grand Tunis%'),
                     F.lit("Grand Tunis")
-                ).when(F.col("Region") == 'Nord Ouest (Beja, Jendouba, Kef, Siliana)',
+                ).when(F.col("Region").like('%Nord Ouest%'),
                     F.lit("Nord Ouest")
-                ).when(F.col("Region") == 'Centre Ouest (Kairouan, Kasserine, Sidi Bouzid)',
+                ).when(F.col("Region").like('%Centre Ouest%'),
                     F.lit("Centre Ouest")
-                ).when(F.col("Region") == 'Centre Est (Sousse, Monastir, Mahdia, Sfax)',
-                    F.lit("Centre Est")
-                ).when(F.col("Region") == 'Sud Est (Gabes, Medinine, Tataouine)',
+                ).when(F.col("Region").like('%Centre Est%'),
+                     F.lit("Centre Est")
+                ).when(F.col("Region").like('%Sud Est%'),
                     F.lit("Sud Est")
-                ).when(F.col("Region") == 'Nord Est (Nabeul, Zaghouan, Bizerte)',
+                ).when(F.col("Region").like('%Nord Est%'),
                     F.lit("Nord Est")
-                ).when(F.col("Region") == 'Sud Ouest (Gafsa, Tozeur, Kebili)',
+                ).when(F.col("Region").like('%Sud Ouest%'),
                     F.lit("Sud Ouest")
                 ).otherwise(
-                F.col("Region"))
-            ).when(F.col("country_name") == 'Paraguay',
-                F.when(F.col("Region") == 'South-West (Caazapa, Itapua)',
-                    F.lit("South-West")
-                ).when(F.col("Region") == 'South-East (Guaira, Misiones, Paraguari, Neembucu)',
+                    F.col("Region"))
+                
+             ).when(F.col("country_name") == 'Paraguay',
+                F.when(F.col("Region").like('%South-West%'),
+                        F.lit("South-West")
+                ).when(F.col("Region").like('%South-East%'),
                     F.lit("South-East")
-                ).when(F.col("Region") == 'Central (Asuncion, Central)',
+                ).when(F.col("Region").like('%Central%'), 
                     F.lit("Central")
-                ).when(F.col("Region") == 'North-East (Caaguazu, Alto Parana, Canideyu)',
+                ).when(F.col("Region").like('%North-East%'), 
                     F.lit("North-East")
                 ).otherwise(
-                F.col("Region"))
+                    F.col("Region"))
+                
             ).otherwise(
                 F.col("Region"))
             )
