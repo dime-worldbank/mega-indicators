@@ -12,20 +12,9 @@ raw_df
 
 # COMMAND ----------
 
-df = raw_df[raw_df.Variable == 'Primary Renewable Energy Consumption']
-df = df.drop(columns=["Unit", "Variable"])\
-    .rename(columns={"Value": "primary_renewable_consumption_share"})
+raw_df = raw_df.rename(columns={"Country": "country_name", "Year": "year"})
 
-df_total = raw_df[raw_df.Variable == 'Primary Energy Consumption per Capita']
-df_total = df_total.drop(columns=["Unit", "Variable"])\
-    .rename(columns={"Value": "primary_consumption_gigajoules_per_capita"})
-
-df = pd.merge(df, df_total, on=['Country', 'Year'], how='left')
-df = df.rename(columns={"Country": "country_name", "Year": "year"})
-df
-
-# COMMAND ----------
-
+# Normalizing to WB economy names
 name_map = {
     'China Hong Kong SAR': 'Hong Kong SAR, China',
     "Czech Republic": "Czechia",
@@ -40,7 +29,20 @@ name_map = {
     "Vietnam": "Viet Nam",
 }
 for old_name, new_name in name_map.items():
-    df.loc[df.country_name == old_name, 'country_name'] = new_name
+    raw_df.loc[raw_df.country_name == old_name, 'country_name'] = new_name
+
+# COMMAND ----------
+
+df_renewable = raw_df[raw_df.Variable == 'Primary Renewable Energy Consumption']
+df_renewable = df_renewable.drop(columns=["Unit", "Variable"])\
+    .rename(columns={"Value": "primary_renewable_consumption_share"})
+
+df_total = raw_df[raw_df.Variable == 'Primary Energy Consumption per Capita']
+df_total = df_total.drop(columns=["Unit", "Variable"])\
+    .rename(columns={"Value": "primary_consumption_gigajoules_per_capita"})
+
+df = pd.merge(df_renewable, df_total, on=['country_name', 'year'], how='left')
+df
 
 # COMMAND ----------
 
@@ -55,5 +57,23 @@ df_merged
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(df)
+sdf = spark.createDataFrame(df_merged)
 sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"indicator.energy_consumption")
+
+# COMMAND ----------
+
+df_mix = raw_df[raw_df.Unit == 'Share of Generation Mix']
+df_mix = df_mix.drop(columns=['Unit'])\
+    .rename(columns={"Variable": "energy_source", "Value": "generation_mix_share"})
+df_mix
+
+# COMMAND ----------
+
+gen_df_merged = pd.merge(df_mix, country_df, on="country_name")
+gen_df_merged['data_source'] = 'Energy Institute'
+gen_df_merged
+
+# COMMAND ----------
+
+sdf = spark.createDataFrame(gen_df_merged)
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"indicator.energy_generation")
