@@ -11,8 +11,7 @@ def subnational_poverty_index_silver():
                     F.trim(F.regexp_replace(
                         F.regexp_replace(
                             F.col("region_name"),
-                            "[-\[\]–]+", " ")
-                        ,
+                            "[-\[\]–]+", " "),
                         "[\\d]+", ""
                     )))
         .withColumn('region_name',
@@ -28,6 +27,32 @@ def subnational_poverty_index_silver():
                      ).when(
                         F.col("region_name_tmp") == "Tana River",
                         "Tana River County"                         
+                    ).when(
+                        F.col("region_name_tmp") == 'Ha',
+                        "Haa"
+                    ).when(
+                        F.col("region_name_tmp") == 'Wangdi Phodrang',
+                        "Wangduephodrang"
+                    ).when(
+                        F.col("region_name_tmp") == 'Chukha',
+                        "Chhukha"
+                    ).when(
+                        F.col("region_name_tmp") == 'Lhuntshi',
+                        "Lhuentse"
+                    ).when(
+                        F.col("region_name_tmp") == 'Tashi Yangtse',
+                        "Trashiyangtse"
+                    ).when(
+                        (F.col("region_name_tmp") == 'Est') & (F.col('country_code') == 'BFA'),
+                        "Est Region Burkina Faso"
+                    ).when(
+                        (F.col("region_name_tmp") == 'Centre Sud') & (F.col('country_code') == 'BFA'),
+                        "Centre Sud Region Burkina Faso"
+                    ).when(
+                        (F.col("region_name_tmp") == 'Boucle du Mouhoun') & (F.col('country_code') == 'BFA'),
+                        "Boucle Du Mouhoun"
+                    ).when(
+                        F.col('country_code') == 'COL', F.initcap(F.col('region_name_tmp'))
                     ).otherwise(F.col("region_name_tmp")))
         .drop('region_name_tmp')
         .join(countries, ["country_code"], "inner") # TODO: change to left & investigate dropped
