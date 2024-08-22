@@ -74,6 +74,18 @@ def subnational_poverty_index_silver():
                     ).when(
                         (F.col("region_name_tmp") == 'SW') & (F.col('country_code') == 'TUN'),
                         "Sud Ouest"
+                    ).when(
+                        (F.col("region_name_tmp") == 'Elgeyo/Marakwet') & (F.col('country_code') == 'KEN'),
+                        "Elgeyo Marakwet"
+                    ).when(
+                        (F.col("region_name_tmp") == 'Taita/Taveta') & (F.col('country_code') == 'KEN'),
+                        "Taita Taveta"
+                    ).when(
+                        (F.col("region_name_tmp") == 'Muranga') & (F.col('country_code') == 'KEN'),
+                        "Murang'a County"
+                    ).when(
+                        (F.col("region_name_tmp") == 'Nairobi') & (F.col('country_code') == 'KEN'),
+                        "Nairobi City"
                     ).otherwise(F.col("region_name_tmp")))
         .drop('region_name_tmp')
         .join(countries, ["country_code"], "inner") # TODO: change to left & investigate dropped
