@@ -12,7 +12,7 @@ def subnational_poverty_index_silver():
                         F.regexp_replace(
                             F.col("region_name"),
                             "[-\[\]–]+", " "),
-                        "[\\d]+", ""
+                        "[\\.\\d]+", ""
                     )))
         .withColumn('region_name',
                     F.when(
@@ -53,6 +53,27 @@ def subnational_poverty_index_silver():
                         "Boucle Du Mouhoun"
                     ).when(
                         F.col('country_code') == 'COL', F.initcap(F.col('region_name_tmp'))
+                    ).when(
+                        (F.col("region_name_tmp") == 'FCT') & (F.col('country_code') == 'NGA'),
+                        "Federal Capital Territory"
+                    ).when(
+                        (F.col("region_name_tmp") == 'CenterE') & (F.col('country_code') == 'TUN'),
+                        "Centre Est"
+                    ).when(
+                        (F.col("region_name_tmp") == 'CenterW') & (F.col('country_code') == 'TUN'),
+                        "Centre Ouest"
+                    ).when(
+                        (F.col("region_name_tmp") == 'NE') & (F.col('country_code') == 'TUN'),
+                        "Nord Est"
+                    ).when(
+                        (F.col("region_name_tmp") == 'NW') & (F.col('country_code') == 'TUN'),
+                        "Nord Ouest"
+                    ).when(
+                        (F.col("region_name_tmp") == 'SE') & (F.col('country_code') == 'TUN'),
+                        "Sud Est"
+                    ).when(
+                        (F.col("region_name_tmp") == 'SW') & (F.col('country_code') == 'TUN'),
+                        "Sud Ouest"
                     ).otherwise(F.col("region_name_tmp")))
         .drop('region_name_tmp')
         .join(countries, ["country_code"], "inner") # TODO: change to left & investigate dropped
