@@ -4,76 +4,114 @@ from pathlib import Path
 
 # COMMAND ----------
 
-# Source prevents programmatic data fetch: "https://www.energyinst.org/__data/assets/file/0015/1421601/2023-Country-Transition-Tracker-Consolidated-Format.csv"
-current_dir = Path().resolve()
-file_path = current_dir / '2023-Country-Transition-Tracker-Consolidated-Format.csv'
+# Bank firewall prenvents programmatic data fetch: https://ember-climate.org/data/api/
+# Curretnly requesting ITS to whitelist this request
+
+file_path = 'https://raw.githubusercontent.com/weilu/mega-indicators/main/energy/2023-Country-Transition-Tracker-Consolidated-Format.csv'
 raw_df = pd.read_csv(file_path)
-raw_df
+country_df = (
+    spark.table(f"indicator.country")
+    .select("country_name", "country_code", "region")
+    .toPandas()
+)
+energy_df = raw_df.merge(country_df, left_on="Country code", right_on="country_code")
 
 # COMMAND ----------
 
-raw_df = raw_df.rename(columns={"Country": "country_name", "Year": "year"})
+# These areas were excluded by the merge. But none of them were recognized country
 
-# Normalizing to WB economy names
-name_map = {
-    'China Hong Kong SAR': 'Hong Kong SAR, China',
-    "Czech Republic": "Czechia",
-    "Egypt": "Egypt, Arab Rep.",
-    "Iran": "Iran, Islamic Rep.",
-    "Slovakia": "Slovak Republic",
-    "South Korea": "Korea, Rep.",
-    "Trinidad & Tobago": "Trinidad and Tobago",
-    "Turkey": "Turkiye",
-    "US": "United States",
-    "Venezuela": "Venezuela, RB",
-    "Vietnam": "Viet Nam",
+emmited_areas = [
+    country
+    for country in raw_df["Area"].unique()
+    if country not in energy_df["Area"].unique()
+]
+emmited_areas
+
+# COMMAND ----------
+
+# Define the fuel types based on the data methodology documentation https://ember-climate.org/data-catalogue/yearly-electricity-data/|
+PRIMARY_TYPES = [
+    "Hydro",
+    "Bioenergy",
+    "Coal",
+    "Gas",
+    "Nuclear",
+    "Other Fossil",
+    "Other Renewables",
+    "Solar",
+    "Wind",
+]
+SECONDARY_TYPES = {
+    "Wind and Solar": ["Solar", "Wind"],
+    "Hydro, Bioenergy and Other Renewables": ["Hydro", "Bioenergy", "Other Renewables"],
+    "Gas and Other Fossil": ["Gas", "Other Fossil"],
 }
-for old_name, new_name in name_map.items():
-    raw_df.loc[raw_df.country_name == old_name, 'country_name'] = new_name
+TERTIALLY_TYPES = {
+    "Renewables": ["Solar", "Wind", "Hydro", "Bioenergy", "Other Renewables"],
+    "Fossil": ["Gas", "Other Fossil", "Coal"],
+}
+QUATERNARY_TYPES = {
+    "Clean": ["Solar", "Wind", "Hydro", "Bioenergy", "Other Renewables", "Nuclear"]
+}
+
+
+def categorize_fuel(row, type_dict):
+    for key in type_dict:
+        if row in type_dict[key]:
+            return key
 
 # COMMAND ----------
 
-df_renewable = raw_df[raw_df.Variable == 'Primary Renewable Energy Consumption']
-df_renewable = df_renewable.drop(columns=["Unit", "Variable"])\
-    .rename(columns={"Value": "primary_renewable_consumption_share"})
+energy_df = energy_df.loc[
+    (energy_df["Category"] == "Electricity generation") & (energy_df["Unit"] == "%")
+]
 
-df_total = raw_df[raw_df.Variable == 'Primary Energy Consumption per Capita']
-df_total = df_total.drop(columns=["Unit", "Variable"])\
-    .rename(columns={"Value": "primary_consumption_gigajoules_per_capita"})
-
-df = pd.merge(df_renewable, df_total, on=['country_name', 'year'], how='left')
-df
-
-# COMMAND ----------
-
-country_df = spark.table(f'indicator.country').select('country_name', 'country_code', 'region').toPandas()
-country_df
-
-# COMMAND ----------
-
-df_merged = pd.merge(df, country_df, on="country_name")
-df_merged['data_source'] = 'Energy Institute'
-df_merged
+energy_df = energy_df[energy_df["Variable"].isin(PRIMARY_TYPES)]
+energy_df["secondary_fuel_type"] = energy_df["Variable"].apply(
+    categorize_fuel, type_dict=SECONDARY_TYPES
+)
+energy_df["tertialy_fuel_type"] = energy_df["Variable"].apply(
+    categorize_fuel, type_dict=TERTIALLY_TYPES
+)
+energy_df["quaternary_fuel_type"] = energy_df["Variable"].apply(
+    categorize_fuel, type_dict=QUATERNARY_TYPES
+)
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(df_merged)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"indicator.energy_consumption")
+# Check for the countries whose share of the primary type fuel do not sum up to 100
+quality_check = (
+    energy_df.groupby(["country_name", "Year"]).sum("Variable").reset_index()
+)
+quality_check[(quality_check.Value < 99) | (quality_check.Value > 101)]
 
 # COMMAND ----------
 
-df_mix = raw_df[raw_df.Unit == 'Share of Generation Mix']
-df_mix = df_mix.drop(columns=['Unit'])\
-    .rename(columns={"Variable": "energy_source", "Value": "generation_mix_share"})
-df_mix
+energy_df = energy_df[
+    [
+        "country_name",
+        "country_code",
+        "region",
+        "Year",
+        "Value",
+        "Variable",
+        "secondary_fuel_type",
+        "tertialy_fuel_type",
+        "quaternary_fuel_type",
+    ]
+]
+energy_df.rename(
+    columns={"Year": "year", "Variable": "primary_fuel_type", "Value": "share"},
+    inplace=True,
+)
 
 # COMMAND ----------
 
-gen_df_merged = pd.merge(df_mix, country_df, on="country_name")
-gen_df_merged['data_source'] = 'Energy Institute'
-gen_df_merged
+energy_df
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(gen_df_merged)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"indicator.energy_generation")
+sdf = spark.createDataFrame(energy_df)
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
+    f"indicator.energy_consumption"
+)
