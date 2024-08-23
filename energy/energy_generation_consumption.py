@@ -4,10 +4,10 @@ from pathlib import Path
 
 # COMMAND ----------
 
-# Source prevents programmatic data fetch: https://ember-climate.org/data/api/
+# Bank firewall prenvents programmatic data fetch: https://ember-climate.org/data/api/
 # Curretnly requesting ITS to whitelist this request
 
-file_path = "/Workspace/Users/ysuzuki2@worldbank.org/mega-indicators/energy/yearly_full_release_long_format.csv"
+file_path = 'https://raw.githubusercontent.com/weilu/mega-indicators/main/energy/2023-Country-Transition-Tracker-Consolidated-Format.csv'
 raw_df = pd.read_csv(file_path)
 country_df = (
     spark.table(f"indicator.country")
