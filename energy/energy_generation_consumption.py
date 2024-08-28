@@ -113,5 +113,5 @@ energy_df
 
 sdf = spark.createDataFrame(energy_df)
 sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
-    f"indicator.energy_consumption"
+    f"indicator.energy_generation"
 )
