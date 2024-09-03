@@ -18,6 +18,17 @@ response = requests.get(query_url)
 if response.status_code == 200:
     data = response.json()
 
+# The renaming is necessary to preserve the consistency with the published energy data https://ember-climate.org/data-catalogue/yearly-electricity-data/
+raw_df = pd.DataFrame(data["data"]).rename(
+    columns={
+        "date": "Year",
+        "entity_code": "Country code",
+        "series": "Variable",
+        "entity": "Area",
+        "share_of_generation_pct": "Value"
+    },
+)
+
 # COMMAND ----------
 
 # Commented out the following code which loads the dataset from our static dataset
@@ -26,24 +37,16 @@ if response.status_code == 200:
 # raw_df = raw_df.loc[
 #     (raw_df["Category"] == "Electricity generation") & (raw_df["Unit"] == "%")
 # ]
-raw_df = pd.DataFrame(data["data"]).rename(
-    columns={
-        "date": "Year",
-        "entity_code": "Country code",
-        "series": "Variable",
-        "entity": "Area",
-    },
-)
+
+# COMMAND ----------
+
+# These areas were excluded by the merge. But none of them were recognized country
 country_df = (
     spark.table(f"indicator.country")
     .select("country_name", "country_code", "region")
     .toPandas()
 )
 energy_df = raw_df.merge(country_df, left_on="Country code", right_on="country_code")
-
-# COMMAND ----------
-
-# These areas were excluded by the merge. But none of them were recognized country
 
 emmited_areas = [
     country
@@ -105,8 +108,8 @@ quality_check = energy_df.groupby(["Area", "Year"]).sum("Variable").reset_index(
 
 # Note that Other Fossil dataset is missing, causing the quality check to fail for many countries
 quality_check[
-    (quality_check.share_of_generation_pct < 99)
-    | (quality_check.share_of_generation_pct > 101)
+    (quality_check.Value < 99)
+    | (quality_check.Value > 101)
 ]
 
 # COMMAND ----------
