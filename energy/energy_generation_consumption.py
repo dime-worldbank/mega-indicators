@@ -1,11 +1,11 @@
 # Databricks notebook source
 import pandas as pd
 from pathlib import Path
+import requests
 
 # COMMAND ----------
 
-import requests
-
+# Load dataset from the API
 my_api_key = dbutils.secrets.get(scope="DIMEBOOSTKEYVAULT", key="ember_energy_key")
 base_url = "https://api.ember-climate.org"
 query_url = (
@@ -17,26 +17,26 @@ response = requests.get(query_url)
 
 if response.status_code == 200:
     data = response.json()
-
-# The renaming is necessary to preserve the consistency with the published energy data https://ember-climate.org/data-catalogue/yearly-electricity-data/
-raw_df = pd.DataFrame(data["data"]).rename(
-    columns={
-        "date": "Year",
-        "entity_code": "Country code",
-        "series": "Variable",
-        "entity": "Area",
-        "share_of_generation_pct": "Value"
-    },
-)
+raw_df = pd.DataFrame(data["data"])
 
 # COMMAND ----------
 
-# Commented out the following code which loads the dataset from our static dataset
-# file_path ='https://raw.githubusercontent.com/weilu/mega-indicators/main/energy/2023-Country-Transition-Tracker-Consolidated-Format.csv'
+# # Load dataset from the static dataset downloaded on Aug/2024
+# file_path = "/Workspace/Users/ysuzuki2@worldbank.org/mega-indicators/energy/yearly_full_release_long_format.csv"
 # raw_df = pd.read_csv(file_path)
 # raw_df = raw_df.loc[
 #     (raw_df["Category"] == "Electricity generation") & (raw_df["Unit"] == "%")
 # ]
+# # The renaming is necessary to preserve the consistency with the published energy data https://ember-climate.org/data-catalogue/yearly-electricity-data/ and data fetched from API
+# raw_df = raw_df.rename(
+#     columns={
+#         "Year": "date",
+#         "Country code": "entity_code",
+#         "Variable": "series",
+#         "Area": "entity",
+#         "Value": "share_of_generation_pct",
+#     },
+# )
 
 # COMMAND ----------
 
@@ -46,12 +46,12 @@ country_df = (
     .select("country_name", "country_code", "region")
     .toPandas()
 )
-energy_df = raw_df.merge(country_df, left_on="Country code", right_on="country_code")
+energy_df = raw_df.merge(country_df, left_on="entity_code", right_on="country_code")
 
 emmited_areas = [
     country
-    for country in raw_df["Area"].unique()
-    if country not in energy_df["Area"].unique()
+    for country in raw_df["entity"].unique()
+    if country not in energy_df["entity"].unique()
 ]
 emmited_areas
 
@@ -90,26 +90,26 @@ def categorize_fuel(row, type_dict):
 
 # COMMAND ----------
 
-energy_df = energy_df[energy_df["Variable"].isin(PRIMARY_TYPES)]
-energy_df["secondary_fuel_type"] = energy_df["Variable"].apply(
+energy_df = energy_df[energy_df["series"].isin(PRIMARY_TYPES)]
+energy_df["secondary_fuel_type"] = energy_df["series"].apply(
     categorize_fuel, type_dict=SECONDARY_TYPES
 )
-energy_df["tertialy_fuel_type"] = energy_df["Variable"].apply(
+energy_df["tertialy_fuel_type"] = energy_df["series"].apply(
     categorize_fuel, type_dict=TERTIALLY_TYPES
 )
-energy_df["quaternary_fuel_type"] = energy_df["Variable"].apply(
+energy_df["quaternary_fuel_type"] = energy_df["series"].apply(
     categorize_fuel, type_dict=QUATERNARY_TYPES
 )
 
 # COMMAND ----------
 
 # Check for the countries whose share of the primary type fuel do not sum up to 100
-quality_check = energy_df.groupby(["Area", "Year"]).sum("Variable").reset_index()
+quality_check = energy_df.groupby(["entity", "date"]).sum("series").reset_index()
 
 # Note that Other Fossil dataset is missing, causing the quality check to fail for many countries
 quality_check[
-    (quality_check.Value < 99)
-    | (quality_check.Value > 101)
+    (quality_check.share_of_generation_pct < 99)
+    | (quality_check.share_of_generation_pct > 101)
 ]
 
 # COMMAND ----------
@@ -119,22 +119,18 @@ energy_df = energy_df[
         "country_name",
         "country_code",
         "region",
-        "Year",
-        "Value",
-        "Variable",
+        "date",
+        "share_of_generation_pct",
+        "series",
         "secondary_fuel_type",
         "tertialy_fuel_type",
         "quaternary_fuel_type",
     ]
 ]
 energy_df.rename(
-    columns={"Year": "year", "Variable": "primary_fuel_type", "Value": "share"},
+    columns={"date": "year", "series": "primary_fuel_type"},
     inplace=True,
 )
-
-# COMMAND ----------
-
-energy_df
 
 # COMMAND ----------
 
