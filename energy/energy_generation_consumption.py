@@ -21,25 +21,6 @@ raw_df = pd.DataFrame(data["data"])
 
 # COMMAND ----------
 
-# # Load dataset from the static dataset downloaded on Aug/2024
-# file_path = "/Workspace/Users/ysuzuki2@worldbank.org/mega-indicators/energy/yearly_full_release_long_format.csv"
-# raw_df = pd.read_csv(file_path)
-# raw_df = raw_df.loc[
-#     (raw_df["Category"] == "Electricity generation") & (raw_df["Unit"] == "%")
-# ]
-# # The renaming is necessary to preserve the consistency with the published energy data https://ember-climate.org/data-catalogue/yearly-electricity-data/ and data fetched from API
-# raw_df = raw_df.rename(
-#     columns={
-#         "Year": "date",
-#         "Country code": "entity_code",
-#         "Variable": "series",
-#         "Area": "entity",
-#         "Value": "share_of_generation_pct",
-#     },
-# )
-
-# COMMAND ----------
-
 # These areas were excluded by the merge. But none of them were recognized country
 country_df = (
     spark.table(f"indicator.country")
