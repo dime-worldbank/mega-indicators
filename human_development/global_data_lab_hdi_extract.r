@@ -75,22 +75,37 @@ library(readr)
 library(dplyr)
 library(tidyr)
 
-combined_df <- indicator_merged %>%
+long_df <- indicator_merged %>%
   dplyr::select(Country, ISO_Code, Region, starts_with(c('healthindex_', 'edindex_', 'incindex_', 'lprimary_', 'uprimary_', 'lsecondary_', 'usecondary_'))) %>%
   pivot_longer(cols = starts_with(c('healthindex_', 'edindex_', 'incindex_', 'lprimary_', 'uprimary_', 'lsecondary_', 'usecondary_')), 
                names_to = "dimension", 
                values_to = "index") %>%
+  dplyr::filter(!is.na(index))
+
+combined_df <- long_df %>%
   dplyr::mutate(year = parse_number(gsub(".*_(\\d+)$", "\\1", dimension)),
          dimension = gsub("_.*", "", dimension)) %>%
   pivot_wider(names_from = dimension, values_from = index)
 
+# COMMAND ----------
+
+# Check if any of the specified columns are of type 'list'
+columns_to_check <- c('healthindex', 'edindex', 'incindex', "lprimary", "uprimary", "lsecondary", "usecondary")
+
+for (col in columns_to_check) {
+  if (is.list(combined_df[[col]])) {
+    stop(paste("Error: Column", col, "is of type list when dbl is expected. Please check if long_df has multiple records for the same country-region-dimension"))
+  }
+}
 
 # COMMAND ----------
 
-# take the weighted average for the attendance data
-INTERVAL = 2
+# take the weighted average for the attendance data, 
+# intervals are uniform so mean works
 combined_df <- combined_df %>%
-dplyr::mutate(attendance = (lprimary * INTERVAL + uprimary* INTERVAL + lsecondary*INTERVAL + usecondary * INTERVAL)/(INTERVAL * 4) ,.keep ="unused" )
+  dplyr::mutate(
+    attendance = rowMeans(cbind(lprimary, uprimary, lsecondary, usecondary), na.rm = TRUE)
+  )
 
 # COMMAND ----------
 

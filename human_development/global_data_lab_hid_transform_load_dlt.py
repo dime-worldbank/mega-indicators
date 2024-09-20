@@ -70,6 +70,7 @@ def global_data_lab_hd_index():
             ).otherwise(
                 F.col("Region")
             ))
+        .withColumn("attendance_6to17yo", col('attendance')/100)
         .select(
             'country_name',
             'adm1_name',
@@ -78,5 +79,6 @@ def global_data_lab_hd_index():
             F.col('healthindex').alias('health_index'),
             F.col('incindex').alias('income_index'),
             'attendance',
+            'attendance_6to17yo',
         )
     )
