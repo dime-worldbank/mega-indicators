@@ -70,7 +70,7 @@ def global_data_lab_hd_index():
             ).otherwise(
                 F.col("Region")
             ))
-        .withColumn("attendance_6to17yo", col('attendance')/100)
+        .withColumn("attendance_6to17yo", F.col('attendance')/100)
         .select(
             'country_name',
             'adm1_name',
