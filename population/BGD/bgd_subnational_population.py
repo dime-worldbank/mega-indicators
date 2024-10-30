@@ -19,10 +19,23 @@ df_pop = pd.melt(df_pop_wide, id_vars=['CNTRY_NAME', 'ADM1_NAME'], var_name='yea
 df_pop['year'] = df_pop['year'].str.extract(r'(\d+)').astype(int)
 df_pop.columns = ['country_name', 'adm1_name', 'year', 'population']
 
-# Modifications to the admin1 and county name and add data_source
-df_pop['country_name'] = df_pop['country_name'].str.title()
-df_pop['adm1_name'] = df_pop['adm1_name'].str.replace(r'[-/]+', ' ', regex=True).str.title()
+df_pop['country_name'] = 'Bangladesh'
+
+# normalize division names
+name_map = {
+    "Barishal": "Barisal",
+    "Chattogram": "Chittagong",
+    "Rājshāhi": "Rajshahi",
+}
+df_pop['adm1_name'] = (
+    df_pop['adm1_name']
+    .str.replace(r'[-/]+', ' ', regex=True)
+    .str.title()
+    .replace(name_map)
+)
+
 df_pop['data_source'] = URL
+
 df_pop = df_pop.astype({'year': 'int', 'population': 'int'})
 df_pop = df_pop.sort_values(['adm1_name', 'year'], ignore_index=True)
 
