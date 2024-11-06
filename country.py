@@ -6,7 +6,6 @@
 
 import pandas as pd
 import wbgapi as wb
-import dlt
 import pyspark.sql.functions as F
 from pyspark.sql.types import StructType, StructField, DoubleType
 from shapely.geometry import shape, MultiPolygon, Polygon
@@ -60,7 +59,7 @@ zoom = {
     "Tunisia": 4.5,
 }
 def get_zoom(country):
-    return zoom.get(country, 3.0)  # TODO: replace this dict bya function that can compute this from the boundaries
+    return float(zoom.get(country, 3.0))  # TODO: replace this dict by a function that can compute this from the boundaries
 zoom_udf = udf(get_zoom, DoubleType())
 
 def compute_country_centroid(boundaries_list):
@@ -100,23 +99,8 @@ sdf = countries.join(centroid_df, on="country_name", how="left"
 
 # COMMAND ----------
 
-
-
-# COMMAND ----------
-
-UC_CATALOG = "prd_mega"
+# Write to hive_metastore
 SCHEMA = "indicator"
 TABLE = "country"
-
-# Write to UC
-spark.sql(f"USE CATALOG {UC_CATALOG}")
-spark.sql(f"CREATE SCHEMA IF NOT EXISTS {UC_CATALOG}.{SCHEMA}")
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
-    f"{UC_CATALOG}.{SCHEMA}.{TABLE}"
-)
-
-# COMMAND ----------
-
-# Write to hive_metastore
 spark.sql(f"USE hive_metastore.{SCHEMA}")
 sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(TABLE)
