@@ -1,11 +1,21 @@
 # Databricks notebook source
 import pandas as pd
+import requests
+from io import StringIO
 
-URL = 'https://stats.oecd.org/sdmx-json/data/DP_LIVE/.EDUPRIVEXP.../OECD?contentType=csv&detail=code&separator=comma&csv-lang=en'
+URL = 'https://sdmx.oecd.org/archive/rest/data/OECD,DF_DP_LIVE/?format=csv'
+HEADERS = {
+    "User-Agent": "Mozilla/5.0"
+}
+
+# OECD API returns 403: Forbidden if no headers
+response = requests.get(URL, headers=HEADERS)
+response.raise_for_status()
 
 # COMMAND ----------
 
-df = pd.read_csv(URL)
+csv_data = StringIO(response.text)
+df = pd.read_csv(csv_data)
 df
 
 # COMMAND ----------
