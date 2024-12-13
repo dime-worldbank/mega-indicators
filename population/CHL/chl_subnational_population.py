@@ -27,12 +27,12 @@ else:
 
 # COMMAND ----------
 
-# Filter the rows corresponding to Tunisia
+# Filter the rows corresponding to Chile
 ddf = df[(df['Country Code'].map(lambda x: x[:3]=='CHL'))&(df['Indicator Code']=='SP.POP.TOTL')]
 ddf = ddf.copy()
 ddf['adm1_name'] = ddf['Country Name'].map(lambda x: x.split(',')[-1].strip())
 
-# Remove the row with adm1_name Tunsia -- this corresponds to the country population
+# Remove the row with adm1_name Chile -- this corresponds to the country population
 ddf = ddf[ddf['adm1_name'] != 'Chile']
 selected_columns = ddf.columns[(ddf.columns.str.isnumeric()) | (ddf.columns == 'adm1_name')]
 ddf_selected = ddf[selected_columns]
@@ -52,6 +52,29 @@ ddf_pop.sample(3)
 
 # COMMAND ----------
 
+name_correction = {
+    "Araucania": "Araucanía",
+    "Antofagasta": "Antofagasta",
+    "Aysen": "Aysén",
+    "Coquimbo": "Coquimbo",
+    "Biobio": "Biobío",
+    "Arica y Painacota": "Arica y Parinacota",
+    "Los Lagos": "Los Lagos",
+    "Metropolitana": "Región Metropolitana de Santiago",
+    "Libertador Gral. Bernardo O'Higgins": "Libertador General Bernardo O'Higgins",
+    "Magallanes": "Magallanes y la Antártica Chilena",
+    "Atacama": "Atacama",
+    "Tarapaca": "Tarapacá",
+    "Los Rios": "Los Ríos",
+    "Maule": "Maule",
+    "Valparaiso": "Valparaíso"
+}
+ddf_pop["adm1_name"] = ddf_pop["adm1_name"].replace(name_correction)
+
+# COMMAND ----------
+
+# Currently the subnational population data ends in 2016
+# TO DO: Find a source to extrapolate the population for years after 2016
 assert ddf_pop.shape[0] >= 255, f'Expect at least 255 rows, got {ddf_pop.shape[0]}'
 assert all(ddf_pop.population.notnull()), f'Expect no missing values in population field, got {sum(ddf_pop.population.isnull())} null values'
 assert ddf_pop.adm1_name.nunique() >14, f'Expect 15 adm1 regions (districts) if data is from before 2018, got {ddf_pop.adm1_name.nunique()}'
