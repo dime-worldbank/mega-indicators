@@ -12,6 +12,7 @@ import json
 from itertools import chain
 from shapely.geometry import Polygon, shape, MultiPolygon
 from pyspark.sql.functions import col, first, collect_list, StringType, udf, when, lit, create_map, coalesce
+from pyspark.sql.types import StructType, StructField, DoubleType
 from shapely.ops import unary_union
 
 DATA_DIR = '/dbfs/mnt/DAP/data/admin1geoboundaries'
@@ -45,6 +46,20 @@ correct_admin1_names = {
         ('COD', 'Sud-Kivu'): 'Sud-kivu',
         ('PAK', 'Sind'): 'Sindh',
         ('BGD', 'Rajshani'): 'Rajshahi',
+        ('CHL', 'Ocean Islands'): '',
+        ('CHL', 'Metropolitana (xiii)'): 'Región Metropolitana de Santiago',
+        ('CHL', 'Biobio (viii)'):'Biobío', 
+        ('CHL', 'Valparaiso (v)'):'Valparaíso',
+        ('CHL', 'Los Lagos (x)'):'Los Lagos',
+        ('CHL', 'Magallanes (xii)'):'Magallanes y la Antártica Chilena',
+        ('CHL', 'Atacama (iii)'):'Atacama',
+        ('CHL', 'Coquimbo (iv)'):'Coquimbo',
+        ('CHL', 'Aysen Del Gen.d.c. (xi)'):'Aysén',
+        ('CHL', 'Libertador (vi)'):"Libertador General Bernardo O'Higgins",
+        ('CHL', 'Antofagasta (ii)'):'Antofagasta',
+        ('CHL', 'Maule (vii)'):'Maule',
+        ('CHL', 'Araucania (ix)'):'Araucanía',
+        ('CHL', 'Tarapaca (i)'):'Tarapacá',
 }
 
 albania_region_to_county = {
@@ -91,6 +106,7 @@ def union_polygons(polygon_list):
     union_polygon = unary_union(polygons)
     return json.dumps(union_polygon.__geo_interface__)
 
+
 @dlt.table(name=f'admin1_boundaries_bronze1')
 def admin1_boundaries_bronze1():
     with open(f'{DATA_DIR}/WB_admin1geoboundaries.geojson', 'r', encoding='utf-8') as f:
@@ -134,7 +150,6 @@ def admin1_boundaries_bronze2():
     df['boundary'] = [json.dumps(x['geometry']) for x in boundaries['features']]
     df['admin1_region'] = df.apply(lambda x: correct_admin1_names.
     get((x['country_code'], x['admin1_region_raw']), x['admin1_region_raw']), axis=1)
-    
     bronze2 = spark.createDataFrame(df)
     return bronze2
 
@@ -184,5 +199,6 @@ def admin1_boundaries_gold():
         .select('country_name',
                 'country_code',
                 'admin1_region',
-                'boundary')
+                'boundary',
+                )
     )
