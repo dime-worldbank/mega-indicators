@@ -86,10 +86,58 @@ def subnational_poverty_index_silver():
                     ).when(
                         (F.col("region_name_tmp") == 'Nairobi') & (F.col('country_code') == 'KEN'),
                         "Nairobi City"
+                    ).when(
+                        (F.col("region_name_tmp") == 'I Región de Tarapacá') & (F.col('country_code') == 'CHL'),
+                        "Tarapacá"
+                    ).when(
+                        (F.col("region_name_tmp") == 'X Región de Los Lagos') & (F.col('country_code') == 'CHL'),
+                        "Los Lagos"
+                    ).when(
+                        (F.col("region_name_tmp") == 'XI Región de Aysén del Gral Carlos Ibáñez') & (F.col('country_code') == 'CHL'),
+                        "Aysén"
+                    ).when(
+                        (F.col("region_name_tmp") == 'XII Región de Magallanes y de la Antártica') & (F.col('country_code') == 'CHL'),
+                        "Magallanes y la Antártica Chilena"
+                    ).when(
+                        (F.col("region_name_tmp") == 'XIII Región Metropolitana de Santiago') & (F.col('country_code') == 'CHL'),
+                        "Región Metropolitana de Santiago"
+                    ).when(
+                        (F.col("region_name_tmp") == 'XIV Región de Los Ríos') & (F.col('country_code') == 'CHL'),
+                        "Los Ríos"
+                    ).when(
+                        (F.col("region_name_tmp") == 'XV Región de Arica y Parinacota') & (F.col('country_code') == 'CHL'),
+                        "Arica y Parinacota"
+                    ).when(
+                        (F.col("region_name_tmp") == 'XVI Región del Ñuble') & (F.col('country_code') == 'CHL'),
+                        "Ñuble"
+                    ).when(
+                        (F.col("region_name_tmp") == 'II Región de Antofagasta') & (F.col('country_code') == 'CHL'),
+                        "Antofagasta"
+                    ).when(
+                        (F.col("region_name_tmp") == 'III Región de Atacama') & (F.col('country_code') == 'CHL'),
+                        "Atacama"
+                    ).when(
+                        (F.col("region_name_tmp") == 'IV Región de Coquimbo') & (F.col('country_code') == 'CHL'),
+                        "Coquimbo"
+                    ).when(
+                        (F.col("region_name_tmp") == 'V Región de Valparaíso') & (F.col('country_code') == 'CHL'),
+                        "Valparaíso"
+                    ).when(
+                        (F.col("region_name_tmp") == 'VI Región del Libertador Gral B O\'Higgins') & (F.col('country_code') == 'CHL'),
+                        "Libertador General Bernardo O'Higgins"
+                    ).when(
+                        (F.col("region_name_tmp") == 'VII Región del Maule') & (F.col('country_code') == 'CHL'),
+                        "Maule"
+                    ).when(
+                        (F.col("region_name_tmp") == 'VIII Región del BioBío') & (F.col('country_code') == 'CHL'),
+                        "Biobío"
+                    ).when(
+                        (F.col("region_name_tmp") == 'IX Región de la Araucanía') & (F.col('country_code') == 'CHL'),
+                        "Araucanía"
                     ).otherwise(F.col("region_name_tmp")))
-        .drop('region_name_tmp')
-        .join(countries, ["country_code"], "inner") # TODO: change to left & investigate dropped
-    )
+                            .drop('region_name_tmp')
+                            .join(countries, ["country_code"], "inner") # TODO: change to left & investigate dropped
+                        )
 
 @dlt.table(name=f'subnational_poverty_index')
 def subnational_poverty_index():
