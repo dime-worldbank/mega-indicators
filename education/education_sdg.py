@@ -38,7 +38,7 @@ long_df
 
 # COMMAND ----------
 
-country_df = spark.table(f'indicator.country').select('country_name', 'country_code', 'region').toPandas()
+country_df = spark.table(f'prd_mega.indicator.country').select('country_name', 'country_code', 'region').toPandas()
 country_df
 
 # COMMAND ----------
@@ -49,4 +49,4 @@ lit_df
 # COMMAND ----------
 
 sdf = spark.createDataFrame(lit_df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("indicator.youth_literacy_rate_unesco")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.youth_literacy_rate_unesco")

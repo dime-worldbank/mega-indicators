@@ -111,4 +111,8 @@ pefa_gold
 sdf = spark.createDataFrame(pefa_gold)
 sdf.write.mode("overwrite")\
     .option("overwriteSchema", "true")\
-    .saveAsTable("indicator.pefa_by_pillar")
+    .saveAsTable("prd_mega.indicator.pefa_by_pillar")
+
+# COMMAND ----------
+
+

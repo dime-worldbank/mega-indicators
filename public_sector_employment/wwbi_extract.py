@@ -48,4 +48,4 @@ long_df
 # COMMAND ----------
 
 sdf = spark.createDataFrame(long_df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("indicator_intermediate.public_sector_employment")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator_intermediate.public_sector_employment")

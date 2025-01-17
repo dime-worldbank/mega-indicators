@@ -25,7 +25,7 @@ wb.source.info()
 
 # COMMAND ----------
 
-country_df = spark.table(f'indicator.country').select('country_name', 'country_code', 'region').toPandas()
+country_df = spark.table(f'prd_mega.indicator.country').select('country_name', 'country_code', 'region').toPandas()
 country_df
 
 # COMMAND ----------
@@ -52,5 +52,5 @@ for key, val in outcome_series_to_col_name.items():
 
     df_indicator = pd.merge(long_df, country_df, left_on='economy', right_on='country_code', how='left')[['country_name', 'country_code', 'region', 'year', indicator_name, 'data_source']]
     sdf = spark.createDataFrame(df_indicator)
-    sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f'indicator.{db_name}')
+    sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f'prd_mega.indicator.{db_name}')
 

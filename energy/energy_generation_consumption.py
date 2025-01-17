@@ -23,7 +23,7 @@ raw_df = pd.DataFrame(data["data"])
 
 # These areas were excluded by the merge. But none of them were recognized country
 country_df = (
-    spark.table(f"indicator.country")
+    spark.table(f"prd_mega.indicator.country")
     .select("country_name", "country_code", "region")
     .toPandas()
 )
@@ -117,5 +117,5 @@ energy_df.rename(
 
 sdf = spark.createDataFrame(energy_df)
 sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
-    f"indicator.energy_generation"
+    f"prd_mega.indicator.energy_generation"
 )

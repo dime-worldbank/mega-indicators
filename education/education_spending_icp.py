@@ -78,4 +78,4 @@ result_df
 # COMMAND ----------
 
 sdf = spark.createDataFrame(result_df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("indicator.edu_spending")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.edu_spending")

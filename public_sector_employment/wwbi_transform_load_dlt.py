@@ -4,9 +4,9 @@ import pyspark.sql.functions as F
 
 @dlt.table(name=f'public_sector_employment')
 def public_sector_employment():
-    countries = spark.table(f'indicator.country').select('country_name', 'country_code', 'region')
+    countries = spark.table(f'prd_mega.indicator.country').select('country_name', 'country_code', 'region')
 
-    employment = (spark.table(f'indicator_intermediate.public_sector_employment')
+    employment = (spark.table(f'prd_mega.indicator_intermediate.public_sector_employment')
         .withColumnRenamed("economy", 'country_code')
         .join(countries, on=["country_code"], how="inner"))
 

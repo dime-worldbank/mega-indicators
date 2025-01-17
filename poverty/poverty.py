@@ -23,4 +23,4 @@ data_source = 'WB Poverty and Inequality Platform'
 df = wbgapi_fetch(indicators, col_names, data_source)
 
 sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("indicator.poverty")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.poverty")

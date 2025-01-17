@@ -101,7 +101,8 @@ sdf = countries.join(centroid_df, on="country_name", how="left"
 # COMMAND ----------
 
 # Write to hive_metastore
+CATALOG = "prd_mega"
 SCHEMA = "indicator"
 TABLE = "country"
-spark.sql(f"USE hive_metastore.{SCHEMA}")
+spark.sql(f"USE {CATALOG}.{SCHEMA}")
 sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(TABLE)

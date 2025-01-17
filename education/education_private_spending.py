@@ -28,7 +28,7 @@ df_edu_private_exp
 
 # COMMAND ----------
 
-gdp_df = spark.table("indicator.gdp").toPandas()
+gdp_df = spark.table("prd_mega.indicator.gdp").toPandas()
 gdp_df
 
 # COMMAND ----------
@@ -42,4 +42,4 @@ df_merged
 # COMMAND ----------
 
 sdf = spark.createDataFrame(df_merged)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("indicator.edu_private_spending")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.edu_private_spending")

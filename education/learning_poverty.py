@@ -37,7 +37,7 @@ long_df
 
 # COMMAND ----------
 
-country_df = spark.table(f'indicator.country').select('country_name', 'country_code', 'region').toPandas()
+country_df = spark.table(f'prd_mega.indicator.country').select('country_name', 'country_code', 'region').toPandas()
 country_df
 
 # COMMAND ----------
@@ -48,4 +48,4 @@ merged_df
 # COMMAND ----------
 
 sdf = spark.createDataFrame(merged_df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"indicator.{col_name}")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"prd_mega.indicator.{col_name}")
