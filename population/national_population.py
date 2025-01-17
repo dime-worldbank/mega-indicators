@@ -31,7 +31,7 @@ merged_df
 
 # COMMAND ----------
 
-country_df = spark.table(f'indicator.country').select('country_name', 'country_code', 'region').toPandas()
+country_df = spark.table(f'prd_mega.indicator.country').select('country_name', 'country_code', 'region').toPandas()
 country_df
 
 # COMMAND ----------
@@ -42,4 +42,4 @@ pop_df
 # COMMAND ----------
 
 sdf = spark.createDataFrame(pop_df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("indicator.population")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.population")

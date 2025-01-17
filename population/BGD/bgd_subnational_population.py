@@ -1,5 +1,5 @@
 # Databricks notebook source
-! pip install openpyxl
+# MAGIC %pip install openpyxl
 
 # COMMAND ----------
 
@@ -53,7 +53,7 @@ assert num_adm1_units==8
 
 # Write to indicator_intermediate
 
-database_name = "indicator_intermediate"
+database_name = "prd_mega.indicator_intermediate"
 
 if not spark.catalog.databaseExists(database_name):
     print(f"Database '{database_name}' does not exist. Creating the database.")

@@ -8,7 +8,7 @@ country_codes = ['moz', 'pry', 'ken', 'pak', 'bfa', 'col', 'cod', 'tun', 'btn', 
 @dlt.table(name=f'subnational_population')
 def subnational_population():
     # Consolidating all the country specific dataframes
-    dfs = [spark.table(f'indicator_intermediate.{code}_subnational_population') for code in country_codes]
+    dfs = [spark.table(f'prd_mega.indicator_intermediate.{code}_subnational_population') for code in country_codes]
     result_df = dfs[0]
     for df in dfs[1:]:
         result_df = result_df.unionByName(df)

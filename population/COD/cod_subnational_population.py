@@ -10,7 +10,7 @@ adm1_name_map = {
     'kasai occidental': 'kasai-occidental'
 }
 # Read global datalab table for Congo
-spark_df = spark.table(f'indicator.global_data_lab_subnational_population')
+spark_df = spark.table(f'prd_mega.indicator.global_data_lab_subnational_population')
 df = spark_df.toPandas()
 
 ddf = df[df.Country=='Congo Democratic Republic'][['Country', 'Region', 'year', 'population_millions']]
@@ -29,7 +29,7 @@ pop.sample(5)
 # COMMAND ----------
 
 # Write to indicator_intermediate
-database_name = "indicator_intermediate"
+database_name = "prd_mega.indicator_intermediate"
 if not spark.catalog.databaseExists(database_name):
     print(f"Database '{database_name}' does not exist. Creating the database.")
     spark.sql(f"CREATE DATABASE {database_name}")

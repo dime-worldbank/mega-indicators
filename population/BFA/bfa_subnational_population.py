@@ -1,5 +1,5 @@
 # Databricks notebook source
-! pip install openpyxl wbgapi
+# MAGIC %pip install openpyxl wbgapi
 
 # COMMAND ----------
 
@@ -63,10 +63,6 @@ pop['population'] = pop.population.astype(int)
 
 # COMMAND ----------
 
-
-
-# COMMAND ----------
-
 num_adm1_units_src1 = df_pop.adm1_name.nunique()
 num_adm1_units_src2 = ddf_pop.adm1_name.nunique()
 
@@ -82,7 +78,7 @@ assert num_adm1_units_src2 == 13
 
 # Write to indicator_intermediate
 
-database_name = "indicator_intermediate"
+database_name = "prd_mega.indicator_intermediate"
 
 if not spark.catalog.databaseExists(database_name):
     print(f"Database '{database_name}' does not exist. Creating the database.")

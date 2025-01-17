@@ -1,5 +1,5 @@
 # Databricks notebook source
-! pip install openpyxl
+!pip install openpyxl
 
 # COMMAND ----------
 
@@ -37,7 +37,7 @@ df_adm2_adm1_lookup
 # COMMAND ----------
 
 # Save the adm1 adm2 nso lookup table for reuse
-database_name = "indicator_intermediate"
+database_name = "prd_mega.indicator_intermediate"
 
 if not spark.catalog.databaseExists(database_name):
     print(f"Database '{database_name}' does not exist. Creating the database.")

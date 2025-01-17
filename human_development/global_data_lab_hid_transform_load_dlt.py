@@ -4,9 +4,9 @@ import pyspark.sql.functions as F
 
 @dlt.table(name=f'global_data_lab_hd_index')
 def global_data_lab_hd_index():
-    countries = spark.table(f'indicator.country').select('country_name', 'country_code')
+    countries = spark.table(f'prd_mega.indicator.country').select('country_name', 'country_code')
 
-    return (spark.table(f'indicator_intermediate.global_data_lab_hd_index')
+    return (spark.table(f'prd_mega.indicator_intermediate.global_data_lab_hd_index')
         .withColumnRenamed("ISO_Code", 'country_code')
         .join(countries, on=["country_code"], how="inner")
         .withColumn("Region", F.trim(F.regexp_replace(F.col("Region"), "\\(.*\\)", "")))

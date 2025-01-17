@@ -60,7 +60,7 @@ assert ddf_pop.adm1_name.nunique() == 9, f'Expected 9 provinces, got {ddf_pop.ad
 
 # Write to indicator_intermediate
 
-database_name = "indicator_intermediate"
+database_name = "prd_mega.indicator_intermediate"
 
 if not spark.catalog.databaseExists(database_name):
     print(f"Database '{database_name}' does not exist. Creating the database.")

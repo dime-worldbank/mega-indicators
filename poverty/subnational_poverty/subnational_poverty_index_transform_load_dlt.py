@@ -4,9 +4,9 @@ import pyspark.sql.functions as F
 
 @dlt.table(name=f'subnational_poverty_index_silver')
 def subnational_poverty_index_silver():
-    countries = spark.table(f'indicator.country').select('country_name', 'country_code')
+    countries = spark.table(f'prd_mega.indicator.country').select('country_name', 'country_code')
 
-    return (spark.table(f'indicator_intermediate.poverty_index_spid_gsap')
+    return (spark.table(f'prd_mega.indicator_intermediate.poverty_index_spid_gsap')
         .withColumn('region_name_tmp', 
                     F.trim(F.regexp_replace(
                         F.regexp_replace(
