@@ -15,14 +15,16 @@ if response.status_code != 200:
     print('Request returned non-200', response.status_code)
     exit
 
-zip_file = zipfile.ZipFile(io.BytesIO(response.content))
-temp_dir = gettempdir()
-zip_file.extractall(temp_dir)
-
-filenames = zip_file.namelist()
-csv_file_name = next((name for name in filenames if name.startswith(f'API_{INDICATOR}')))
-
-df = pd.read_csv(os.path.join(temp_dir, csv_file_name), skiprows=3)
+with zipfile.ZipFile(io.BytesIO(response.content)) as zip_file:
+    filenames = zip_file.namelist()
+    csv_file_name = next((name for name in filenames if name.startswith(f'API_{INDICATOR}')), None)
+    
+    if not csv_file_name:
+        print(f"No file starting with 'API_{INDICATOR}' found in the ZIP archive.")
+        exit()
+    
+    with zip_file.open(csv_file_name) as csv_file:
+        df = pd.read_csv(csv_file, skiprows=3)
 
 columns_to_drop = [col for col in df.columns if col.startswith('Unnamed') or col.startswith('Indicator')]
 df = df.drop(columns=columns_to_drop)
@@ -36,4 +38,4 @@ df
 # COMMAND ----------
 
 sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").saveAsTable("indicator.consumer_price_index")
+sdf.write.mode("overwrite").saveAsTable("prd_mega.indicator.consumer_price_index")
