@@ -7,7 +7,7 @@ import requests
 
 # Load dataset from the API
 my_api_key = dbutils.secrets.get(scope="DIMEBOOSTKEYVAULT", key="ember_energy_key")
-base_url = "https://api.ember-energy.org"
+base_url = "https://api.ember-climate.org"
 query_url = (
     f"{base_url}/v1/electricity-generation/yearly"
     + f"?is_aggregate_series=false&api_key={my_api_key}"
@@ -17,9 +17,7 @@ response = requests.get(query_url)
 
 if response.status_code == 200:
     data = response.json()
-    raw_df = pd.DataFrame(data["data"])
-else:
-    print(response)
+raw_df = pd.DataFrame(data["data"])
 
 # COMMAND ----------
 
