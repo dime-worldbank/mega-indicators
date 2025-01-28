@@ -12,7 +12,7 @@ query_url = (
     f"{base_url}/v1/electricity-generation/yearly"
     + "?"
     + f"is_aggregate_series=false"
-    + f"&api_key={temp}"
+    + f"&api_key={my_api_key}"
 )
 
 response = requests.get(query_url, timeout=10)
