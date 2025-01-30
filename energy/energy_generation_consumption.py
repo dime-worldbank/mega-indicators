@@ -15,14 +15,17 @@ query_url = (
     + f"&api_key={my_api_key}"
 )
 
-response = requests.get(query_url, timeout=10)
+response = requests.get(query_url)
+# codes in the 200 range are considered 'successes'
+WHITELIST_STATUS_CODES = list(range(200,300))
 
-if response.status_code == 200:
-    data = response.json()
-    raw_df = pd.DataFrame(data["data"]) 
-else:
-    print(response)
-
+# Check if the response status code is in the whitelist
+if response.status_code not in WHITELIST_STATUS_CODES:
+    raise ValueError(f"Unexpected status code {response.status_code}. Expected one of {WHITELIST_STATUS_CODES}.")
+    
+# If status code is in whitelist, continue on to process the data
+data = response.json()
+raw_df = pd.DataFrame(data["data"])
 
 # COMMAND ----------
 
