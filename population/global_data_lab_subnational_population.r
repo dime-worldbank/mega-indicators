@@ -58,7 +58,7 @@ df_no_extrapolation <- df %>%
   ungroup()
 
 sdf <- createDataFrame(df_no_extrapolation)
-table_name <- paste0("indicator.global_data_lab_subnational_population")
+table_name <- paste0("prd_mega.indicator.global_data_lab_subnational_population")
 saveAsTable(sdf, tableName = table_name, mode = "overwrite")
 
 print(paste(table_name, 'nrow:', nrow(df_no_extrapolation)))
