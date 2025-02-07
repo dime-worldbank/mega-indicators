@@ -13,7 +13,7 @@ adm1_name_map = {
 spark_df = spark.table(f'prd_mega.indicator.global_data_lab_subnational_population')
 df = spark_df.toPandas()
 
-ddf = df[df.Country=='Congo Democratic Republic'][['Country', 'Region', 'year', 'population_millions']]
+ddf = df[df.ISO_Code=='COD'][['Country', 'Region', 'year', 'population_millions']]
 ddf.columns = ['country_name', 'adm1_name', 'year', 'population']
 ddf['population'] = ddf.population.map(lambda x: x*1_000_000)
 # TODO: Find a different source to harmonize the changes in the adm1_names (redrawn in 2015)
@@ -21,6 +21,11 @@ ddf['adm1_name'] = ddf.adm1_name.map(lambda x: adm1_name_map.get(x.lower(), x.lo
 pop = ddf[ddf.adm1_name!='total'].sort_values(['year', 'adm1_name'])
 pop.country_name = 'Congo, Dem. Rep.'
 pop['data_source'] = 'Global Data Lab'
+
+# COMMAND ----------
+
+ddf = df[df.ISO_Code=='COD'][['Country', 'Region', 'year', 'population_millions']]
+
 
 # COMMAND ----------
 
