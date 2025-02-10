@@ -1,9 +1,5 @@
 # Databricks notebook source
-# MAGIC %pip install wbgapi
-
-# COMMAND ----------
-
-from utils import wbgapi_fetch
+# MAGIC %run ../utils
 
 # COMMAND ----------
 
