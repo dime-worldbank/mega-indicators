@@ -8,8 +8,7 @@ import os
 import json
 from shapely.geometry import shape, mapping
 import pandas as pd
-
-DATA_DIR = '/dbfs/mnt/DAP/data/admin1geoboundaries'
+DATA_DIR = '/Volumes/prd_mega/sboost4/vboost4/Workspace/auxiliary_data/admin1geoboundaries'
 WB_ADM1_GEO_FILENAME = f'{DATA_DIR}/WB_admin1geoboundaries.geojson'
 ALT_ADM1_GEO_FILENAME = f'{DATA_DIR}/ALT_admin1geoboundaries.geojson'
 
@@ -63,7 +62,7 @@ with open(WB_ADM1_GEO_FILENAME, 'w', encoding='utf-8') as f:
     
 print(f'Exported {len(features)} admin 1 geo boundary records to {WB_ADM1_GEO_FILENAME}')
 
-
+# COMMAND ----------
 
 # Obtaining suitable boundaries (not available within the WB boundaries) from other sources for select countries
 
@@ -96,6 +95,9 @@ features_KEN = [
 ]
 assert len(boundaries_KEN['features']) == 47, f"Expected 47 subnational regions, got {len(boundaries_KEN['features'])}"
 
+
+# COMMAND ----------
+
 # Bangladesh boundaries
 BGD_URL = 'https://github.com/wmgeolab/geoBoundaries/raw/main/releaseData/gbOpen/BGD/ADM1/geoBoundaries-BGD-ADM1.geojson'
 boundaries_BGD = requests.get(BGD_URL).json()
@@ -123,4 +125,3 @@ assert len(boundaries_BGD['features']) == 8, f"Expected 47 subnational regions, 
 boundaries_alt = {'type':'FeatureCollection', 'features':features_KEN+features_BGD}
 with open(ALT_ADM1_GEO_FILENAME, 'w', encoding='utf-8') as f:
     json.dump(boundaries_alt, f, ensure_ascii=False, indent=2)
-
