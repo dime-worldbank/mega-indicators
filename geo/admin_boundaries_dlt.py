@@ -15,7 +15,7 @@ from pyspark.sql.functions import col, first, collect_list, StringType, udf, whe
 from pyspark.sql.types import StructType, StructField, DoubleType
 from shapely.ops import unary_union
 
-DATA_DIR = '/dbfs/mnt/DAP/data/admin1geoboundaries'
+DATA_DIR = '/Volumes/prd_mega/sboost4/vboost4/Workspace/auxiliary_data/admin1geoboundaries'
 
 # admin1 name corrections
 correct_admin1_names = {
