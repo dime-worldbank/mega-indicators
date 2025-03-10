@@ -22,30 +22,30 @@ if response.status_code == 200:
         excel_file_name = files[0]
         
         # Read the Excel file into a pandas DataFrame
-        df_WB = pd.read_excel(zip_file.open(excel_file_name))
+        df_wb = pd.read_excel(zip_file.open(excel_file_name))
 else:
     print(f"Failed to download the ZIP file. Status code: {response.status_code}")
 
 # Filter the rows corresponding to Albania
-df_WB = df_WB[(df_WB['Country Code'].map(lambda x: x[:3]=='ALB'))&(df_WB['Indicator Code']=='SP.POP.TOTL')]
-df_WB['adm1_name'] = df_WB['Country Name'].map(lambda x: x.split(',')[-1].strip())
+df_wb = df_wb[(df_wb['Country Code'].map(lambda x: x[:3]=='ALB'))&(df_wb['Indicator Code']=='SP.POP.TOTL')]
+df_wb['adm1_name'] = df_wb['Country Name'].map(lambda x: x.split(',')[-1].strip())
 
 # Remove the row with adm1_name Albania -- this corresponds to the country population
-df_WB = df_WB[df_WB['adm1_name'] != 'Albania']
-selected_columns = df_WB.columns[(df_WB.columns.str.isnumeric()) | (df_WB.columns == 'adm1_name')]
-df_WB = df_WB[selected_columns]
-ddf_WB = df_WB.melt(id_vars=['adm1_name'], var_name='year', value_name='population')
+df_wb = df_wb[df_wb['adm1_name'] != 'Albania']
+selected_columns = df_wb.columns[(df_wb.columns.str.isnumeric()) | (df_wb.columns == 'adm1_name')]
+df_wb = df_wb[selected_columns]
+df_wb_long = df_wb.melt(id_vars=['adm1_name'], var_name='year', value_name='population')
 
 # Append additional information
-ddf_WB['country_name'] = 'Albania'
-ddf_WB['data_source'] = 'WB subnational population database'
+df_wb_long['country_name'] = 'Albania'
+df_wb_long['data_source'] = 'WB subnational population database'
 # correct data types
-ddf_WB['population'] = ddf_WB['population'].astype('int')
-ddf_WB['year'] = ddf_WB['year'].astype('int')
+df_wb_long['population'] = df_wb_long['population'].astype('int')
+df_wb_long['year'] = df_wb_long['year'].astype('int')
 
-assert ddf_WB.shape[0] >= 204, f'Expect at least 204 rows, got {ddf_WB.shape[0]}'
-assert all(ddf_WB.population.notnull()), f'Expect no missing values in population field, got {sum(ddf_WB.population.isnull())} null values'
-assert ddf_WB.adm1_name.nunique() == 12, f'Expected 12 counties, got {ddf_WB.adm1_name.nunique()}'
+assert df_wb_long.shape[0] >= 204, f'Expect at least 204 rows, got {df_wb_long.shape[0]}'
+assert all(df_wb_long.population.notnull()), f'Expect no missing values in population field, got {sum(df_wb_long.population.isnull())} null values'
+assert df_wb_long.adm1_name.nunique() == 12, f'Expected 12 counties, got {df_wb_long.adm1_name.nunique()}'
 
 
 # COMMAND ----------
@@ -74,22 +74,22 @@ df_instat = (
     .assign(adm1_name=lambda df: df['adm1_name'].apply(remove_accents))
 )
 
-ddf_instat = df_instat.melt(
+df_instat_long = df_instat.melt(
     id_vars=['adm1_name'], 
     var_name='year', 
     value_name='population'
 )
 
-ddf_instat['country_name'] = 'Albania'
-ddf_instat['data_source'] = 'instat.gov.al'
+df_instat_long['country_name'] = 'Albania'
+df_instat_long['data_source'] = 'instat.gov.al'
 
-assert all(ddf_instat.population.notnull()), f'Expected no missing values in population field, got {sum(ddf_instat.population.isnull())} null values'
-assert ddf_instat.adm1_name.nunique() == 12, f'Expected 12 counties, got {ddf_instat.adm1_name.nunique()}'
+assert all(df_instat_long.population.notnull()), f'Expected no missing values in population field, got {sum(df_instat_long.population.isnull())} null values'
+assert df_instat_long.adm1_name.nunique() == 12, f'Expected 12 counties, got {df_instat_long.adm1_name.nunique()}'
 
 # COMMAND ----------
 
 # combine the two data sources and impute the values for the missing year 2017
-df = pd.concat([ddf_WB, ddf_instat])
+df = pd.concat([df_wb_long, df_instat_long])
 
 df['year'] = pd.to_numeric(df['year'], errors='coerce')
 
