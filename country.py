@@ -100,7 +100,7 @@ sdf = countries.join(centroid_df, on="country_name", how="left"
 
 # COMMAND ----------
 
-# Write to hive_metastore
+# --- Write to Catalog ---
 CATALOG = "prd_mega"
 SCHEMA = "indicator"
 TABLE = "country"
