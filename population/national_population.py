@@ -41,9 +41,5 @@ pop_df
 
 # COMMAND ----------
 
-pop_df[pop_df['country_name'] == 'Liberia']
-
-# COMMAND ----------
-
 sdf = spark.createDataFrame(pop_df)
 sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.population")

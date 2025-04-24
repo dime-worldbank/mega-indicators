@@ -1,8 +1,4 @@
 # Databricks notebook source
-install.packages("gdldata")
-
-# COMMAND ----------
-
 library(gdldata)
 library(magrittr)
 
@@ -20,7 +16,7 @@ sess <- gdl_session(api_token)
 # COMMAND ----------
 
 sess <- sess %>%
-    set_dataset('areadata') %>%
+    set_dataset('demographics') %>%
     set_countries_all() %>%
     set_indicators(c('regpopm'))
     # by default linear extrapolation for 3 years
