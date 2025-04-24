@@ -1,8 +1,7 @@
 # Databricks notebook source
-# MAGIC %run /Users/elysenko@worldbank.org/mega-indicators/population/LBR/read_subnational_population_gdl
+# MAGIC %run /Users/elysenko@worldbank.org/mega-indicators/population/read_subnational_population_gdl
 
 # COMMAND ----------
-
 
 country_code = 'LBR'
 country_name = 'Liberia'
