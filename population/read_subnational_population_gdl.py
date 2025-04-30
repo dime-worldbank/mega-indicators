@@ -33,7 +33,3 @@ def write_to_database(pop,country_code):
     sdf.write.mode("overwrite").saveAsTable(f"{database_name}.{country_code.lower()}_subnational_population")
 
     return
-
-# COMMAND ----------
-
-

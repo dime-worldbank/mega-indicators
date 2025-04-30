@@ -6,5 +6,4 @@
 country_code = 'LBR'
 country_name = 'Liberia'
 pop = read_subnational_population_gdl(country_name,country_code)
-pop.sample(5)
 write_to_database(pop,country_code)
