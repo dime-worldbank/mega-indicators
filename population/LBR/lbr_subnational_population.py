@@ -1,5 +1,5 @@
 # Databricks notebook source
-def process_to_indicator_intermediate(country_name,country_code):
+def process_to_indicator_intermediate(country_name:str, country_code:str, adm1_drop:list=[]):
 
     spark_df = spark.table(f'prd_mega.indicator.global_data_lab_subnational_population')
     df = spark_df.toPandas()
@@ -10,6 +10,8 @@ def process_to_indicator_intermediate(country_name,country_code):
     ddf['adm1_name'] = ddf['adm1_name'].str.lower()
     ddf = ddf[ddf.adm1_name!='total']
     ddf['adm1_name'] = ddf['adm1_name'].str.strip().str.title()
+    ddf = ddf[~ddf['adm1_name'].isin(adm1_drop)]
+
 
     pop = ddf.sort_values(['year', 'adm1_name'])
     pop.country_name = country_name
@@ -33,5 +35,6 @@ def write_to_indicator_intermediate(pop, country_code):
 
 country_code = 'LBR'
 country_name = 'Liberia'
-pop = process_to_indicator_intermediate(country_name,country_code)
-write_to_indicator_intermediate(pop,country_code)
+adm1_drop = ['North Central','North Western','Monrovia','South Eastern A','South Eastern B','South Central']
+pop = process_to_indicator_intermediate(country_name, country_code, adm1_drop)
+write_to_indicator_intermediate(pop, country_code)
