@@ -3,7 +3,7 @@ import pandas as pd
 
 # COMMAND ----------
 
-def read_subnational_population_gdl(country_name,country_code,adm1_name_map={}):
+def process_to_indicator_intermediate(country_name,country_code,adm1_name_map={}):
 
     # Read global datalab table
     spark_df = spark.table(f'prd_mega.indicator.global_data_lab_subnational_population')
@@ -22,7 +22,7 @@ def read_subnational_population_gdl(country_name,country_code,adm1_name_map={}):
 
     return pop
 
-def write_to_database(pop,country_code):
+def write_to_indicator_intermediate(pop,country_code):
     # Write to indicator_intermediate
     database_name = "prd_mega.indicator_intermediate"
     if not spark.catalog.databaseExists(database_name):
