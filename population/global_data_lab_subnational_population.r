@@ -1,4 +1,5 @@
 # Databricks notebook source
+install.packages("gdldata")
 library(gdldata)
 library(magrittr)
 
