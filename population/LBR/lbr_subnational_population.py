@@ -1,7 +1,6 @@
 # Databricks notebook source
 def process_to_indicator_intermediate(country_name,country_code):
 
-    # Read global datalab table
     spark_df = spark.table(f'prd_mega.indicator.global_data_lab_subnational_population')
     df = spark_df.toPandas()
 
@@ -18,8 +17,8 @@ def process_to_indicator_intermediate(country_name,country_code):
 
     return pop
 
-def write_to_indicator_intermediate(pop,country_code):
-    # Write to indicator_intermediate
+def write_to_indicator_intermediate(pop, country_code):
+
     database_name = "prd_mega.indicator_intermediate"
     if not spark.catalog.databaseExists(database_name):
         print(f"Database '{database_name}' does not exist. Creating the database.")
