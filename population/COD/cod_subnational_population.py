@@ -29,10 +29,6 @@ ddf = df[df.ISO_Code=='COD'][['Country', 'Region', 'year', 'population_millions'
 
 # COMMAND ----------
 
-pop.sample(5)
-
-# COMMAND ----------
-
 # Write to indicator_intermediate
 database_name = "prd_mega.indicator_intermediate"
 if not spark.catalog.databaseExists(database_name):
