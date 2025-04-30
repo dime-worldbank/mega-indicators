@@ -1,4 +1,8 @@
 # Databricks notebook source
+import pandas as pd
+
+# COMMAND ----------
+
 def process_to_indicator_intermediate(country_name:str, country_code:str, adm1_drop:list=[]):
 
     spark_df = spark.table(f'prd_mega.indicator.global_data_lab_subnational_population')
@@ -12,14 +16,13 @@ def process_to_indicator_intermediate(country_name:str, country_code:str, adm1_d
     ddf['adm1_name'] = ddf['adm1_name'].str.strip().str.title()
     ddf = ddf[~ddf['adm1_name'].isin(adm1_drop)]
 
-
     pop = ddf.sort_values(['year', 'adm1_name'])
     pop.country_name = country_name
     pop['data_source'] = 'Global Data Lab'
 
     return pop
 
-def write_to_indicator_intermediate(pop, country_code):
+def write_to_indicator_intermediate(pop:pd.DataFrame, country_code:str):
 
     database_name = "prd_mega.indicator_intermediate"
     if not spark.catalog.databaseExists(database_name):
