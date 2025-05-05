@@ -50,11 +50,11 @@ for (year in (START_YEAR+1):END_YEAR) {
 
 # COMMAND ----------
 
-# Get the school attendance data from areadata
+# Get the school attendance data from education
 
 START_YEAR <- 1990
 INDICATORS <- c("lprimary", "uprimary", "lsecondary", "usecondary")
-DATASET <- 'areadata'
+DATASET <- 'education'
 END_YEAR <- as.integer(format(Sys.Date(), "%Y"))
 
 for (year in START_YEAR:END_YEAR) {
@@ -63,9 +63,10 @@ for (year in START_YEAR:END_YEAR) {
       set_countries_all() %>%
       set_year(year) %>%
       set_indicators(INDICATORS)
-      areadata <- gdl_request(sess)
-      indicator_merged <- merge(indicator_merged, areadata, all = TRUE)
-      print(paste(year, 'nrow:', nrow(areadata), ', merged:', nrow(indicator_merged)))
+
+  edu_data <- gdl_request(sess)
+  indicator_merged <- merge(indicator_merged, edu_data, all = TRUE)
+  print(paste(year, 'nrow:', nrow(edu_data), ', merged:', nrow(indicator_merged)))
 }
 
 
@@ -126,11 +127,6 @@ if (!all(grouped_counts$obs_count == 1)) {
 }
 
 # COMMAND ----------
-
-library(SparkR)
-
-hive_config <- list("spark.sql.catalogImplementation" = "hive")
-sparkR.session(appName = "global_data_lab", config = hive_config)
 
 sdf <- createDataFrame(combined_df)
 table_name <- paste0("prd_mega.indicator_intermediate.global_data_lab_hd_index")
