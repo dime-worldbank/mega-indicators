@@ -128,6 +128,8 @@ if (!all(grouped_counts$obs_count == 1)) {
 
 # COMMAND ----------
 
+library(SparkR)
+
 sdf <- createDataFrame(combined_df)
 table_name <- paste0("prd_mega.indicator_intermediate.global_data_lab_hd_index")
 saveAsTable(sdf, tableName = table_name, mode = "overwrite",  overwriteSchema = "true")
