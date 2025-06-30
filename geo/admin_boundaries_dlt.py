@@ -19,47 +19,35 @@ DATA_DIR = '/Volumes/prd_mega/sboost4/vboost4/Workspace/auxiliary_data/admin1geo
 
 # admin1 name corrections
 correct_admin1_names = {
-        ('BFA', 'Hauts-Bassins'): 'Hauts Bassins',
-        ('BFA', 'Centre-Ouest'): 'Centre Ouest',
-        ('BFA', 'Boucle-du-Mouhoun'): 'Boucle Du Mouhoun',
-        ('BFA', 'Centre-Est'): 'Centre Est',
-        ('BFA', 'Centre-Sud'):'Centre Sud Region Burkina Faso',
-        ('BFA', 'Sud-Ouest'):'Sud Ouest',
-        ('BFA', 'Centre-Nord'):  'Centre Nord',
+        ('BFA', 'Hauts-bassins'): 'Hauts Bassins',
+        ('BFA', 'Centre-ouest'): 'Centre Ouest',	
+        ('BFA', 'Centre-est'): 'Centre Est',
+        ('BFA', 'Centre-sud'):'Centre Sud Region Burkina Faso',
+        ('BFA', 'Sud-ouest'):'Sud Ouest',
+        ('BFA', 'Centre-nord'):  'Centre Nord',
         ('BFA', 'Est'): 'Est Region Burkina Faso',
-        # check the accuracy of FATA and Khyber Pakhtunkhwa
-        ('PAK', 'Federally Administered Tribal Areas'): 'Khyber Pakhtunkhwa',
-        ('NGA', 'FCT, Abuja'): 'Federal Capital Territory',
         ('NGA', 'Nassarawa'): 'Nasarawa',
         ('KEN', 'Nairobi'): 'Nairobi City County',
-        ('BTN', 'Ha'):'Haa',
-        ('BTN', 'Samdrup-Jonkha'): 'Samdrup Jongkhar',
-        ('BTN', 'Trashi Yangtse'): 'Trashiyangtse',
-        ('BTN', 'Wangdue-Phodrang'): 'Wangduephodrang',
+        ('BTN', 'Samdrupjongkhar'): 'Samdrup Jongkhar',
         #('COL', 'Buenaventura'), should be mapped to  'Valle Del Cauca' but this entry exists
-        ('COL', 'Guajira'):  'La Guajira',
-        ('COD', 'Bas-Congo'): 'Bas-congo',
-        ('COD', 'Kasaï-Occidental'): 'Kasai-occidental',
+        ('COL', 'La Guajira'):  'La Guajira',
+        #TODO rename boost admin data for consistency
+        # ('COD', 'Bas-Congo'): 'Bas-congo', // now represented as Kongo Central
+        #TODO Kasai-occidental is obsolete name: adjust boost data
+        ('COD', 'Kasaï'): 'Kasai-occidental',
+        ('COD', 'Kasaï-Central'): 'Kasai-central',
         ('COD', 'Kasaï-Oriental'): 'Kasai-oriental',
         ('COD', 'Nord-Kivu'): 'Nord-kivu',
-        ('COD', 'Province Orientale'): 'Orientale',
+        #Orientale is now split into 4 smaller providences
+        # ('COD', 'Province Orientale'): 'Orientale',
         ('COD', 'Sud-Kivu'): 'Sud-kivu',
-        ('PAK', 'Sind'): 'Sindh',
-        ('BGD', 'Rajshani'): 'Rajshahi',
-        ('CHL', 'Ocean Islands'): '',
-        ('CHL', 'Metropolitana (xiii)'): 'Región Metropolitana de Santiago',
-        ('CHL', 'Biobio (viii)'):'Biobío', 
-        ('CHL', 'Valparaiso (v)'):'Valparaíso',
-        ('CHL', 'Los Lagos (x)'):'Los Lagos',
-        ('CHL', 'Magallanes (xii)'):'Magallanes y la Antártica Chilena',
-        ('CHL', 'Atacama (iii)'):'Atacama',
-        ('CHL', 'Coquimbo (iv)'):'Coquimbo',
-        ('CHL', 'Aysen Del Gen.d.c. (xi)'):'Aysén',
-        ('CHL', 'Libertador (vi)'):"Libertador General Bernardo O'Higgins",
-        ('CHL', 'Antofagasta (ii)'):'Antofagasta',
-        ('CHL', 'Maule (vii)'):'Maule',
-        ('CHL', 'Araucania (ix)'):'Araucanía',
-        ('CHL', 'Tarapaca (i)'):'Tarapacá',
+        ('CHL', 'Metropolitana'): 'Región Metropolitana de Santiago',
+        ('CHL', 'Valparaiso'):'Valparaíso',
+        ('CHL', 'Magallanes y Antartica chilena'):'Magallanes y la Antártica Chilena',
+        ('CHL', 'Aisen del Gral. Carlos Ibañez del Campo'):'Aysén',
+        ('CHL', "Libertador Gral. Bernardo O'Higgins"):"Libertador General Bernardo O'Higgins",
+        ('CHL', 'Araucania'):'Araucanía',
+        ('CHL', 'Tarapaca'):'Tarapacá',
 }
 
 albania_region_to_county = {
@@ -107,62 +95,19 @@ def union_polygons(polygon_list):
     return json.dumps(union_polygon.__geo_interface__)
 
 
-@dlt.table(name=f'admin1_boundaries_bronze1')
-def admin1_boundaries_bronze1():
-    with open(f'{DATA_DIR}/WB_admin1geoboundaries.geojson', 'r', encoding='utf-8') as f:
-        boundaries = json.load(f) 
-
-    df = pd.DataFrame([x['properties'] for x in boundaries['features']])
-    df = df.rename(columns = {'R':'region_code', 'RN':'region', 'CN':'country_name','A1N':'admin1_region_raw', 'CWB3':'country_code'})
-    # different country code and country name for Democratic republic of Congo
-    df['country_code'] = df['country_code'].replace('ZAR', 'COD')
-    df['country_name'] = df['country_name'].replace('Congo, Democratic Republic of', 'Congo, Dem. Rep.')
-
-    df['boundary'] = [json.dumps(x['geometry']) for x in boundaries['features']]
-    df['admin1_region'] = df.apply(lambda x: correct_admin1_names.
-    get((x['country_code'], x['admin1_region_raw']), x['admin1_region_raw']), axis=1)
-    
-    # manual correction to some changes to WB boundaries data
-    # correct the region Beja
-    beja_PRT = df[(df['admin1_region_raw'] == 'Beja') & (df['country_name']=='Portugal')].copy()
-    beja_TUN = beja_PRT.copy()
-    polygons = json.loads(beja_PRT.iloc[0]['boundary'])['coordinates']
-    df.loc[beja_PRT.index, 'boundary'] = json.dumps({"type":"Polygon", "coordinates": polygons[1]})
-    beja_TUN['boundary'] = json.dumps({"type":"Polygon", "coordinates": polygons[0]})
-    beja_TUN['country_name'] = "Tunisia"
-    beja_TUN['country_code'] = "TUN"
-    beja_TUN['region_code'] = "MNA"
-    beja_TUN['region'] = "Middle East and North Africa"
-    beja_TUN['C'] = "TN"
-    beja_TUN['CWB2'] = "TN"
-
-    df = pd.concat([df, beja_TUN], ignore_index=True)
-    bronze1 = spark.createDataFrame(df)
-    return bronze1
-
-@dlt.table(name=f'admin1_boundaries_bronze2')
-def admin1_boundaries_bronze2():
-    with open(f'{DATA_DIR}/ALT_admin1geoboundaries.geojson', 'r', encoding='utf-8') as f:
-        boundaries = json.load(f) 
-
-    df = pd.DataFrame([x['properties'] for x in boundaries['features']])
-    df = df.rename(columns = {'R':'region_code', 'RN':'region', 'CN':'country_name','A1N':'admin1_region_raw', 'CWB3':'country_code'})
-    df['boundary'] = [json.dumps(x['geometry']) for x in boundaries['features']]
-    df['admin1_region'] = df.apply(lambda x: correct_admin1_names.
-    get((x['country_code'], x['admin1_region_raw']), x['admin1_region_raw']), axis=1)
-    bronze2 = spark.createDataFrame(df)
-    return bronze2
-
 @dlt.table(name=f'admin1_boundaries_bronze')
-def admin1_boundaries_bronze_combined():
-    # Remove countries that need to be substituted by the alternate boundaries
-    bronze1 = dlt.read(f'admin1_boundaries_bronze1').filter(~col('country_name').isin('Kenya', 'Bangladesh'))
-    bronze2 = dlt.read(f'admin1_boundaries_bronze2')
-    bronze1_columns, bronze2_columns = set(bronze1.columns), set(bronze2.columns)
-    bronze2_missing_columns = bronze1_columns - bronze2_columns
-    for column in bronze2_missing_columns:
-        bronze2 = bronze2.withColumn(column, lit(None))
-    bronze = bronze1.unionByName(bronze2)
+def admin1_boundaries_bronze():
+    with open(f'{DATA_DIR}/World Bank Official Boundaries - Admin 1.geojson', 'r', encoding='utf-8') as f:
+    boundaries = json.load(f) 
+    df = pd.DataFrame([x['properties'] for x in boundaries['features']])
+    df = df.rename(columns = {"WB_REGION": "region_code", "ISO_A2": "C", "NAM_0": "country_name","NAM_1": "admin1_region_raw", "ISO_A3": "country_code"})
+    # # different country code and country name for Democratic republic of Congo
+    #TODO adjust the BOOST data to match the World Bank data instead of the other way around
+    df['country_name'] = df['country_name'].replace('Democratic Republic of Congo', 'Congo, Dem. Rep.')
+    df['boundary'] = [json.dumps(x['geometry']) for x in boundaries['features']]
+    df['admin1_region'] = df.apply(lambda x: correct_admin1_names.
+    get((x['country_code'], x['admin1_region_raw']), x['admin1_region_raw']), axis=1)
+    bronze = spark.createDataFrame(df)
     return bronze
 
 @dlt.table(name='admin1_boundaries_silver')
