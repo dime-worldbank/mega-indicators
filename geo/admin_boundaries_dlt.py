@@ -200,7 +200,7 @@ def admin1_boundaries_bronze():
         boundaries = json.load(f)
     df = pd.DataFrame([x['properties'] for x in boundaries['features']])
     df = df.rename(columns = {"WB_REGION": "region_code", "ISO_A2": "C", "NAM_0": "country_name","NAM_1": "admin1_region_raw", "ISO_A3": "country_code"})
-    # # different country code and country name for Democratic republic of Congo
+    # different country name for Democratic republic of Congo
     #TODO adjust the BOOST data to match the World Bank data instead of the other way around
     df['country_name'] = df['country_name'].replace('Democratic Republic of Congo', 'Congo, Dem. Rep.')
     df['boundary'] = [json.dumps(x['geometry']) for x in boundaries['features']]
