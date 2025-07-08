@@ -13,9 +13,8 @@ from itertools import chain
 from shapely.geometry import Polygon, shape, MultiPolygon
 from pyspark.sql.functions import col, first, collect_list, StringType, udf, when, lit, create_map, coalesce
 from functools import reduce
-from pyspark.sql.types import StructType, StructField, DoubleType
+from pyspark.sql.types import StructType, StructField, DoubleType, StringType
 from shapely.ops import unary_union
-
 DATA_DIR = '/Volumes/prd_mega/sboost4/vboost4/Workspace/auxiliary_data/admin1geoboundaries'
 
 # admin1 name corrections
@@ -167,9 +166,6 @@ def harmonize_admin1_regions(bronze_df, country_name, region_to_county_dict):
     Harmonizes admin1 regions for a given country using a mapping dictionary.
     Groups by the harmonized region and unions polygons.
     """
-    from itertools import chain
-    from pyspark.sql.functions import lit, coalesce, udf, collect_list, first, create_map
-    from pyspark.sql.types import StringType
 
     # Filter for the specified country
     country_df = bronze_df.filter(col('country_name') == country_name)
