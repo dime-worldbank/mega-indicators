@@ -1,6 +1,7 @@
+# Databricks notebook source
 import requests
 URL = 'https://datacatalogfiles.worldbank.org/ddh-published-v2/0038272/5/DR0095369/World%20Bank%20Official%20Boundaries%20(GeoJSON)/World%20Bank%20Official%20Boundaries%20-%20Admin%201.geojson'
-DATA_DIR = '/dbfs/mnt/DAP/data/admin1geoboundaries'
+DATA_DIR = '/Volumes/prd_mega/sboost4/vboost4/Workspace/auxiliary_data/admin1geoboundaries'
 WB_ADM1_GEO_FILENAME = f'{DATA_DIR}/World Bank Official Boundaries - Admin 1.geojson'
 
 try:
@@ -17,3 +18,4 @@ except requests.exceptions.RequestException as e:
     print(f"Error downloading file: {e}")
 except IOError as e:
     print(f"Error saving file to disk: {e}")
+
