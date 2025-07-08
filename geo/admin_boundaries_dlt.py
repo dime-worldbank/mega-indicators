@@ -218,7 +218,6 @@ def admin1_boundaries_silver():
     bronze_filtered = bronze.filter(~col('country_name').isin(['Albania', "Ghana"])).select(common_columns)
     dfs = [bronze_filtered] + [alb_bronze_mod.select(common_columns), gha_bronze_mod.select(common_columns)]
     silver = reduce(lambda df1, df2: df1.unionByName(df2), dfs)
-    # silver = bronze_filtered.unionByName([alb_bronze_mod.select(common_columns), gha_bronze_mod.select(common_columns)])
     return silver
 
 @dlt.table(name=f'admin1_boundaries_gold')
