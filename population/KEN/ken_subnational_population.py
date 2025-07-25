@@ -1,38 +1,32 @@
 # Databricks notebook source
-!pip install openpyxl
+# MAGIC %run ../subnational_population_extraction_from_census_gov
 
 # COMMAND ----------
 
-import pandas as pd
-
-URL = 'https://www2.census.gov/programs-surveys/international-programs/tables/time-series/prh/kenya.xlsx'
-
-df_raw = pd.read_excel(URL, sheet_name='2000 - 2040', skiprows=2, header=None)
-# Read correct header
-header = df_raw.iloc[1]
-df_raw.columns = header
-df_raw = df_raw.drop([0,1,2])
-
-# Extract Total population columns 
-df_pop_wide = df_raw[df_raw.ADM_LEVEL==1][['CNTRY_NAME', 'ADM1_NAME']+[x for x in header if 'BTOTL' in x]]
-df_pop = pd.melt(df_pop_wide, id_vars=['CNTRY_NAME', 'ADM1_NAME'], var_name='year', value_name='population')
-df_pop['year'] = df_pop['year'].str.extract(r'(\d+)').astype(int)
-df_pop.columns = ['country_name', 'adm1_name', 'year', 'population']
-
-# Modifications to the admin1 and county name and add data_source
-df_pop['country_name'] = df_pop['country_name'].str.title()
-df_pop['adm1_name'] = df_pop['adm1_name'].str.replace(r'[-/]+', ' ', regex=True).str.title()
-df_pop['data_source'] = URL
-df_pop = df_pop.astype({'year': 'int', 'population': 'int'})
-df_pop = df_pop.sort_values(['adm1_name', 'year'], ignore_index=True)
+df_pop = get_pop_from_census_gov('kenya', timeseries='prh')
 
 # COMMAND ----------
 
-num_counties = df_pop.adm1_name.nunique()
+expected_adm1_names = [
+    'Baringo', 'Bomet', 'Bungoma', 'Busia', 'Elgeyo Marakwet', 'Embu',
+    'Garissa', 'Homa Bay', 'Isiolo', 'Kajiado', 'Kakamega', 'Kericho',
+    'Kiambu', 'Kilifi', 'Kirinyaga', 'Kisii', 'Kisumu', 'Kitui', 'Kwale',
+    'Laikipia', 'Lamu', 'Machakos', 'Makueni', 'Mandera', 'Marsabit', 'Meru',
+    'Migori', 'Mombasa', 'Murang’A', 'Nairobi City', 'Nakuru', 'Nandi',
+    'Narok', 'Nyamira', 'Nyandarua', 'Nyeri', 'Samburu', 'Siaya',
+    'Taita Taveta', 'Tana River', 'Tharaka Nithi', 'Trans Nzoia', 'Turkana',
+    'Uasin Gishu', 'Vihiga', 'Wajir', 'West Pokot'
+]
+
+extracted_adm1_names = sorted(df_pop.adm1_name.unique().tolist())
+assert extracted_adm1_names == expected_adm1_names, f'Expected {expected_adm1_names}, got {extracted_adm1_names}'
+
+# COMMAND ----------
 
 assert df_pop.shape[0] >= 1927, f'Expect at least 1927 rows, got {df_pop.shape[0]}'
 assert all(df_pop.population.notnull()), f'Expect no missing values in population field, got {sum(df_pop.population.isnull())} null values'
 
+num_counties = df_pop.adm1_name.nunique()
 assert num_counties==47
 
 # COMMAND ----------
@@ -47,4 +41,3 @@ if not spark.catalog.databaseExists(database_name):
 
 sdf = spark.createDataFrame(df_pop)
 sdf.write.mode("overwrite").saveAsTable(f"{database_name}.ken_subnational_population")
-

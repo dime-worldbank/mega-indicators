@@ -1,7 +1,6 @@
 # Databricks notebook source
 import pandas as pd
 
-
 # COMMAND ----------
 
 # helper name correction map
@@ -25,7 +24,6 @@ pop['data_source'] = 'Global Data Lab'
 # COMMAND ----------
 
 ddf = df[df.ISO_Code=='COD'][['Country', 'Region', 'year', 'population_millions']]
-
 
 # COMMAND ----------
 
