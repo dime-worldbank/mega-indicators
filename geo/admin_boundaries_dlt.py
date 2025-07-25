@@ -15,7 +15,7 @@ from pyspark.sql.functions import col, first, collect_list, StringType, udf, whe
 from functools import reduce
 from pyspark.sql.types import StructType, StructField, DoubleType, StringType
 from shapely.ops import unary_union
-DATA_DIR = '/Volumes/prd_mega/sboost4/vboost4/Workspace/auxiliary_data/admin1geoboundaries'
+ADMIN1_DATA_DIR = '/Volumes/prd_mega/sboost4/vboost4/Workspace/auxiliary_data/admin1geoboundaries'
 
 # admin1 name corrections
 correct_admin1_names = {
@@ -192,7 +192,7 @@ def harmonize_admin1_regions(bronze_df, country_name, region_to_county_dict):
 
 @dlt.table(name=f'admin1_boundaries_bronze')
 def admin1_boundaries_bronze():
-    with open(f'{DATA_DIR}/World Bank Official Boundaries - Admin 1.geojson', 'r', encoding='utf-8') as f:
+    with open(f'{ADMIN1_DATA_DIR}/World Bank Official Boundaries - Admin 1.geojson', 'r', encoding='utf-8') as f:
         boundaries = json.load(f)
     df = pd.DataFrame([x['properties'] for x in boundaries['features']])
     df = df.rename(columns = {"WB_REGION": "region_code", "ISO_A2": "C", "NAM_0": "country_name","NAM_1": "admin1_region_raw", "ISO_A3": "country_code"})
@@ -229,3 +229,49 @@ def admin1_boundaries_gold():
                 'boundary',
                 )
     )
+
+# COMMAND ----------
+
+import json
+import pandas as pd
+import dlt
+
+ADMIN0_DATA_DIR = '/Volumes/prd_mega/sboost4/vboost4/Workspace/auxiliary_data/admin0geoboundaries'
+disputed_area_country_map = {
+    'Ilemi Triangle': ['Kenya', 'South Sudan'],
+    #TODO add more countries: refer to map department's notes
+}
+
+@dlt.table(name=f'admin0_disputed_boundaries_bronze')
+def admin1_boundaries_bronze():
+    with open(f'{ADMIN0_DATA_DIR}/World Bank Official Boundaries - Admin 0_all_layers.geojson', 'r', encoding='utf-8') as f:
+        boundaries = json.load(f)
+    df = pd.DataFrame([x['properties'] for x in boundaries['features']])
+    df['boundary'] = [json.dumps(x['geometry']) for x in boundaries['features']]
+    df = df.rename(columns = {"WB_REGION": "region_code", "ISO_A2": "C", "NAM_0": "region_name"})
+    df = df[df.WB_STATUS == 'Non-determined legal status area']
+    return spark.createDataFrame(df)
+
+@dlt.table(name=f'admin0_disputed_boundaries_silver')
+def admin0_disputed_boundaries_silver():
+    bronze = dlt.read('admin0_disputed_boundaries_bronze')
+    flattened_data = []
+
+    for region, countries in disputed_area_country_map.items():
+        for country in countries:
+            flattened_data.append({'region_name': region, 'country': country})
+    disputed_region_country = spark.createDataFrame(flattened_data)
+    silver = bronze.join(disputed_region_country, on='region_name', how='inner')
+    return silver
+
+@dlt.table(name=f'admin0_disputed_boundaries_gold')
+def admin0_disputed_boundaries_gold():
+    return (dlt.read(f'admin0_disputed_boundaries_silver')
+        .select('country',
+                'region_name',
+                'boundary',
+                )
+    )   
+   
+
+
