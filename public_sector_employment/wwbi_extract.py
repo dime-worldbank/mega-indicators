@@ -1,4 +1,8 @@
 # Databricks notebook source
+# MAGIC %pip install wbgapi
+
+# COMMAND ----------
+
 import wbgapi as wb
 import pandas as pd
 
