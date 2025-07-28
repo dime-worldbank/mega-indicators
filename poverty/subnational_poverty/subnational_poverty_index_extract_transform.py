@@ -1,8 +1,4 @@
 # Databricks notebook source
-# MAGIC %pip install openpyxl
-
-# COMMAND ----------
-
 import requests
 import pandas as pd
 import numpy as np
