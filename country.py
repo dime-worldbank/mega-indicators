@@ -57,7 +57,9 @@ zoom = {
     "Pakistan": 3.7,
     "Paraguay": 4.4,
     "Tunisia": 4.5,
-    "Chile" : 2.0
+    "Chile" : 2.0,
+    "Liberia": 5.5,
+    "Togo": 5.0
 }
 def get_zoom(country):
     return float(zoom.get(country, 3.0))  # TODO: replace this dict by a function that can compute this from the boundaries
