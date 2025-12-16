@@ -26,6 +26,19 @@ END_YEAR <- as.integer(format(Sys.Date(), "%Y"))
 
 # COMMAND ----------
 
+# TODO: Remove this as the issue https://github.com/GlobalDataLab/R-data-api/issues/5 is resolved.
+# This line here is overwriting gdl data API function
+set_countries_all <- function(sess) {
+  if (!is(sess, GDLSession)) {
+    stop("Primary argument must be a GDL Session Object")
+  }
+
+  sess@countries <- character(0)
+  return(sess)
+}
+
+# COMMAND ----------
+
 sess <- sess %>%
     set_dataset(DATASET) %>%
     set_countries_all() %>%
