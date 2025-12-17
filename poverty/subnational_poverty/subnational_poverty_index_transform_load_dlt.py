@@ -3,12 +3,12 @@ import dlt
 import pyspark.sql.functions as F
 from pyspark.sql import Window
 
-@dlt.table(name='subnational_poverty_index_silver')
-def subnational_poverty_index_silver():
-    countries = spark.table('prd_mega.indicator.country').select('country_name', 'country_code')
+@dlt.table(name='subnational_poverty_rate_silver')
+def subnational_poverty_rate_silver():
+    countries = spark.table('prd_mega.indicator.country').select('country_name', 'country_code', 'income_level')
 
     return (
-        spark.table('prd_mega.indicator_intermediate.poverty_index_spid_gsap')
+        spark.table('prd_mega.indicator_intermediate.poverty_rate_spid_gsap')
         .withColumn(
             'region_name',
             F.when(
@@ -134,13 +134,27 @@ def subnational_poverty_index_silver():
             ).otherwise(F.col("region_name"))
         )
         .join(countries, ["country_code"], "inner") # TODO: change to left & investigate dropped
+        .withColumn(
+            'poverty_rate',
+            F.when(
+                F.col('income_level').isin('LIC', 'INX'), F.col('poor300') # INX: income classification is not assigned or not applicable
+            ).when(
+                F.col('income_level') == 'LMC', F.col('poor420')
+            ).when(
+                F.col('income_level').isin('UMC', 'HIC'), F.col('poor830')
+            )
+        )
     )
 
-@dlt.table(name='subnational_poverty_index')
-def subnational_poverty_index():
+@dlt.expect_or_fail(
+    'poverty rates for country income level should be present',
+    'poverty_rate IS NOT NULL'
+)
+@dlt.table(name='subnational_poverty_rate')
+def subnational_poverty_rate():
     w = Window.partitionBy('country_name', 'region_name')
     return (
-        dlt.read('subnational_poverty_index_silver')
+        dlt.read('subnational_poverty_rate_silver')
         .withColumn('earliest_year', F.min('year').over(w))
         .withColumn('latest_year', F.max('year').over(w))
     )

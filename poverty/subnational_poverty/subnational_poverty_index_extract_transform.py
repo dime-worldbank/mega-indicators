@@ -101,4 +101,4 @@ df_combined
 # COMMAND ----------
 
 sdf = spark.createDataFrame(df_combined)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator_intermediate.poverty_index_SPID_GSAP")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator_intermediate.poverty_rate_SPID_GSAP")
