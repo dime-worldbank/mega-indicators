@@ -5,6 +5,9 @@ install.packages("gdldata")
 
 library(gdldata)
 library(magrittr)
+library(SparkR)
+sparkR.session(appName = "global_data_lab")
+
 
 # COMMAND ----------
 
@@ -85,21 +88,57 @@ for (year in START_YEAR:END_YEAR) {
 
 # COMMAND ----------
 
-library(readr)
-library(dplyr)
-library(tidyr)
+sdf <- createDataFrame(indicator_merged)
+table_name <- paste0("prd_mega.indicator_intermediate.global_data_lab_hd_index_bronze")
+saveAsTable(sdf, tableName = table_name, mode = "overwrite")
 
-long_df <- indicator_merged %>%
-  dplyr::select(Country, ISO_Code, Region, starts_with(c('healthindex_', 'edindex_', 'incindex_', 'lprimary_', 'uprimary_', 'lsecondary_', 'usecondary_'))) %>%
-  pivot_longer(cols = starts_with(c('healthindex_', 'edindex_', 'incindex_', 'lprimary_', 'uprimary_', 'lsecondary_', 'usecondary_')), 
-               names_to = "dimension", 
-               values_to = "index") %>%
-  dplyr::filter(!is.na(index))
+# COMMAND ----------
 
-combined_df <- long_df %>%
-  dplyr::mutate(year = parse_number(gsub(".*_(\\d+)$", "\\1", dimension)),
-         dimension = gsub("_.*", "", dimension)) %>%
-  pivot_wider(names_from = dimension, values_from = index)
+# now read the bronze table 
+sdf <- SparkR::sql("SELECT * FROM prd_mega.indicator_intermediate.global_data_lab_hd_index_bronze")
+indicator_merged <-SparkR:: collect(sdf)
+
+# Rename columns in the R data.frame
+indicator_merged <- indicator_merged %>%
+  dplyr::rename(
+    year = Year,
+  )
+# Define the mapping vector for country name 
+renames <- c(
+  "Congo Democratic Republic" = "Congo, Dem. Rep.",
+  "Chili"                     = "Chile"
+)
+
+# Apply the replacements to the Country column
+indicator_merged <- indicator_merged %>%
+  dplyr::mutate(Country = dplyr::recode(Country, !!!renames))
+
+# COMMAND ----------
+
+# Collapse rows by Country, Region and year, keeping the first non‑NA value
+# for each of the specified indicator columns.
+
+collapsed_df <- indicator_merged %>%
+  dplyr::group_by(Country, Region, year) %>%
+  dplyr::summarise(
+    dplyr::across(
+      c(
+        starts_with('healthindex'),
+        starts_with('edindex'),
+        starts_with('incindex'),
+        starts_with('lprimary'),
+        starts_with('uprimary'),
+        starts_with('lsecondary'),
+        starts_with('usecondary')
+      ),
+      ~ {
+        idx <- which(!is.na(.))
+        if (length(idx) > 0) .[idx[1]] else NA_real_
+      },
+      .names = "{col}"
+    ),
+    .groups = "drop"
+  )
 
 # COMMAND ----------
 
@@ -107,7 +146,7 @@ combined_df <- long_df %>%
 columns_to_check <- c('healthindex', 'edindex', 'incindex', "lprimary", "uprimary", "lsecondary", "usecondary")
 
 for (col in columns_to_check) {
-  if (is.list(combined_df[[col]])) {
+  if (is.list(collapsed_df[[col]])) {
     stop(paste("Error: Column", col, "is of type list when dbl is expected. Please check if long_df has multiple records for the same country-region-dimension"))
   }
 }
@@ -116,7 +155,7 @@ for (col in columns_to_check) {
 
 # take the weighted average for the attendance data, 
 # intervals are uniform so mean works
-combined_df <- combined_df %>%
+collapsed_df <- collapsed_df %>%
   dplyr::mutate(
     attendance = rowMeans(cbind(lprimary, uprimary, lsecondary, usecondary), na.rm = TRUE)
   )
@@ -124,13 +163,13 @@ combined_df <- combined_df %>%
 # COMMAND ----------
 
 # Quality check: missing values
-grouped_counts <- combined_df %>%
+grouped_counts <- collapsed_df %>%
   dplyr::group_by(Country) %>%
   dplyr::summarize_all(~ mean(is.na(.)))
 
 # COMMAND ----------
 
-grouped_counts <- combined_df %>%
+grouped_counts <- collapsed_df %>%
   dplyr::group_by(Country, Region, year) %>%
   dplyr::summarize(obs_count = dplyr::n())
 
@@ -141,10 +180,9 @@ if (!all(grouped_counts$obs_count == 1)) {
 
 # COMMAND ----------
 
-library(SparkR)
 
-sdf <- createDataFrame(combined_df)
-table_name <- paste0("prd_mega.indicator_intermediate.global_data_lab_hd_index")
+sdf <- createDataFrame(collapsed_df)
+table_name <- paste0("prd_mega.indicator_intermediate.global_data_lab_hd_index_test")
 saveAsTable(sdf, tableName = table_name, mode = "overwrite",  overwriteSchema = "true")
 
-print(paste(table_name, 'nrow:', nrow(df)))
+print(paste(table_name, 'nrow:', nrow(collapsed_df)))
