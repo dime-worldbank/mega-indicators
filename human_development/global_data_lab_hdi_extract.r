@@ -182,7 +182,7 @@ if (!all(grouped_counts$obs_count == 1)) {
 
 
 sdf <- createDataFrame(collapsed_df)
-table_name <- paste0("prd_mega.indicator_intermediate.global_data_lab_hd_index_test")
+table_name <- paste0("prd_mega.indicator_intermediate.global_data_lab_hd_index")
 saveAsTable(sdf, tableName = table_name, mode = "overwrite",  overwriteSchema = "true")
 
 print(paste(table_name, 'nrow:', nrow(collapsed_df)))

@@ -89,7 +89,7 @@ df_no_extrapolation <- df_population_bronze %>%
 
 library(dplyr)
 sdf <- createDataFrame(df_no_extrapolation)
-table_name <- paste0("prd_mega.indicator.global_data_lab_subnational_population_test")
+table_name <- paste0("prd_mega.indicator.global_data_lab_subnational_population")
 saveAsTable(sdf, tableName = table_name, mode = "overwrite")
 
 print(paste(table_name, 'nrow:', nrow(df_no_extrapolation)))
