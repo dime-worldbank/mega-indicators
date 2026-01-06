@@ -25,11 +25,10 @@ library(SparkR)
 sess <- sess %>%
     set_dataset('demographics') %>%
     set_countries(character(0)) %>% #Workaround for  https://github.com/GlobalDataLab/R-data-api/issues/5. Replace this line with set_countries_all when the issue is resolved
-    set_indicators(c('regpopm')) %>%
+    set_indicators(c('regpopm'))
     # by default linear extrapolation for 3 years
     # disabling extrapolation doesn't seem to work
     # set_extrapolation_years_linear(0) %>%
-    set_interpolation(TRUE)
 spop_merged <- gdl_request(sess)
 sdf <- createDataFrame(spop_merged)
 table_name <- paste0("prd_mega.indicator_intermediate.global_data_lab_subnational_population_bronze")
