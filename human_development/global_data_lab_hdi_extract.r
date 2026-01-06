@@ -6,7 +6,6 @@ install.packages("gdldata")
 library(gdldata)
 library(magrittr)
 library(SparkR)
-sparkR.session(appName = "global_data_lab")
 
 
 # COMMAND ----------
@@ -29,22 +28,9 @@ END_YEAR <- as.integer(format(Sys.Date(), "%Y"))
 
 # COMMAND ----------
 
-# TODO: Remove this as the issue https://github.com/GlobalDataLab/R-data-api/issues/5 is resolved.
-# This line here is overwriting gdl data API function
-set_countries_all <- function(sess) {
-  if (!is(sess, GDLSession)) {
-    stop("Primary argument must be a GDL Session Object")
-  }
-
-  sess@countries <- character(0)
-  return(sess)
-}
-
-# COMMAND ----------
-
 sess <- sess %>%
     set_dataset(DATASET) %>%
-    set_countries_all() %>%
+    set_countries(character(0)) %>% # Workaround for https://github.com/GlobalDataLab/R-data-api/issues/5. Replace this line with set_countries_all when the issue is resolved
     set_year(START_YEAR) %>%
     set_indicators(INDICATORS)
 indicator_merged <- gdl_request(sess)
@@ -55,7 +41,7 @@ print(paste(START_YEAR, 'nrow:', nrow(indicator_merged)))
 for (year in (START_YEAR+1):END_YEAR) {
   sess <- sess %>%
     set_dataset(DATASET) %>%
-    set_countries_all() %>%
+    set_countries(character(0)) %>% # Workaround for https://github.com/GlobalDataLab/R-data-api/issues/5. Replace this line with set_countries_all when the issue is resolved
     set_year(year) %>%
     set_indicators(INDICATORS)
   shdi <- gdl_request(sess)
@@ -76,7 +62,7 @@ END_YEAR <- as.integer(format(Sys.Date(), "%Y"))
 for (year in START_YEAR:END_YEAR) {
   sess <- sess %>%
       set_dataset(DATASET) %>%
-      set_countries_all() %>%
+      set_countries(character(0)) %>% # Workaround for https://github.com/GlobalDataLab/R-data-api/issues/5. Replace this line with set_countries_all when the issue is resolved
       set_year(year) %>%
       set_indicators(INDICATORS)
 

@@ -16,29 +16,15 @@ sess <- gdl_session(api_token)
 
 # COMMAND ----------
 
-# TODO: Remove this as the issue https://github.com/GlobalDataLab/R-data-api/issues/5 is resolved.
-# This line here is overwriting gdl data API function
-set_countries_all <- function(sess) {
-  if (!is(sess, GDLSession)) {
-    stop("Primary argument must be a GDL Session Object")
-  }
-
-  sess@countries <- character(0)
-  return(sess)
-}
-
-# COMMAND ----------
-
 library(tidyr)
 library(readr)
 library(SparkR)
-sparkR.session(appName = "global_data_lab")
 
 # COMMAND ----------
 
 sess <- sess %>%
     set_dataset('demographics') %>%
-    set_countries_all() %>%
+    set_countries(character(0)) %>% #Workaround for  https://github.com/GlobalDataLab/R-data-api/issues/5. Replace this line with set_countries_all when the issue is resolved
     set_indicators(c('regpopm')) %>%
     # by default linear extrapolation for 3 years
     # disabling extrapolation doesn't seem to work
