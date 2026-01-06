@@ -11,8 +11,7 @@ import re
 
 # COMMAND ----------
 
-spid_url = 'https://datacatalogfiles.worldbank.org/ddh-published/0064796/2/DR0092191/subnational-poverty-inequality-spid-poverty.xlsx'
-
+spid_url = 'https://datacatalogfiles.worldbank.org/ddh-published/0064796/DR0092191/subnational-poverty-inequality-spid-poverty.xlsx?versionId=2023-09-11T14:24:15.5456758Z'
 response = requests.get(spid_url)
 if response.status_code == 200:
     df_SPID = pd.read_excel(BytesIO(response.content))
@@ -29,7 +28,7 @@ df_SPID.admlevel.unique()
 
 # COMMAND ----------
 
-gsap_url = 'https://datacatalogfiles.worldbank.org/ddh-published/0042041/4/DR0052555/global-subnational-poverty-gsap-2019-data.xlsx'
+gsap_url = 'https://datacatalogfiles.worldbank.org/ddh-published/0042041/DR0052555/global-subnational-poverty-gsap-2019-data.xlsx?versionId=2023-09-11T14:26:49.3938437Z'
 response = requests.get(gsap_url)
 if response.status_code == 200:
     df_GSAP = pd.read_excel(BytesIO(response.content))
