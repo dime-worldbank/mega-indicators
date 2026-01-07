@@ -1,7 +1,20 @@
 # Databricks notebook source
 install.packages("gdldata")
+
 library(gdldata)
 library(magrittr)
+library(tidyr)
+library(readr)
+library(SparkR)
+library(dplyr)
+
+# COMMAND ----------
+
+CATALOG <- 'prd_mega'
+INTERMEDIATE_SCHEMA  <- 'indicator_intermediate'
+SCHEMA <- 'indicator'
+BRONZE_TABLE <- paste0(CATALOG, '.', INTERMEDIATE_SCHEMA, '.global_data_lab_subnational_population_bronze')
+GOLD_TABLE <- paste0(CATALOG, '.', SCHEMA, '.global_data_lab_subnational_population')
 
 # COMMAND ----------
 
@@ -16,12 +29,6 @@ sess <- gdl_session(api_token)
 
 # COMMAND ----------
 
-library(tidyr)
-library(readr)
-library(SparkR)
-
-# COMMAND ----------
-
 sess <- sess %>%
     set_dataset('demographics') %>%
     set_countries(character(0)) %>% #Workaround for  https://github.com/GlobalDataLab/R-data-api/issues/5. Replace this line with set_countries_all when the issue is resolved
@@ -31,15 +38,15 @@ sess <- sess %>%
     # set_extrapolation_years_linear(0) %>%
 spop_merged <- gdl_request(sess)
 sdf <- createDataFrame(spop_merged)
-table_name <- paste0("prd_mega.indicator_intermediate.global_data_lab_subnational_population_bronze")
-saveAsTable(sdf, tableName = table_name, mode = "overwrite")
+saveAsTable(sdf, tableName = BRONZE_TABLE, mode = "overwrite")
 
 print(colnames(spop_merged))
 print(paste('nrow:', nrow(spop_merged)))
 
 # COMMAND ----------
 
-sdf <- SparkR::sql("SELECT * FROM prd_mega.indicator_intermediate.global_data_lab_subnational_population_bronze")
+query = paste0("SELECT * FROM", " ", BRONZE_TABLE)
+sdf <- SparkR::sql(query)
 df_population_bronze <-SparkR:: collect(sdf)
 
 # Rename columns in the R data.frame
@@ -61,8 +68,6 @@ df_population_bronze <- df_population_bronze %>%
 
 # COMMAND ----------
 
-library(dplyr)
-
 df_no_extrapolation <- df_population_bronze %>%
   filter(!is.na(population_millions)) %>%  # Drop rows where population_millions is null
   group_by(Country, Region) %>%
@@ -72,9 +77,6 @@ df_no_extrapolation <- df_population_bronze %>%
 
 # COMMAND ----------
 
-library(dplyr)
 sdf <- createDataFrame(df_no_extrapolation)
-table_name <- paste0("prd_mega.indicator.global_data_lab_subnational_population")
-saveAsTable(sdf, tableName = table_name, mode = "overwrite")
-
-print(paste(table_name, 'nrow:', nrow(df_no_extrapolation)))
+saveAsTable(sdf, tableName = GOLD_TABLE, mode = "overwrite")
+print(paste(GOLD_TABLE, 'nrow:', nrow(df_no_extrapolation)))
