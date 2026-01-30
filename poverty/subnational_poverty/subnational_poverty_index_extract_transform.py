@@ -22,10 +22,10 @@ if response.status_code == 200:
         df_SPID = pd.read_excel(BytesIO(excel_response.content), sheet_name="Data")
     else:
         print(f"Failed to download the Excel file. Status code: {excel_response.status_code}")
-        exit
+        exit()
 else:
     print(f"Failed to fetch resource metadata. Status code: {response.status_code}")
-    exit
+    exit()
 
 df_SPID = df_SPID[df_SPID.data_group == 'ALL']
 df_SPID
@@ -44,10 +44,10 @@ if response.status_code == 200:
         df_GSAP = pd.read_excel(BytesIO(excel_response.content), sheet_name=1) # use latest lineup
     else:
         print(f"Failed to download the Excel file. Status code: {excel_response.status_code}")
-        exit
+        exit()
 else:
     print(f"Failed to fetch resource metadata. Status code: {response.status_code}")
-    exit
+    exit()
 df_GSAP
 
 # COMMAND ----------
