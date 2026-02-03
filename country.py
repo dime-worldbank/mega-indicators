@@ -7,7 +7,7 @@
 import pandas as pd
 import wbgapi as wb
 import pyspark.sql.functions as F
-from pyspark.sql.types import StructType, StructField, DoubleType
+from pyspark.sql.types import StructType, StructField, DoubleType, StringType
 from shapely.geometry import shape, MultiPolygon, Polygon
 import json
 
@@ -41,6 +41,29 @@ df_cleaned = df.reset_index().rename(columns=COL_NAME_MAP)[COL_NAMES]
 # COMMAND ----------
 
 countries = spark.createDataFrame(df_cleaned)
+countries = countries.toPandas()
+
+# COMMAND ----------
+
+import pandas as pd
+
+url = "https://raw.githubusercontent.com/datasets/country-codes/refs/heads/main/data/country-codes.csv"
+currency_df = pd.read_csv(url)[['ISO3166-1-Alpha-3', 'ISO4217-currency_name', 'ISO4217-currency_alphabetic_code', 'ISO4217-currency_minor_unit' ]]
+currency_df = currency_df.rename(columns={'ISO3166-1-Alpha-3': 'country_code', 'ISO4217-currency_name': 'currency_name', 'ISO4217-currency_alphabetic_code': 'currency_code', 'ISO4217-currency_minor_unit': 'minor_unit'}) 
+
+# COMMAND ----------
+
+countries = countries.merge(currency_df, on='country_code', how='left')
+
+# COMMAND ----------
+
+custom = {'XKX': {'currency_name': 'Euro', 'currency_code': 'EUR'}}
+
+name_map = {k: v['currency_name'] for k, v in custom.items()}
+code_map = {k: v['currency_code'] for k, v in custom.items()}
+
+countries['currency_name'] = countries['country_code'].map(name_map).fillna(countries['currency_name'])
+countries['currency_code'] = countries['country_code'].map(code_map).fillna(countries['currency_code'])
 
 # COMMAND ----------
 
