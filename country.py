@@ -4,7 +4,6 @@
 
 # COMMAND ----------
 
-import pandas as pd
 import wbgapi as wb
 import pyspark.sql.functions as F
 from pyspark.sql.types import StructType, StructField, DoubleType, StringType
@@ -41,29 +40,35 @@ df_cleaned = df.reset_index().rename(columns=COL_NAME_MAP)[COL_NAMES]
 # COMMAND ----------
 
 countries = spark.createDataFrame(df_cleaned)
-countries = countries.toPandas()
 
 # COMMAND ----------
-
-import pandas as pd
 
 url = "https://raw.githubusercontent.com/datasets/country-codes/refs/heads/main/data/country-codes.csv"
-currency_df = pd.read_csv(url)[['ISO3166-1-Alpha-3', 'ISO4217-currency_name', 'ISO4217-currency_alphabetic_code', 'ISO4217-currency_minor_unit' ]]
-currency_df = currency_df.rename(columns={'ISO3166-1-Alpha-3': 'country_code', 'ISO4217-currency_name': 'currency_name', 'ISO4217-currency_alphabetic_code': 'currency_code', 'ISO4217-currency_minor_unit': 'minor_unit'}) 
+currency_df = spark.read.csv(url, header=True, inferSchema=True)
+currency_df = currency_df.select(
+    F.col('ISO3166-1-Alpha-3').alias('country_code'),
+    F.col('ISO4217-currency_name').alias('currency_name'),
+    F.col('ISO4217-currency_alphabetic_code').alias('currency_code'),
+    F.col('ISO4217-currency_minor_unit').alias('minor_unit')
+)
 
 # COMMAND ----------
 
-countries = countries.merge(currency_df, on='country_code', how='left')
+countries = countries.join(currency_df, on='country_code', how='left')
 
 # COMMAND ----------
 
 custom = {'XKX': {'currency_name': 'Euro', 'currency_code': 'EUR'}}
 
-name_map = {k: v['currency_name'] for k, v in custom.items()}
-code_map = {k: v['currency_code'] for k, v in custom.items()}
+# Build when clauses dynamically from the custom dictionary
+currency_name_expr = F.col('currency_name')
+currency_code_expr = F.col('currency_code')
 
-countries['currency_name'] = countries['country_code'].map(name_map).fillna(countries['currency_name'])
-countries['currency_code'] = countries['country_code'].map(code_map).fillna(countries['currency_code'])
+for country_code, values in custom.items():
+    currency_name_expr = F.when(F.col('country_code') == country_code, values['currency_name']).otherwise(currency_name_expr)
+    currency_code_expr = F.when(F.col('country_code') == country_code, values['currency_code']).otherwise(currency_code_expr)
+
+countries = countries.withColumn('currency_name', currency_name_expr).withColumn('currency_code', currency_code_expr)
 
 # COMMAND ----------
 
