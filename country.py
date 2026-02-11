@@ -43,35 +43,6 @@ countries = spark.createDataFrame(df_cleaned)
 
 # COMMAND ----------
 
-url = "https://raw.githubusercontent.com/datasets/country-codes/refs/heads/main/data/country-codes.csv"
-currency_df = spark.read.csv(url, header=True, inferSchema=True)
-currency_df = currency_df.select(
-    F.col('ISO3166-1-Alpha-3').alias('country_code'),
-    F.col('ISO4217-currency_name').alias('currency_name'),
-    F.col('ISO4217-currency_alphabetic_code').alias('currency_code'),
-    F.col('ISO4217-currency_minor_unit').alias('minor_unit')
-)
-
-# COMMAND ----------
-
-countries = countries.join(currency_df, on='country_code', how='left')
-
-# COMMAND ----------
-
-custom = {'XKX': {'currency_name': 'Euro', 'currency_code': 'EUR'}}
-
-# Build when clauses dynamically from the custom dictionary
-currency_name_expr = F.col('currency_name')
-currency_code_expr = F.col('currency_code')
-
-for country_code, values in custom.items():
-    currency_name_expr = F.when(F.col('country_code') == country_code, values['currency_name']).otherwise(currency_name_expr)
-    currency_code_expr = F.when(F.col('country_code') == country_code, values['currency_code']).otherwise(currency_code_expr)
-
-countries = countries.withColumn('currency_name', currency_name_expr).withColumn('currency_code', currency_code_expr)
-
-# COMMAND ----------
-
 # add display_lat, display_lon and zoom to the coutnries table
 zoom = {
     "Albania": 5.7,
@@ -120,13 +91,42 @@ schema = StructType([
 centroid_udf = F.udf(compute_country_centroid, schema)
 
 admin1_boundaries = spark.table('indicator.admin1_boundaries_gold')
-grouped_df = admin1_boundaries.groupBy("country_name").agg(F.collect_list("boundary").alias("all_boundaries"))
+grouped_df = admin1_boundaries.groupBy("country_name").agg(F.collect_list("boundary").alias("all_boundaries"), F.first("country_code_iso2").alias("country_code_iso2"))
 
 centroid_df = grouped_df.withColumn("centroid", centroid_udf(F.col("all_boundaries"))) \
-                        .select(F.col("country_name"), F.col("centroid.display_lon"),  F.col("centroid.display_lat"))
+                        .select(F.col("country_name"), F.col("country_code_iso2"), F.col("centroid.display_lon"),  F.col("centroid.display_lat"))
 
 sdf = countries.join(centroid_df, on="country_name", how="left"
             ).withColumn("zoom", zoom_udf(F.col("country_name")))
+
+# COMMAND ----------
+
+from pyspark.sql import Window
+import pyspark.sql.functions as F
+CATALOG = "prd_corpdata"
+SCHEMA = "dm_reference_gold" # v_dim_country seems to be a better table for currency/country data, however, it is currently missing lots of data. May switch to this table in the future.
+TABLE = "v_dim_country_currency_exchange_rate"
+base_df = spark.table(f'{CATALOG}.{SCHEMA}.{TABLE}')
+# Define the window partitioned by country
+window_spec = Window.partitionBy("cntry_code").orderBy(F.col("ccy_exch_rate_ref_date").desc())
+# Calculate max date within the window and filter in one go
+currency_df = base_df.withColumn("rn", F.row_number().over(window_spec)) \
+                   .filter(F.col("rn") == 1) \
+                   .drop("rn")
+
+currency_df = currency_df.select(
+    F.col('cntry_code').alias('country_code'),
+    F.col('ccy_src_name').alias('currency_name'),
+    F.col('ccy_src_code').alias('currency_code'),
+)
+
+# COMMAND ----------
+
+joined_df = sdf.join(
+    currency_df, 
+    sdf.country_code_iso2 == currency_df.country_code, 
+    how="left"
+).drop('country_code')
 
 # COMMAND ----------
 
@@ -135,4 +135,4 @@ CATALOG = "prd_mega"
 SCHEMA = "indicator"
 TABLE = "country"
 spark.sql(f"USE {CATALOG}.{SCHEMA}")
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(TABLE)
+joined_df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(TABLE)

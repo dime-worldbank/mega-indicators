@@ -225,6 +225,7 @@ def admin1_boundaries_gold():
     return (dlt.read(f'admin1_boundaries_silver')
         .select('country_name',
                 'country_code',
+                col('C').alias('country_code_iso2'),
                 'admin1_region',
                 'boundary',
                 )
