@@ -102,7 +102,6 @@ sdf = countries.join(centroid_df, on="country_name", how="left"
 # COMMAND ----------
 
 from pyspark.sql import Window
-import pyspark.sql.functions as F
 CATALOG = "prd_corpdata"
 SCHEMA = "dm_reference_gold"  # v_dim_country would be more suitable for currency/country data, but it currently lacks comprehensive data. May switch to this table in the future.
 TABLE = "v_dim_country_currency_exchange_rate"
