@@ -104,7 +104,7 @@ sdf = countries.join(centroid_df, on="country_name", how="left"
 from pyspark.sql import Window
 import pyspark.sql.functions as F
 CATALOG = "prd_corpdata"
-SCHEMA = "dm_reference_gold" # v_dim_country seems to be a better table for currency/country data, however, it is currently missing lots of data. May switch to this table in the future.
+SCHEMA = "dm_reference_gold"  # v_dim_country would be more suitable for currency/country data, but it currently lacks comprehensive data. May switch to this table in the future.
 TABLE = "v_dim_country_currency_exchange_rate"
 base_df = spark.table(f'{CATALOG}.{SCHEMA}.{TABLE}')
 # Define the window partitioned by country
