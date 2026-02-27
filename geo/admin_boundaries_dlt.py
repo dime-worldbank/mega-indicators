@@ -225,6 +225,7 @@ def admin1_boundaries_gold():
     return (dlt.read(f'admin1_boundaries_silver')
         .select('country_name',
                 'country_code',
+                col('C').alias('country_code_iso2'),
                 'admin1_region',
                 'boundary',
                 )
@@ -248,7 +249,7 @@ def admin1_boundaries_bronze():
         boundaries = json.load(f)
     df = pd.DataFrame([x['properties'] for x in boundaries['features']])
     df['boundary'] = [json.dumps(x['geometry']) for x in boundaries['features']]
-    df = df.rename(columns = {"WB_REGION": "region_code", "ISO_A2": "C", "NAM_0": "region_name"})
+    df = df.rename(columns = {"WB_REGION": "region_code", "ISO_A2": "country_code_iso2", "NAM_0": "region_name"}).fillna('')
     df = df[df.WB_STATUS == 'Non-determined legal status area']
     return spark.createDataFrame(df)
 
@@ -267,9 +268,10 @@ def admin0_disputed_boundaries_silver():
 @dlt.table(name=f'admin0_disputed_boundaries_gold')
 def admin0_disputed_boundaries_gold():
     return (dlt.read(f'admin0_disputed_boundaries_silver')
-        .select('country',
+        .select(col('country').alias('country_name'),
                 'region_name',
                 'boundary',
+                'country_code_iso2'
                 )
     )   
    

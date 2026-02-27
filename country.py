@@ -4,10 +4,10 @@
 
 # COMMAND ----------
 
-import pandas as pd
 import wbgapi as wb
 import pyspark.sql.functions as F
-from pyspark.sql.types import StructType, StructField, DoubleType
+from pyspark.sql.types import StructType, StructField, DoubleType, StringType
+from pyspark.sql import Window
 from shapely.geometry import shape, MultiPolygon, Polygon
 import json
 
@@ -91,14 +91,40 @@ schema = StructType([
 
 centroid_udf = F.udf(compute_country_centroid, schema)
 
-admin1_boundaries = spark.table('indicator.admin1_boundaries_gold')
-grouped_df = admin1_boundaries.groupBy("country_name").agg(F.collect_list("boundary").alias("all_boundaries"))
+admin1_boundaries = spark.table('prd_mega.indicator.admin1_boundaries_gold')
+grouped_df = admin1_boundaries.groupBy("country_name").agg(F.collect_list("boundary").alias("all_boundaries"), F.first("country_code_iso2").alias("country_code_iso2"))
 
 centroid_df = grouped_df.withColumn("centroid", centroid_udf(F.col("all_boundaries"))) \
-                        .select(F.col("country_name"), F.col("centroid.display_lon"),  F.col("centroid.display_lat"))
+                        .select(F.col("country_name"), F.col("country_code_iso2"), F.col("centroid.display_lon"),  F.col("centroid.display_lat"))
 
 sdf = countries.join(centroid_df, on="country_name", how="left"
             ).withColumn("zoom", zoom_udf(F.col("country_name")))
+
+# COMMAND ----------
+
+# v_dim_country would be more suitable for currency/country data, but it currently lacks comprehensive data. May switch to this table in the future.
+table_name = "prd_corpdata.dm_reference_gold.v_dim_country_currency_exchange_rate"
+base_df = spark.table(table_name)
+# Define the window partitioned by country
+window_spec = Window.partitionBy("cntry_code").orderBy(F.col("ccy_exch_rate_ref_date").desc())
+# Calculate max date within the window and filter in one go
+currency_df = base_df.withColumn("rn", F.row_number().over(window_spec)) \
+                   .filter(F.col("rn") == 1) \
+                   .drop("rn")
+
+currency_df = currency_df.select(
+    F.col('cntry_code').alias('country_code'),
+    F.col('ccy_src_name').alias('currency_name'),
+    F.col('ccy_src_code').alias('currency_code'),
+)
+
+# COMMAND ----------
+
+joined_df = sdf.join(
+    currency_df, 
+    sdf.country_code_iso2 == currency_df.country_code, 
+    how="left"
+).drop('country_code')
 
 # COMMAND ----------
 
@@ -107,4 +133,4 @@ CATALOG = "prd_mega"
 SCHEMA = "indicator"
 TABLE = "country"
 spark.sql(f"USE {CATALOG}.{SCHEMA}")
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(TABLE)
+joined_df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(TABLE)
