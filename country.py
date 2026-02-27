@@ -7,6 +7,7 @@
 import wbgapi as wb
 import pyspark.sql.functions as F
 from pyspark.sql.types import StructType, StructField, DoubleType, StringType
+from pyspark.sql import Window
 from shapely.geometry import shape, MultiPolygon, Polygon
 import json
 
@@ -90,7 +91,7 @@ schema = StructType([
 
 centroid_udf = F.udf(compute_country_centroid, schema)
 
-admin1_boundaries = spark.table('indicator.admin1_boundaries_gold')
+admin1_boundaries = spark.table('prd_mega.indicator.admin1_boundaries_gold')
 grouped_df = admin1_boundaries.groupBy("country_name").agg(F.collect_list("boundary").alias("all_boundaries"), F.first("country_code_iso2").alias("country_code_iso2"))
 
 centroid_df = grouped_df.withColumn("centroid", centroid_udf(F.col("all_boundaries"))) \
@@ -101,11 +102,9 @@ sdf = countries.join(centroid_df, on="country_name", how="left"
 
 # COMMAND ----------
 
-from pyspark.sql import Window
-CATALOG = "prd_corpdata"
-SCHEMA = "dm_reference_gold"  # v_dim_country would be more suitable for currency/country data, but it currently lacks comprehensive data. May switch to this table in the future.
-TABLE = "v_dim_country_currency_exchange_rate"
-base_df = spark.table(f'{CATALOG}.{SCHEMA}.{TABLE}')
+# v_dim_country would be more suitable for currency/country data, but it currently lacks comprehensive data. May switch to this table in the future.
+table_name = "prd_corpdata.dm_reference_gold.v_dim_country_currency_exchange_rate"
+base_df = spark.table(table_name)
 # Define the window partitioned by country
 window_spec = Window.partitionBy("cntry_code").orderBy(F.col("ccy_exch_rate_ref_date").desc())
 # Calculate max date within the window and filter in one go
