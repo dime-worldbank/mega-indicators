@@ -124,7 +124,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       indicator_key,
       source_url
     FROM
-      LIVE.indicator_source_urls_bronze
+      prd_mega.indicator.indicator_source_urls_bronze
   )
   SELECT
     a.country_name,
