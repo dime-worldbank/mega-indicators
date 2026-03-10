@@ -103,24 +103,14 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT * FROM edu_private
     UNION ALL
     SELECT * FROM health_private
-  ),
-  indicator_meta AS (
-    SELECT
-      indicator_key,
-      metadata
-    FROM
-      LIVE.indicator_metadata_bronze
   )
   SELECT
-    a.country_name,
-    a.indicator_key,
-    a.start_year,
-    a.end_year,
-    m.metadata
+    country_name,
+    indicator_key,
+    start_year,
+    end_year
   FROM
-    all_indicators a
-    LEFT JOIN indicator_meta m
-      ON a.indicator_key = m.indicator_key
+    all_indicators
   ORDER BY
-    a.country_name, a.indicator_key
+    country_name, indicator_key
 )
