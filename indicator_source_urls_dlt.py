@@ -13,6 +13,7 @@ _ROWS = [
     {"indicator_key": "universal_health_coverage_index_gho", "source_url": "https://www.who.int/data/gho/data/indicators/indicator-details/GHO/uhc-index-of-service-coverage"},
     {"indicator_key": "pefa_by_pillar", "source_url": "https://www.pefa.org/resources/pefa-2016-framework"},
     {"indicator_key": "health_private_expenditure", "source_url": "https://www.who.int/data/gho/data/indicators/indicator-details/GHO/out-of-pocket-expenditure-(oop)-per-capita-in-us"},
+    {"indicator_key": "poverty_rate", "source_url": "https://pip.worldbank.org/"},
 ]
 
 # COMMAND ----------

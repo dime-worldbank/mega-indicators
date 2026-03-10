@@ -89,6 +89,19 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     GROUP BY
       1
   ),
+  national_poverty AS (
+    SELECT
+      country_name,
+      'poverty_rate' AS indicator_key,
+      CAST(min(year) AS INT) AS start_year,
+      CAST(max(year) AS INT) AS end_year
+    FROM
+      prd_mega.indicator.poverty_rate
+    WHERE
+      poverty_rate IS NOT NULL
+    GROUP BY
+      1
+  ),
   all_indicators AS (
     SELECT * FROM hd_index
     UNION ALL
@@ -103,6 +116,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT * FROM edu_private
     UNION ALL
     SELECT * FROM health_private
+    UNION ALL
+    SELECT * FROM national_poverty
   )
   SELECT
     country_name,
