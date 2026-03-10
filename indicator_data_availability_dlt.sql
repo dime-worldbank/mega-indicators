@@ -63,6 +63,32 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     GROUP BY
       1
   ),
+  edu_private AS (
+    SELECT
+      country_name,
+      'edu_private_expenditure' AS indicator_key,
+      CAST(min(year) AS INT) AS start_year,
+      CAST(max(year) AS INT) AS end_year
+    FROM
+      prd_mega.indicator.edu_private_spending
+    WHERE
+      edu_private_spending_share_gdp IS NOT NULL
+    GROUP BY
+      1
+  ),
+  health_private AS (
+    SELECT
+      country_name,
+      'health_private_expenditure' AS indicator_key,
+      CAST(min(year) AS INT) AS start_year,
+      CAST(max(year) AS INT) AS end_year
+    FROM
+      prd_mega.indicator.health_expenditure
+    WHERE
+      oop_per_capita_usd IS NOT NULL
+    GROUP BY
+      1
+  ),
   all_indicators AS (
     SELECT * FROM hd_index
     UNION ALL
@@ -73,24 +99,28 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT * FROM health_coverage
     UNION ALL
     SELECT * FROM pefa
+    UNION ALL
+    SELECT * FROM edu_private
+    UNION ALL
+    SELECT * FROM health_private
   ),
-  source_urls AS (
+  indicator_meta AS (
     SELECT
       indicator_key,
-      source_url
+      metadata
     FROM
-      LIVE.indicator_source_urls_bronze
+      LIVE.indicator_metadata_bronze
   )
   SELECT
     a.country_name,
     a.indicator_key,
     a.start_year,
     a.end_year,
-    su.source_url
+    m.metadata
   FROM
     all_indicators a
-    LEFT JOIN source_urls su
-      ON a.indicator_key = su.indicator_key
+    LEFT JOIN indicator_meta m
+      ON a.indicator_key = m.indicator_key
   ORDER BY
     a.country_name, a.indicator_key
 )
