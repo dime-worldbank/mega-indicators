@@ -118,14 +118,24 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT * FROM health_private
     UNION ALL
     SELECT * FROM national_poverty
+  ),
+  source_urls AS (
+    SELECT
+      indicator_key,
+      source_url
+    FROM
+      LIVE.indicator_source_urls_bronze
   )
   SELECT
-    country_name,
-    indicator_key,
-    start_year,
-    end_year
+    a.country_name,
+    a.indicator_key,
+    a.start_year,
+    a.end_year,
+    s.source_url
   FROM
-    all_indicators
+    all_indicators a
+    LEFT JOIN source_urls s
+      ON a.indicator_key = s.indicator_key
   ORDER BY
-    country_name, indicator_key
+    a.country_name, a.indicator_key
 )
