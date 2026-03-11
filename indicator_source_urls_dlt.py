@@ -3,7 +3,7 @@ import dlt
 from pyspark.sql.types import StructType, StructField, StringType
 
 # Source URLs for each indicator table.
-# indicator_key must match the DLT gold table name.
+# indicator_key must match the DLT gold table name. As the key is used to link to the source URL in dashboard and in the data availability table
 # Descriptive metadata (title, description, source_name) now lives in the
 # dashboard repo at chart level — this table only stores canonical source URLs.
 _ROWS = [
