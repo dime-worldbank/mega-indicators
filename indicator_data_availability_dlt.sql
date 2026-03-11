@@ -121,6 +121,4 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     all_indicators a
     LEFT JOIN source_urls s
       ON a.indicator_key = s.indicator_key
-  ORDER BY
-    a.country_name, a.indicator_key
 )
