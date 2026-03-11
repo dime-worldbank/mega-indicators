@@ -63,19 +63,6 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     GROUP BY
       1
   ),
-  edu_private AS (
-    SELECT
-      country_name,
-      'edu_private_expenditure' AS indicator_key,
-      CAST(min(year) AS INT) AS start_year,
-      CAST(max(year) AS INT) AS end_year
-    FROM
-      prd_mega.indicator.edu_private_spending
-    WHERE
-      edu_private_spending_share_gdp IS NOT NULL
-    GROUP BY
-      1
-  ),
   health_private AS (
     SELECT
       country_name,
@@ -112,8 +99,6 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT * FROM health_coverage
     UNION ALL
     SELECT * FROM pefa
-    UNION ALL
-    SELECT * FROM edu_private
     UNION ALL
     SELECT * FROM health_private
     UNION ALL
