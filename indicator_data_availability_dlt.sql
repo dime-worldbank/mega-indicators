@@ -105,11 +105,16 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT * FROM national_poverty
   ),
   source_urls AS (
-    SELECT
-      indicator_key,
-      source_url
-    FROM
-      prd_mega.indicator.indicator_source_urls_bronze
+    SELECT * FROM (
+      VALUES
+        ('global_data_lab_hd_index', 'https://globaldatalab.org/shdi/about/'),
+        ('learning_poverty_rate', 'https://data360.worldbank.org/en/indicator/WB_LPGD_SE_LPV_PRIM_SD'),
+        ('subnational_poverty_rate', 'https://data360.worldbank.org/en/dataset/WB_PIP'),
+        ('universal_health_coverage_index_gho', 'https://www.who.int/data/gho/data/indicators/indicator-details/GHO/uhc-index-of-service-coverage'),
+        ('pefa_by_pillar', 'https://www.pefa.org/resources/pefa-2016-framework'),
+        ('health_private_expenditure', 'https://www.who.int/data/gho/data/indicators/indicator-details/GHO/out-of-pocket-expenditure-(oop)-per-capita-in-us'),
+        ('poverty_rate', 'https://data360.worldbank.org/en/dataset/WB_PIP')
+    ) AS t(indicator_key, source_url)
   )
   SELECT
     a.country_name,
