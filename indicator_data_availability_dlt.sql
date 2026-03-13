@@ -89,6 +89,19 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     GROUP BY
       1
   ),
+  edu_attendance AS (
+    SELECT
+      country_name,
+      'global_data_lab_attendance' AS indicator_key,
+      CAST(min(year) AS INT) AS start_year,
+      CAST(max(year) AS INT) AS end_year
+    FROM
+      prd_mega.indicator.global_data_lab_hd_index
+    WHERE
+      attendance_6to17yo IS NOT NULL
+    GROUP BY
+      1
+  ),
   all_indicators AS (
     SELECT * FROM hd_index
     UNION ALL
@@ -103,6 +116,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT * FROM health_private
     UNION ALL
     SELECT * FROM national_poverty
+    UNION ALL
+    SELECT * FROM edu_attendance
   ),
   source_urls AS (
     SELECT * FROM (
@@ -113,7 +128,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
         ('universal_health_coverage_index_gho', 'https://www.who.int/data/gho/data/indicators/indicator-details/GHO/uhc-index-of-service-coverage'),
         ('pefa_by_pillar', 'https://www.pefa.org/resources/pefa-2016-framework'),
         ('health_private_expenditure', 'https://www.who.int/data/gho/data/indicators/indicator-details/GHO/out-of-pocket-expenditure-(oop)-per-capita-in-us'),
-        ('poverty_rate', 'https://data360.worldbank.org/en/dataset/WB_PIP')
+        ('poverty_rate', 'https://data360.worldbank.org/en/dataset/WB_PIP'),
+        ('global_data_lab_attendance', 'https://globaldatalab.org/education/about/')
     ) AS t(indicator_key, source_url)
   )
   SELECT
