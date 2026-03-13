@@ -5,8 +5,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT
       country_name,
       'global_data_lab_hd_index' AS indicator_key,
-      CAST(min(year) AS INT) AS start_year,
-      CAST(max(year) AS INT) AS end_year
+      CAST(min(year) AS INT) AS earliest_year,
+      CAST(max(year) AS INT) AS latest_year
     FROM
       prd_mega.indicator.global_data_lab_hd_index
     WHERE
@@ -19,8 +19,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT
       country_name,
       'learning_poverty_rate' AS indicator_key,
-      CAST(min(year) AS INT) AS start_year,
-      CAST(max(year) AS INT) AS end_year
+      CAST(min(year) AS INT) AS earliest_year,
+      CAST(max(year) AS INT) AS latest_year
     FROM
       prd_mega.indicator.learning_poverty_rate
     GROUP BY
@@ -30,8 +30,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT
       country_name,
       'subnational_poverty_rate' AS indicator_key,
-      CAST(min(year) AS INT) AS start_year,
-      CAST(max(year) AS INT) AS end_year
+      CAST(min(year) AS INT) AS earliest_year,
+      CAST(max(year) AS INT) AS latest_year
     FROM
       prd_mega.indicator.subnational_poverty_rate
     WHERE
@@ -43,8 +43,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT
       country_name,
       'universal_health_coverage_index_gho' AS indicator_key,
-      CAST(min(year) AS INT) AS start_year,
-      CAST(max(year) AS INT) AS end_year
+      CAST(min(year) AS INT) AS earliest_year,
+      CAST(max(year) AS INT) AS latest_year
     FROM
       prd_mega.indicator.universal_health_coverage_index_gho
     WHERE
@@ -56,8 +56,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT
       country_name,
       'pefa_by_pillar' AS indicator_key,
-      CAST(min(year) AS INT) AS start_year,
-      CAST(max(year) AS INT) AS end_year
+      CAST(min(year) AS INT) AS earliest_year,
+      CAST(max(year) AS INT) AS latest_year
     FROM
       prd_mega.indicator.pefa_by_pillar
     GROUP BY
@@ -67,8 +67,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT
       country_name,
       'health_private_expenditure' AS indicator_key,
-      CAST(min(year) AS INT) AS start_year,
-      CAST(max(year) AS INT) AS end_year
+      CAST(min(year) AS INT) AS earliest_year,
+      CAST(max(year) AS INT) AS latest_year
     FROM
       prd_mega.indicator.health_expenditure
     WHERE
@@ -80,8 +80,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT
       country_name,
       'poverty_rate' AS indicator_key,
-      CAST(min(year) AS INT) AS start_year,
-      CAST(max(year) AS INT) AS end_year
+      CAST(min(year) AS INT) AS earliest_year,
+      CAST(max(year) AS INT) AS latest_year
     FROM
       prd_mega.indicator.poverty_rate
     WHERE
@@ -93,8 +93,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT
       country_name,
       'global_data_lab_attendance' AS indicator_key,
-      CAST(min(year) AS INT) AS start_year,
-      CAST(max(year) AS INT) AS end_year
+      CAST(min(year) AS INT) AS earliest_year,
+      CAST(max(year) AS INT) AS latest_year
     FROM
       prd_mega.indicator.global_data_lab_hd_index
     WHERE
@@ -124,9 +124,9 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       VALUES
         ('global_data_lab_hd_index', 'https://globaldatalab.org/shdi/about/'),
         ('learning_poverty_rate', 'https://data360.worldbank.org/en/indicator/WB_LPGD_SE_LPV_PRIM_SD'),
-        ('subnational_poverty_rate', 'https://data360.worldbank.org/en/dataset/WB_PIP'),
+        ('subnational_poverty_rate', 'https://pipmaps.worldbank.org/en/data/datatopics/poverty-portal/home'),
         ('universal_health_coverage_index_gho', 'https://www.who.int/data/gho/data/indicators/indicator-details/GHO/uhc-index-of-service-coverage'),
-        ('pefa_by_pillar', 'https://www.pefa.org/resources/pefa-2016-framework'),
+        ('pefa_by_pillar', 'https://www.pefa.org/assessments/batch-downloads'),
         ('health_private_expenditure', 'https://www.who.int/data/gho/data/indicators/indicator-details/GHO/out-of-pocket-expenditure-(oop)-per-capita-in-us'),
         ('poverty_rate', 'https://data360.worldbank.org/en/dataset/WB_PIP'),
         ('global_data_lab_attendance', 'https://globaldatalab.org/education/about/')
@@ -135,8 +135,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
   SELECT
     a.country_name,
     a.indicator_key,
-    a.start_year,
-    a.end_year,
+    a.earliest_year,
+    a.latest_year,
     s.source_url
   FROM
     all_indicators a
