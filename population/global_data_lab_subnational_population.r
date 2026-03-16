@@ -31,7 +31,7 @@ sess <- gdl_session(api_token)
 
 sess <- sess %>%
     set_dataset('demographics') %>%
-    set_countries(character(0)) %>% #Workaround for  https://github.com/GlobalDataLab/R-data-api/issues/5. Replace this line with set_countries_all when the issue is resolved
+    set_countries_all() %>%
     set_indicators(c('regpopm'))
     # by default linear extrapolation for 3 years
     # disabling extrapolation doesn't seem to work
