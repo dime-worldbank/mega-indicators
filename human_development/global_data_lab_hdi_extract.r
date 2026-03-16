@@ -30,7 +30,7 @@ END_YEAR <- as.integer(format(Sys.Date(), "%Y"))
 
 sess <- sess %>%
     set_dataset(DATASET) %>%
-    set_countries(character(0)) %>% # Workaround for https://github.com/GlobalDataLab/R-data-api/issues/5. Replace this line with set_countries_all when the issue is resolved
+    set_countries_all() %>% 
     set_year(START_YEAR) %>%
     set_indicators(INDICATORS)
 indicator_merged <- gdl_request(sess)
@@ -41,7 +41,7 @@ print(paste(START_YEAR, 'nrow:', nrow(indicator_merged)))
 for (year in (START_YEAR+1):END_YEAR) {
   sess <- sess %>%
     set_dataset(DATASET) %>%
-    set_countries(character(0)) %>% # Workaround for https://github.com/GlobalDataLab/R-data-api/issues/5. Replace this line with set_countries_all when the issue is resolved
+    set_countries_all() %>%
     set_year(year) %>%
     set_indicators(INDICATORS)
   shdi <- gdl_request(sess)
@@ -62,7 +62,7 @@ END_YEAR <- as.integer(format(Sys.Date(), "%Y"))
 for (year in START_YEAR:END_YEAR) {
   sess <- sess %>%
       set_dataset(DATASET) %>%
-      set_countries(character(0)) %>% # Workaround for https://github.com/GlobalDataLab/R-data-api/issues/5. Replace this line with set_countries_all when the issue is resolved
+      set_countries_all() %>%
       set_year(year) %>%
       set_indicators(INDICATORS)
 
