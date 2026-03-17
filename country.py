@@ -120,11 +120,15 @@ currency_df = currency_df.select(
 
 # COMMAND ----------
 
-joined_df = sdf.join(
-    currency_df, 
-    sdf.country_code_iso2 == currency_df.country_code, 
-    how="left"
-).drop('country_code')
+joined_df = (
+    sdf.join(
+        currency_df,
+        sdf.country_code_iso2 == currency_df.country_code,
+        how="left",
+    )
+    .drop(currency_df.country_code)
+    .withColumn('country_code_iso3', F.col('country_code'))
+)
 
 # COMMAND ----------
 
