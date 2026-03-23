@@ -10,12 +10,17 @@ library(SparkR)
 
 # COMMAND ----------
 
-# general purpose alternative
-# api_token <- Sys.getenv("GDL_API_TOKEN")
+is_databricks <- function() {
+  nzchar(Sys.getenv("DATABRICKS_RUNTIME_VERSION")) ||
+    nzchar(Sys.getenv("DB_HOME")) ||
+    nzchar(Sys.getenv("DATABRICKS_CLUSTER_ID"))
+}
 
-# Databricks specific
-dbutils.widgets.text("GDL_API_TOKEN", "", "GDL API Token")
-api_token <- dbutils.widgets.get("GDL_API_TOKEN")
+if (is_databricks()) {
+  api_token <- dbutils.secrets.get("DIMEBOOSTKEYVAULT", "GDL_API_TOKEN")
+} else {
+  api_token <- Sys.getenv("GDL_API_TOKEN")
+}
 
 sess <- gdl_session(api_token)
 

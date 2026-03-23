@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 from io import StringIO
 
-URL = 'https://sdmx.oecd.org/archive/rest/data/OECD,DF_DP_LIVE/?format=csv'
+URL = 'https://sdmx.oecd.org/public/rest/data/OECD.EDU.IMEP,DSD_EAG_UOE_FIN@DF_UOE_FIN_SOURCE_GV_PR_NDOM,3.1/.EXP.ISCED11_0+ISCED11_1T8.S1D_NON_EDU.INST_EDU...PT_B1GQ.?format=csv'
 HEADERS = {
     "User-Agent": "Mozilla/5.0"
 }
@@ -20,9 +20,14 @@ df
 
 # COMMAND ----------
 
-df_edu_private_exp = df[df.SUBJECT.isin(['PRY_TRY', 'EARLYCHILDEDU'])].groupby(['LOCATION', 'TIME_PERIOD']).agg('sum')[['OBS_VALUE']].reset_index()
+# Account for all levels of education for each country, year
+df_edu_private_exp = (df[df.EDUCATION_LEV.isin(['ISCED11_0', 'ISCED11_1T8'])]
+    .dropna(subset=['OBS_VALUE'])
+    .groupby(['REF_AREA', 'TIME_PERIOD'])
+    .agg('sum')[['OBS_VALUE']].reset_index()
+)
 df_edu_private_exp['edu_private_spending_share_gdp'] = df_edu_private_exp.OBS_VALUE / 100
-df_edu_private_exp.rename(columns={'LOCATION': 'country_code', 'TIME_PERIOD': 'year'}, inplace=True)
+df_edu_private_exp.rename(columns={'REF_AREA': 'country_code', 'TIME_PERIOD': 'year'}, inplace=True)
 df_edu_private_exp['year'] = df_edu_private_exp['year'].astype(int)
 df_edu_private_exp
 
