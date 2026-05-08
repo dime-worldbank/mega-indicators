@@ -15,7 +15,7 @@ def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_countr
 
     merged_df = long_dfs[0]
     for df in long_dfs[1:]:
-        merged_df = pd.merge(merged_df, df, on=['economy', 'year'])
+        merged_df = pd.merge(merged_df, df, on=['economy', 'year'], how='outer')
 
     merged_df['data_source'] = data_source
 
