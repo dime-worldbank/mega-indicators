@@ -4,25 +4,21 @@
 # COMMAND ----------
 
 indicators = [
-    'GC.REV.TOTL.GD',
-    'GC.TAX.TOTL.GD',
-    'GC.TAX.YPKG.RV.ZS',
-    'GC.TAX.INCD.RV.ZS',
-    'GC.TAX.CORP.RV.ZS',
-    'GC.TAX.GSRV.RV.ZS',
-    'GC.TAX.EXGS.RV.ZS'
+    'GC.REV.SOCL.ZS',
+    'GC.REV.GOTR.CN',
+    'GC.REV.XGRT.CN',
+    'GC.REV.GOTR.ZS',
+    'GC.TAX.OTHR.RV.ZS'
 ]
 col_names = [
-    'total_revenue_pct_gdp',
-    'tax_revenue_pct_gdp',
-    'tax_revenue_pct_gni',
-    'income_tax_pct_total_tax',
-    'corporate_income_tax_pct_total_tax',
-    'goods_services_tax_pct_total_tax',
-    'excise_tax_pct_total_tax'
+    'social_contributions_pct_revenue',
+    'grants_other_revenue_current_lcu',
+    'revenue_excluding_grants_current_lcu',
+    'grants_other_revenue_pct_revenue',
+    'other_taxes_pct_revenue'
 ]
 
-data_source = 'World Bank - Government Revenue Statistics'
+data_source = 'Government Finance Statistics Yearbook and data files, International Monetary Fund (IMF)'
 
 df = wbgapi_fetch(indicators, col_names, data_source)
 
