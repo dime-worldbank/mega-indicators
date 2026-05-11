@@ -60,11 +60,10 @@ for file_info in pdf_files:
                                     'country': 'Togo',
                                     'country_code': 'TGO',
                                     'year': year,
-                                    'metric': 'Recettes budgétaires',
-                                    'value': val,
+                                    'revenue': val,
                                     'source': 'Togo DGB Budget Execution Report'
                                 })
-                                print(f"  ✓ Recettes budgétaires: {val}")
+                                print(f"  ✓ Revenue: {val}")
 
                             elif 'dépenses budgétaires' in row_label:
                                 val = row[execution_col]
@@ -72,11 +71,10 @@ for file_info in pdf_files:
                                     'country': 'Togo',
                                     'country_code': 'TGO',
                                     'year': year,
-                                    'metric': 'Dépenses budgétaires',
-                                    'value': val,
+                                    'expenditure': val,
                                     'source': 'Togo DGB Budget Execution Report'
                                 })
-                                print(f"  ✓ Dépenses budgétaires: {val}")
+                                print(f"  ✓ Expenditure: {val}")
 
                             elif 'dépenses en atténuation' in row_label:
                                 val = row[execution_col]
@@ -86,26 +84,37 @@ for file_info in pdf_files:
                                     'country': 'Togo',
                                     'country_code': 'TGO',
                                     'year': year,
-                                    'metric': 'Dépenses en atténuation de recettes',
-                                    'value': val,
+                                    'tax_expenditure': val,
                                     'source': 'Togo DGB Budget Execution Report'
                                 })
-                                print(f"  ✓ Dépenses en atténuation: {val}")
+                                print(f"  ✓ Tax expenditure: {val}")
                         break
 
     except Exception as e:
         print(f"  Error processing {file_info.name}: {str(e)}")
 
-# Create DataFrame and save to table
+# Create DataFrame and pivot to wide format
 if extracted_data:
     df = pd.DataFrame(extracted_data)
+
+    # Pivot to wide format with metrics as columns
+    df_wide = df.pivot_table(
+        index=['country', 'country_code', 'year'],
+        columns='metric',
+        values='value',
+        aggfunc='first'
+    ).reset_index()
+
+    # Rename columns to clean up the metric names
+    df_wide.columns.name = None
+
     print(f"\n{'='*60}")
-    print("Extracted Data Summary:")
+    print("Extracted Data (Wide Format):")
     print(f"{'='*60}")
-    print(df.to_string(index=False))
+    print(df_wide.to_string(index=False))
 
     # Convert to Spark DataFrame and save
-    sdf = spark.createDataFrame(df)
+    sdf = spark.createDataFrame(df_wide)
     sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.togo_revenue_budget")
     print(f"\nData saved to: prd_mega.indicator.togo_revenue_budget")
 else:
