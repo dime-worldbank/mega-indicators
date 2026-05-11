@@ -52,9 +52,9 @@ for file_info in pdf_files:
 
                         # Extract rows
                         for idx, row in df.iterrows():
-                            row_label = str(row[0]).strip() if row[0] else ""
+                            row_label = str(row[0]).strip().lower() if row[0] else ""
 
-                            if 'Recettes budgétaires' in row_label and '(b)' in row_label:
+                            if 'recettes budgétaires' in row_label:
                                 val = row[execution_col]
                                 extracted_data.append({
                                     'country': 'Togo',
@@ -66,7 +66,7 @@ for file_info in pdf_files:
                                 })
                                 print(f"  ✓ Recettes budgétaires: {val}")
 
-                            elif 'Dépenses budgétaires' in row_label and '(e)' in row_label:
+                            elif 'dépenses budgétaires' in row_label:
                                 val = row[execution_col]
                                 extracted_data.append({
                                     'country': 'Togo',
@@ -78,7 +78,7 @@ for file_info in pdf_files:
                                 })
                                 print(f"  ✓ Dépenses budgétaires: {val}")
 
-                            elif 'Dépenses en atténuation' in row_label:
+                            elif 'dépenses en atténuation' in row_label:
                                 val = row[execution_col]
                                 if not val or str(val).strip() == '':
                                     val = row[execution_col + 1] if execution_col + 1 < len(row) else None
