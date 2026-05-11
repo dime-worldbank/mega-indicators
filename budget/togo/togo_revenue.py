@@ -12,7 +12,7 @@ pdf_files = [f for f in dbutils.fs.ls(volume_path) if f.name.endswith('.pdf')]
 
 print(f"Found {len(pdf_files)} PDF files in {volume_path}")
 
-extracted_data = []
+extracted_data = {}
 
 for file_info in pdf_files:
     pdf_path = file_info.path.replace('dbfs:', '')
@@ -29,6 +29,18 @@ for file_info in pdf_files:
                 year = 2024
 
             print(f"\nProcessing: {file_info.name} (Year: {year})")
+
+            # Initialize year entry if not exists
+            if year not in extracted_data:
+                extracted_data[year] = {
+                    'country': 'Togo',
+                    'country_code': 'TGO',
+                    'year': year,
+                    'revenue': None,
+                    'expenditure': None,
+                    'tax_expenditure': None,
+                    'source': 'Togo DGB Budget Execution Report'
+                }
 
             # Search for Table 23
             for page in pdf.pages:
@@ -56,62 +68,39 @@ for file_info in pdf_files:
 
                             if 'recettes budgétaires' in row_label:
                                 val = row[execution_col]
-                                extracted_data.append({
-                                    'country': 'Togo',
-                                    'country_code': 'TGO',
-                                    'year': year,
-                                    'revenue': val,
-                                    'source': 'Togo DGB Budget Execution Report'
-                                })
+                                extracted_data[year]['revenue'] = val
                                 print(f"  ✓ Revenue: {val}")
 
                             elif 'dépenses budgétaires' in row_label:
                                 val = row[execution_col]
-                                extracted_data.append({
-                                    'country': 'Togo',
-                                    'country_code': 'TGO',
-                                    'year': year,
-                                    'expenditure': val,
-                                    'source': 'Togo DGB Budget Execution Report'
-                                })
+                                extracted_data[year]['expenditure'] = val
                                 print(f"  ✓ Expenditure: {val}")
 
                             elif 'dépenses en atténuation' in row_label:
                                 val = row[execution_col]
                                 if not val or str(val).strip() == '':
                                     val = row[execution_col + 1] if execution_col + 1 < len(row) else None
-                                extracted_data.append({
-                                    'country': 'Togo',
-                                    'country_code': 'TGO',
-                                    'year': year,
-                                    'tax_expenditure': val,
-                                    'source': 'Togo DGB Budget Execution Report'
-                                })
+                                extracted_data[year]['tax_expenditure'] = val
                                 print(f"  ✓ Tax expenditure: {val}")
                         break
 
     except Exception as e:
         print(f"  Error processing {file_info.name}: {str(e)}")
 
-# Create DataFrame and merge by year
+# Convert dictionary to list
+extracted_data = list(extracted_data.values())
+
+# Create DataFrame from merged data
 if extracted_data:
     df = pd.DataFrame(extracted_data)
-
-    # Group by year and merge - combine non-null values
-    df_merged = df.groupby(['country', 'country_code', 'year']).agg({
-        'revenue': lambda x: x.dropna().iloc[0] if not x.dropna().empty else None,
-        'expenditure': lambda x: x.dropna().iloc[0] if not x.dropna().empty else None,
-        'tax_expenditure': lambda x: x.dropna().iloc[0] if not x.dropna().empty else None,
-        'source': 'first'
-    }).reset_index()
 
     print(f"\n{'='*60}")
     print("Extracted Data:")
     print(f"{'='*60}")
-    print(df_merged.to_string(index=False))
+    print(df.to_string(index=False))
 
     # Convert to Spark DataFrame and save
-    sdf = spark.createDataFrame(df_merged)
+    sdf = spark.createDataFrame(df)
     sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.togo_revenue_budget")
     print(f"\nData saved to: prd_mega.indicator.togo_revenue_budget")
 else:
