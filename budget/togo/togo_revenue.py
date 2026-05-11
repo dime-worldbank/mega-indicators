@@ -93,28 +93,25 @@ for file_info in pdf_files:
     except Exception as e:
         print(f"  Error processing {file_info.name}: {str(e)}")
 
-# Create DataFrame and pivot to wide format
+# Create DataFrame and merge by year
 if extracted_data:
     df = pd.DataFrame(extracted_data)
 
-    # Pivot to wide format with metrics as columns
-    df_wide = df.pivot_table(
-        index=['country', 'country_code', 'year'],
-        columns='metric',
-        values='value',
-        aggfunc='first'
-    ).reset_index()
-
-    # Rename columns to clean up the metric names
-    df_wide.columns.name = None
+    # Group by year and merge - combine non-null values
+    df_merged = df.groupby(['country', 'country_code', 'year']).agg({
+        'revenue': lambda x: x.dropna().iloc[0] if not x.dropna().empty else None,
+        'expenditure': lambda x: x.dropna().iloc[0] if not x.dropna().empty else None,
+        'tax_expenditure': lambda x: x.dropna().iloc[0] if not x.dropna().empty else None,
+        'source': 'first'
+    }).reset_index()
 
     print(f"\n{'='*60}")
-    print("Extracted Data (Wide Format):")
+    print("Extracted Data:")
     print(f"{'='*60}")
-    print(df_wide.to_string(index=False))
+    print(df_merged.to_string(index=False))
 
     # Convert to Spark DataFrame and save
-    sdf = spark.createDataFrame(df_wide)
+    sdf = spark.createDataFrame(df_merged)
     sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.togo_revenue_budget")
     print(f"\nData saved to: prd_mega.indicator.togo_revenue_budget")
 else:
