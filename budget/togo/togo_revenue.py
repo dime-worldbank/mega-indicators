@@ -33,13 +33,13 @@ for file_info in pdf_files:
             # Initialize year entry if not exists
             if year not in extracted_data:
                 extracted_data[year] = {
-                    'country': 'Togo',
+                    'country_name': 'Togo',
                     'country_code': 'TGO',
                     'year': year,
-                    'revenue': None,
-                    'expenditure': None,
+                    'revenue_current_lcu': None,
+                    'expenditure_current_lcu': None,
                     'tax_expenditure': None,
-                    'source': 'Togo DGB Budget Execution Report'
+                    'data_source': 'Togo DGB Budget Execution Report'
                 }
 
             # Search for Table 23
@@ -68,12 +68,12 @@ for file_info in pdf_files:
 
                             if 'recettes budgétaires' in row_label:
                                 val = row[execution_col]
-                                extracted_data[year]['revenue'] = val
+                                extracted_data[year]['revenue_current_lcu'] = val
                                 print(f"  ✓ Revenue: {val}")
 
                             elif 'dépenses budgétaires' in row_label:
                                 val = row[execution_col]
-                                extracted_data[year]['expenditure'] = val
+                                extracted_data[year]['expenditure_current_lcu'] = val
                                 print(f"  ✓ Expenditure: {val}")
 
                             elif 'dépenses en atténuation' in row_label:
