@@ -5,25 +5,48 @@ import requests
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Source
+# MAGIC ## Sources (IMF SDMX v3 API, both in national currency / XDC)
 # MAGIC
-# MAGIC ### GFS_SOO (GFS Statement of Operations) — Budgetary Central Government, national currency (XDC)
+# MAGIC ### WEO (World Economic Outlook) — General Government
+# MAGIC - `GGR`: Revenue
+# MAGIC - `GGX`: Expenditure
+# MAGIC
+# MAGIC ### GFS_SOO (GFS Statement of Operations) — Budgetary Central Government
 # MAGIC - `G1_T`: Revenue, Transactions
 # MAGIC - `G2M_T`: Expense, Transactions
 
 # COMMAND ----------
 
-GFS_INDICATORS = {
-    'G1_T': 'revenue_current_lcu',
-    'G2M_T': 'expenditure_current_lcu',
-}
-GFS_SECTOR = 'S1311B'                # Budgetary Central Government
-GFS_UNIT = 'XDC'                     # Domestic currency
-GFS_CHUNK_SIZE = 50
-GFS_DATA_SOURCE = 'GFS_SOO (Statement of Operations), IMF — Budgetary Central Government'
+SDMX_API = 'https://api.imf.org/external/sdmx/3.0/data/dataflow'
+CHUNK_SIZE = 50
 
-def _parse_gfs_payload(payload):
-    """Parse one SDMX-JSON GFS response into long-format records: one per (country, year, indicator)."""
+# Each source declares its dataflow path, a key template with {countries}/{indicators}
+# placeholders, the indicator code → output column map, and a data_source label.
+SOURCES = [
+    {
+        'flow': 'IMF.RES/WEO/9.0.0',
+        'key_template': '{countries}.{indicators}.A',
+        'indicators': {
+            'GGR': 'revenue_current_lcu',
+            'GGX': 'expenditure_current_lcu',
+        },
+        'data_source': 'WEO (World Economic Outlook), IMF — General Government',
+    },
+    {
+        'flow': 'IMF.STA/GFS_SOO/12.0.0',
+        'key_template': '{countries}.S1311B.*.{indicators}.XDC.*',
+        'indicators': {
+            'G1_T': 'revenue_current_lcu',
+            'G2M_T': 'expenditure_current_lcu',
+        },
+        'data_source': 'GFS_SOO (Statement of Operations), IMF — Budgetary Central Government',
+    },
+]
+
+# COMMAND ----------
+
+def _parse_sdmx_payload(payload):
+    """Parse one SDMX-JSON v3 response into long-format records: (country_code, year, indicator, value)."""
     datasets = payload.get('data', {}).get('dataSets') or []
     if not datasets or not datasets[0].get('series'):
         return []
@@ -49,53 +72,50 @@ def _parse_gfs_payload(payload):
             })
     return records
 
-def fetch_gfs():
-    # Pull non-aggregate country codes from the country table so we can chunk requests.
-    country_codes = (
-        spark.table('prd_mega.indicator.country')
-            .filter("is_aggregate = false OR is_aggregate IS NULL")
-            .select('country_code')
-            .toPandas()['country_code']
-            .dropna()
-            .unique()
-            .tolist()
-    )
-
-    indicator_key = '+'.join(GFS_INDICATORS.keys())
+def fetch_sdmx(country_codes, flow, key_template, indicators, data_source):
+    """Chunked fetch over `country_codes`, pivot to wide, rename indicator codes to nice columns."""
+    indicator_key = '+'.join(indicators.keys())
     all_records = []
-    for i in range(0, len(country_codes), GFS_CHUNK_SIZE):
-        chunk = country_codes[i:i + GFS_CHUNK_SIZE]
-        country_filter = '+'.join(chunk)
-        url = (
-            'https://api.imf.org/external/sdmx/3.0/data/dataflow/'
-            f'IMF.STA/GFS_SOO/12.0.0/{country_filter}.{GFS_SECTOR}.*.{indicator_key}.{GFS_UNIT}.*'
-            '?format=jsondata'
-        )
-        resp = requests.get(url)
+    for i in range(0, len(country_codes), CHUNK_SIZE):
+        chunk = '+'.join(country_codes[i:i + CHUNK_SIZE])
+        key = key_template.format(countries=chunk, indicators=indicator_key)
+        resp = requests.get(f'{SDMX_API}/{flow}/{key}?format=jsondata')
         if resp.status_code == 404:
             # No data for any country in this chunk — skip.
             continue
         resp.raise_for_status()
-        all_records.extend(_parse_gfs_payload(resp.json()))
+        all_records.extend(_parse_sdmx_payload(resp.json()))
 
     df = (
         pd.DataFrame(all_records)
             .pivot_table(index=['country_code', 'year'], columns='indicator', values='value', aggfunc='first')
             .reset_index()
             .rename_axis(columns=None)
-            .rename(columns=GFS_INDICATORS)
+            .rename(columns=indicators)
     )
-    df['data_source'] = GFS_DATA_SOURCE
+    df['data_source'] = data_source
     return df
 
-gfs_df = fetch_gfs()
+# COMMAND ----------
+
+country_codes = (
+    spark.table('prd_mega.indicator.country')
+        .filter("is_aggregate = false OR is_aggregate IS NULL")
+        .select('country_code')
+        .toPandas()['country_code']
+        .dropna()
+        .unique()
+        .tolist()
+)
+
+combined_df = pd.concat([fetch_sdmx(country_codes, **source) for source in SOURCES], ignore_index=True)
 
 # COMMAND ----------
 
 country_df = spark.table('prd_mega.indicator.country').select('country_name', 'country_code', 'region').toPandas()
-merged_df = pd.merge(gfs_df, country_df, on='country_code', how='inner')
+merged_df = pd.merge(combined_df, country_df, on='country_code', how='inner')
 merged_df = merged_df[['country_name', 'country_code', 'region', 'year', 'revenue_current_lcu', 'expenditure_current_lcu', 'data_source']]
-merged_df.sort_values(['country_name', 'year'], inplace=True)
+merged_df.sort_values(['country_name', 'year', 'data_source'], inplace=True)
 
 # COMMAND ----------
 
