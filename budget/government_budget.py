@@ -23,29 +23,30 @@ GFS_CHUNK_SIZE = 50
 GFS_DATA_SOURCE = 'GFS_SOO (Statement of Operations), IMF — Budgetary Central Government'
 
 def _parse_gfs_payload(payload):
-    """Parse one SDMX-JSON GFS response into a list of {country_code, year, col_name: value} dicts."""
+    """Parse one SDMX-JSON GFS response into long-format records: one per (country, year, indicator)."""
     datasets = payload.get('data', {}).get('dataSets') or []
     if not datasets or not datasets[0].get('series'):
         return []
 
-    structures = payload['data']['structures'][0]['dimensions']
-    series_dims = structures['series']
-    dim_index = {d['id']: i for i, d in enumerate(series_dims)}
-    dim_values = {d['id']: d['values'] for d in series_dims}
-
-    obs_dim = structures['observation'][0]
-    assert obs_dim['id'] == 'TIME_PERIOD', f"Expected TIME_PERIOD, got {obs_dim['id']}"
-    time_values = obs_dim['values']
+    series_dims = payload['data']['structures'][0]['dimensions']['series']
+    obs_dim = payload['data']['structures'][0]['dimensions']['observation'][0]
+    pos = {d['id']: i for i, d in enumerate(series_dims)}
+    countries = [v['id'] for v in series_dims[pos['COUNTRY']]['values']]
+    indicators = [v['id'] for v in series_dims[pos['INDICATOR']]['values']]
+    years = [int(v['value']) for v in obs_dim['values']]
 
     records = []
     for series_key, series in datasets[0]['series'].items():
         idx = [int(i) for i in series_key.split(':')]
-        country_code = dim_values['COUNTRY'][idx[dim_index['COUNTRY']]]['id']
-        indicator = dim_values['INDICATOR'][idx[dim_index['INDICATOR']]]['id']
-        col_name = GFS_INDICATORS[indicator]
+        country_code = countries[idx[pos['COUNTRY']]]
+        indicator = indicators[idx[pos['INDICATOR']]]
         for time_idx, obs in series['observations'].items():
-            year = int(time_values[int(time_idx)]['id'])
-            records.append({'country_code': country_code, 'year': year, col_name: obs[0]})
+            records.append({
+                'country_code': country_code,
+                'year': years[int(time_idx)],
+                'indicator': indicator,
+                'value': float(obs[0]) if obs[0] is not None else None,
+            })
     return records
 
 def fetch_gfs():
@@ -77,9 +78,13 @@ def fetch_gfs():
         resp.raise_for_status()
         all_records.extend(_parse_gfs_payload(resp.json()))
 
-    df = pd.DataFrame(all_records)
-    # Collapse rows so each (country, year) has one row with both revenue and expenditure columns
-    df = df.groupby(['country_code', 'year'], as_index=False).first()
+    df = (
+        pd.DataFrame(all_records)
+            .pivot_table(index=['country_code', 'year'], columns='indicator', values='value', aggfunc='first')
+            .reset_index()
+            .rename_axis(columns=None)
+            .rename(columns=GFS_INDICATORS)
+    )
     df['data_source'] = GFS_DATA_SOURCE
     return df
 
