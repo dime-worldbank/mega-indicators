@@ -2,7 +2,20 @@
 import pdfplumber
 import pandas as pd
 import os
+import re
 from datetime import datetime
+
+def parse_amount(val):
+    """Parse French-formatted PDF amount (e.g. '123 123, 00') to float, returning None on failure."""
+    if val is None:
+        return None
+    s = re.sub(r'\s+', '', str(val)).replace(',', '.')
+    if not s:
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
 
 # Volume path where PDFs are stored
 volume_path = '/Volumes/prd_mega/sboost4/vboost4/Workspace/auxiliary_data/buget/togo/'
@@ -67,12 +80,12 @@ for file_info in pdf_files:
                             row_label = str(row[0]).strip().lower() if row[0] else ""
 
                             if 'recettes budgétaires' in row_label:
-                                val = row[execution_col]
+                                val = parse_amount(row[execution_col])
                                 extracted_data[year]['revenue_current_lcu'] = val
                                 print(f"  ✓ Revenue: {val}")
 
                             elif 'dépenses budgétaires' in row_label:
-                                val = row[execution_col]
+                                val = parse_amount(row[execution_col])
                                 extracted_data[year]['expenditure_current_lcu'] = val
                                 print(f"  ✓ Expenditure: {val}")
 
@@ -80,6 +93,7 @@ for file_info in pdf_files:
                                 val = row[execution_col]
                                 if not val or str(val).strip() == '':
                                     val = row[execution_col + 1] if execution_col + 1 < len(row) else None
+                                val = parse_amount(val)
                                 extracted_data[year]['tax_expenditure'] = val
                                 print(f"  ✓ Tax expenditure: {val}")
                         break
