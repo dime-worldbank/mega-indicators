@@ -1,6 +1,7 @@
 # Databricks notebook source
 import pandas as pd
 import requests
+from datetime import datetime
 
 # COMMAND ----------
 
@@ -19,6 +20,8 @@ import requests
 
 SDMX_API = 'https://api.imf.org/external/sdmx/3.0/data/dataflow'
 CHUNK_SIZE = 50
+
+session = requests.Session()
 
 # Each source declares its dataflow path, a key template with {countries}/{indicators}
 # placeholders, the indicator code → output column map, and a data_source label.
@@ -50,19 +53,25 @@ def _parse_sdmx_payload(payload, extract_forecast=False):
     """Parse one SDMX-JSON v3 response into long-format records: (country_code, year, indicator, value, forecast).
 
     If extract_forecast=True, determines forecast status by comparing observation year to publication year.
-    Years > publication year are forecasts (forecast=True); earlier years are actual (forecast=False).
-    Publication year is extracted from series attributes (last element, e.g. "9/22/2025").
+    Years >= publication_year are forecasts (forecast=True); earlier years are actual (forecast=False).
+    Publication year is extracted from TIME_PERIOD_END attribute in series attributes.
     """
     datasets = payload.get('data', {}).get('dataSets') or []
     if not datasets or not datasets[0].get('series'):
         return []
 
-    series_dims = payload['data']['structures'][0]['dimensions']['series']
-    obs_dim = payload['data']['structures'][0]['dimensions']['observation'][0]
+    struct = payload['data']['structures'][0]
+    series_dims = struct['dimensions']['series']
+    obs_dim = struct['dimensions']['observation'][0]
+
     pos = {d['id']: i for i, d in enumerate(series_dims)}
     countries = [v['id'] for v in series_dims[pos['COUNTRY']]['values']]
     indicators = [v['id'] for v in series_dims[pos['INDICATOR']]['values']]
     years = [int(v['value']) for v in obs_dim['values']]
+
+    # Find TIME_PERIOD_END attribute position (usually last)
+    attr_ids = [a['id'] for a in struct.get('attributes', {}).get('series', [])]
+    time_period_end_idx = attr_ids.index('TIME_PERIOD_END') if 'TIME_PERIOD_END' in attr_ids else None
 
     records = []
     for series_key, series in datasets[0]['series'].items():
@@ -71,12 +80,14 @@ def _parse_sdmx_payload(payload, extract_forecast=False):
         indicator = indicators[idx[pos['INDICATOR']]]
 
         publication_year = None
-        if extract_forecast and series.get('attributes'):
-            pub_date = series['attributes'][-1] if series['attributes'] else None
+        if extract_forecast and time_period_end_idx is not None and series.get('attributes'):
+            pub_date = series['attributes'][time_period_end_idx] if time_period_end_idx < len(series['attributes']) else None
             if pub_date and isinstance(pub_date, str):
                 try:
-                    publication_year = int(pub_date.split('/')[-1])
-                except (ValueError, IndexError):
+                    # Parse date in format M/D/YYYY
+                    dt = datetime.strptime(pub_date, '%m/%d/%Y')
+                    publication_year = dt.year
+                except ValueError:
                     publication_year = None
 
         for time_idx, obs in series['observations'].items():
@@ -93,13 +104,24 @@ def _parse_sdmx_payload(payload, extract_forecast=False):
     return records
 
 def fetch_sdmx(country_codes, flow, key_template, indicators, data_source, extract_forecast=False):
-    """Chunked fetch over `country_codes`, pivot to wide, rename indicator codes to nice columns."""
+    """Chunked fetch over `country_codes`, pivot to wide, rename indicator codes to nice columns.
+
+    Uses SDMX v3 API with:
+    - format=jsondata: explicit JSON format
+    - attributes=dsd: include Data Structure Definition for proper attribute parsing
+    - detail=full: ensure complete series attributes are returned
+    """
     indicator_key = '+'.join(indicators.keys())
     all_records = []
     for i in range(0, len(country_codes), CHUNK_SIZE):
         chunk = '+'.join(country_codes[i:i + CHUNK_SIZE])
         key = key_template.format(countries=chunk, indicators=indicator_key)
-        resp = requests.get(f'{SDMX_API}/{flow}/{key}', params={'attributes': 'dsd'})
+        params = {
+            'format': 'jsondata',
+            'attributes': 'dsd',
+            'detail': 'full',
+        }
+        resp = session.get(f'{SDMX_API}/{flow}/{key}', params=params, timeout=30)
         if resp.status_code == 404:
             # No data for any country in this chunk — skip.
             continue
