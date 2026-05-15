@@ -28,7 +28,8 @@ def extract_year(filename):
 def extract_table_23_data(pdf, year, extracted_data):
     """Search for Table 23 in PDF and extract budget data. Updates extracted_data dict in place."""
     for page in pdf.pages:
-        if 'Tableau n° 23' not in page.extract_text():
+        page_text = page.extract_text() or ""
+        if 'Tableau n° 23' not in page_text:
             continue
 
         tables = page.extract_tables()
