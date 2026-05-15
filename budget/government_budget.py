@@ -31,6 +31,7 @@ SOURCES = [
             'GGX': 'expenditure_current_lcu',
         },
         'data_source': 'WEO (World Economic Outlook), IMF — General Government',
+        'extract_forecast': True,
     },
     {
         'flow': 'IMF.STA/GFS_SOO/12.0.0',
@@ -45,8 +46,12 @@ SOURCES = [
 
 # COMMAND ----------
 
-def _parse_sdmx_payload(payload):
-    """Parse one SDMX-JSON v3 response into long-format records: (country_code, year, indicator, value)."""
+def _parse_sdmx_payload(payload, extract_forecast=False):
+    """Parse one SDMX-JSON v3 response into long-format records: (country_code, year, indicator, value, forecast).
+
+    If extract_forecast=True, extracts OBS_STATUS attribute to determine if observation is forecast.
+    Forecast status (typically 'F') sets forecast=True; all others default to False.
+    """
     datasets = payload.get('data', {}).get('dataSets') or []
     if not datasets or not datasets[0].get('series'):
         return []
@@ -64,15 +69,19 @@ def _parse_sdmx_payload(payload):
         country_code = countries[idx[pos['COUNTRY']]]
         indicator = indicators[idx[pos['INDICATOR']]]
         for time_idx, obs in series['observations'].items():
-            records.append({
+            record = {
                 'country_code': country_code,
                 'year': years[int(time_idx)],
                 'indicator': indicator,
                 'value': float(obs[0]) if obs[0] is not None else None,
-            })
+            }
+            if extract_forecast:
+                obs_status = obs[1].get('OBS_STATUS') if len(obs) > 1 and obs[1] else None
+                record['forecast'] = obs_status == 'F'
+            records.append(record)
     return records
 
-def fetch_sdmx(country_codes, flow, key_template, indicators, data_source):
+def fetch_sdmx(country_codes, flow, key_template, indicators, data_source, extract_forecast=False):
     """Chunked fetch over `country_codes`, pivot to wide, rename indicator codes to nice columns."""
     indicator_key = '+'.join(indicators.keys())
     all_records = []
@@ -84,15 +93,14 @@ def fetch_sdmx(country_codes, flow, key_template, indicators, data_source):
             # No data for any country in this chunk — skip.
             continue
         resp.raise_for_status()
-        all_records.extend(_parse_sdmx_payload(resp.json()))
+        all_records.extend(_parse_sdmx_payload(resp.json(), extract_forecast=extract_forecast))
 
-    df = (
-        pd.DataFrame(all_records)
-            .pivot_table(index=['country_code', 'year'], columns='indicator', values='value', aggfunc='first')
-            .reset_index()
-            .rename_axis(columns=None)
-            .rename(columns=indicators)
-    )
+    df = pd.DataFrame(all_records)
+    if extract_forecast:
+        df = df.pivot_table(index=['country_code', 'year', 'forecast'], columns='indicator', values='value', aggfunc='first').reset_index()
+    else:
+        df = df.pivot_table(index=['country_code', 'year'], columns='indicator', values='value', aggfunc='first').reset_index()
+    df = df.rename_axis(columns=None).rename(columns=indicators)
     df['data_source'] = data_source
     return df
 
@@ -109,12 +117,13 @@ country_codes = (
 )
 
 combined_df = pd.concat([fetch_sdmx(country_codes, **source) for source in SOURCES], ignore_index=True)
+combined_df['forecast'] = combined_df['forecast'].fillna(False)
 
 # COMMAND ----------
 
 country_df = spark.table('prd_mega.indicator.country').select('country_name', 'country_code', 'region').toPandas()
 merged_df = pd.merge(combined_df, country_df, on='country_code', how='inner')
-merged_df = merged_df[['country_name', 'country_code', 'region', 'year', 'revenue_current_lcu', 'expenditure_current_lcu', 'data_source']]
+merged_df = merged_df[['country_name', 'country_code', 'region', 'year', 'forecast', 'revenue_current_lcu', 'expenditure_current_lcu', 'data_source']]
 merged_df.sort_values(['country_name', 'year', 'data_source'], inplace=True)
 
 # COMMAND ----------
