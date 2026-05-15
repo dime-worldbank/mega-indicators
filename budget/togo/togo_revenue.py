@@ -6,22 +6,64 @@
 
 import pdfplumber
 import pandas as pd
-import os
 import re
-from datetime import datetime
+
 BILLION = 1000000000
 
 def parse_amount(val):
     """Parse French-formatted PDF amount (e.g. '123 123, 00') to float, returning None on failure."""
-    if val is None:
-        return None
-    s = re.sub(r'\s+', '', str(val)).replace(',', '.')
-    if not s:
+    if not val:
         return None
     try:
-        return float(s)*BILLION
-    except ValueError:
+        s = re.sub(r'\s+', '', str(val)).replace(',', '.')
+        return float(s) * BILLION if s else None
+    except (ValueError, TypeError):
         return None
+
+def extract_year(filename):
+    """Extract year from filename (e.g. '2022', '2023', '2024')."""
+    match = re.search(r'(202[0-9])', filename)
+    return int(match.group(1)) if match else None
+
+def extract_table_23_data(pdf, year, extracted_data):
+    """Search for Table 23 in PDF and extract budget data. Updates extracted_data dict in place."""
+    for page in pdf.pages:
+        if 'Tableau n° 23' not in page.extract_text():
+            continue
+
+        tables = page.extract_tables()
+        if not tables:
+            continue
+
+        df = pd.DataFrame(tables[0])
+        execution_col = next(
+            (i for i in range(len(df.columns))
+             if 'execution' in str(df.iloc[1, i]).lower() and 'base' in str(df.iloc[1, i]).lower()),
+            None
+        )
+
+        if execution_col is None:
+            print(f"  Warning: Could not find EXECUTION column")
+            return
+
+        for idx, row in df.iterrows():
+            row_label = str(row[0]).strip().lower() if row[0] else ""
+            val_cell = row[execution_col]
+
+            if 'recettes budgétaires' in row_label:
+                val = parse_amount(val_cell)
+                extracted_data[year]['revenue_current_lcu'] = val
+                print(f"  ✓ Revenue: {val}")
+            elif 'dépenses budgétaires' in row_label:
+                val = parse_amount(val_cell)
+                extracted_data[year]['expenditure_current_lcu'] = val
+                print(f"  ✓ Expenditure: {val}")
+            elif 'dépenses en atténuation' in row_label:
+                val = val_cell if val_cell and str(val_cell).strip() else row.get(execution_col + 1)
+                val = parse_amount(val)
+                extracted_data[year]['tax_expenditure'] = val
+                print(f"  ✓ Tax expenditure: {val}")
+        return
 
 # Volume path where PDFs are stored
 volume_path = '/Volumes/prd_mega/sboost4/vboost4/Workspace/auxiliary_data/buget/togo/'
@@ -35,75 +77,28 @@ extracted_data = {}
 
 for file_info in pdf_files:
     pdf_path = file_info.path.replace('dbfs:', '')
+    year = extract_year(file_info.name)
+
+    if year is None:
+        print(f"Warning: Could not extract year from {file_info.name}")
+        continue
+
+    print(f"\nProcessing: {file_info.name} (Year: {year})")
+
+    if year not in extracted_data:
+        extracted_data[year] = {
+            'country_name': 'Togo',
+            'country_code': 'TGO',
+            'year': year,
+            'revenue_current_lcu': None,
+            'expenditure_current_lcu': None,
+            'tax_expenditure': None,
+            'data_source': 'Togo DGB Budget Execution Report'
+        }
 
     try:
         with pdfplumber.open(pdf_path) as pdf:
-            # Determine year from filename or PDF content
-            year = None
-            if '2022' in file_info.name:
-                year = 2022
-            elif '2023' in file_info.name:
-                year = 2023
-            elif '2024' in file_info.name or '24' in file_info.name:
-                year = 2024
-
-            print(f"\nProcessing: {file_info.name} (Year: {year})")
-
-            # Initialize year entry if not exists
-            if year not in extracted_data:
-                extracted_data[year] = {
-                    'country_name': 'Togo',
-                    'country_code': 'TGO',
-                    'year': year,
-                    'revenue_current_lcu': None,
-                    'expenditure_current_lcu': None,
-                    'tax_expenditure': None,
-                    'data_source': 'Togo DGB Budget Execution Report'
-                }
-
-            # Search for Table 23
-            for page in pdf.pages:
-                text = page.extract_text()
-                if 'Tableau n° 23' in text:
-                    tables = page.extract_tables()
-                    if tables:
-                        df = pd.DataFrame(tables[0])
-
-                        # Find EXECUTION column
-                        execution_col = None
-                        for col_idx in range(len(df.columns)):
-                            header = str(df.iloc[1, col_idx]).lower() if col_idx < len(df.columns) else ""
-                            if 'execution' in header and 'base' in header:
-                                execution_col = col_idx
-                                break
-
-                        if execution_col is None:
-                            print(f"  Warning: Could not find EXECUTION column")
-                            continue
-
-                        # Extract rows
-                        for idx, row in df.iterrows():
-                            row_label = str(row[0]).strip().lower() if row[0] else ""
-
-                            if 'recettes budgétaires' in row_label:
-                                val = parse_amount(row[execution_col])
-                                extracted_data[year]['revenue_current_lcu'] = val
-                                print(f"  ✓ Revenue: {val}")
-
-                            elif 'dépenses budgétaires' in row_label:
-                                val = parse_amount(row[execution_col])
-                                extracted_data[year]['expenditure_current_lcu'] = val
-                                print(f"  ✓ Expenditure: {val}")
-
-                            elif 'dépenses en atténuation' in row_label:
-                                val = row[execution_col]
-                                if not val or str(val).strip() == '':
-                                    val = row[execution_col + 1] if execution_col + 1 < len(row) else None
-                                val = parse_amount(val)
-                                extracted_data[year]['tax_expenditure'] = val
-                                print(f"  ✓ Tax expenditure: {val}")
-                        break
-
+            extract_table_23_data(pdf, year, extracted_data)
     except Exception as e:
         print(f"  Error processing {file_info.name}: {str(e)}")
 
