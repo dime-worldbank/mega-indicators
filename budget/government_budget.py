@@ -49,8 +49,9 @@ SOURCES = [
 def _parse_sdmx_payload(payload, extract_forecast=False):
     """Parse one SDMX-JSON v3 response into long-format records: (country_code, year, indicator, value, forecast).
 
-    If extract_forecast=True, extracts OBS_STATUS attribute to determine if observation is forecast.
-    Forecast status (typically 'F') sets forecast=True; all others default to False.
+    If extract_forecast=True, determines forecast status by comparing observation year to publication year.
+    Years > publication year are forecasts (forecast=True); earlier years are actual (forecast=False).
+    Publication year is extracted from series attributes (last element, e.g. "9/22/2025").
     """
     datasets = payload.get('data', {}).get('dataSets') or []
     if not datasets or not datasets[0].get('series'):
@@ -68,16 +69,26 @@ def _parse_sdmx_payload(payload, extract_forecast=False):
         idx = [int(i) for i in series_key.split(':')]
         country_code = countries[idx[pos['COUNTRY']]]
         indicator = indicators[idx[pos['INDICATOR']]]
+
+        publication_year = None
+        if extract_forecast and series.get('attributes'):
+            pub_date = series['attributes'][-1] if series['attributes'] else None
+            if pub_date and isinstance(pub_date, str):
+                try:
+                    publication_year = int(pub_date.split('/')[-1])
+                except (ValueError, IndexError):
+                    publication_year = None
+
         for time_idx, obs in series['observations'].items():
+            year = years[int(time_idx)]
             record = {
                 'country_code': country_code,
-                'year': years[int(time_idx)],
+                'year': year,
                 'indicator': indicator,
                 'value': float(obs[0]) if obs[0] is not None else None,
             }
-            if extract_forecast:
-                obs_status = obs[1].get('OBS_STATUS') if len(obs) > 1 and obs[1] else None
-                record['forecast'] = obs_status == 'F'
+            if extract_forecast and publication_year:
+                record['forecast'] = year > publication_year
             records.append(record)
     return records
 
@@ -88,7 +99,7 @@ def fetch_sdmx(country_codes, flow, key_template, indicators, data_source, extra
     for i in range(0, len(country_codes), CHUNK_SIZE):
         chunk = '+'.join(country_codes[i:i + CHUNK_SIZE])
         key = key_template.format(countries=chunk, indicators=indicator_key)
-        resp = requests.get(f'{SDMX_API}/{flow}/{key}?format=jsondata')
+        resp = requests.get(f'{SDMX_API}/{flow}/{key}', params={'attributes': 'dsd'})
         if resp.status_code == 404:
             # No data for any country in this chunk — skip.
             continue
