@@ -1,6 +1,11 @@
 # Databricks notebook source
+%pip install sdmx1
+dbutils.library.restartPython()
+
+# COMMAND ----------
+
 import pandas as pd
-import requests
+import sdmx
 from datetime import datetime
 
 # COMMAND ----------
@@ -18,17 +23,20 @@ from datetime import datetime
 
 # COMMAND ----------
 
-SDMX_DATA_API = 'https://api.imf.org/external/sdmx/3.0/data/dataflow'
-SDMX_METADATA_API = 'https://api.imf.org/external/sdmx/3.0/metadata/metadataflow'
 CHUNK_SIZE = 50
 
-session = requests.Session()
+# IMF_DATA3 = sdmx1's source ID for api.imf.org (SDMX-REST 2.x / SDMX-ML 3.0)
+client = sdmx.Client('IMF_DATA3')
 
-# Each source declares its dataflow path, a key template with {countries}/{indicators}
-# placeholders, the indicator code → output column map, and a data_source label.
+# Each source declares the IMF dataflow (agency_id, resource_id, version), a key
+# template with {countries}/{indicators} placeholders, the indicator code →
+# output column map, and a data_source label. extract_forecast flags whether to
+# use COUNTRY_UPDATE_DATE to distinguish historical vs forecast observations.
 SOURCES = [
     {
-        'flow': 'IMF.RES/WEO/9.0.0',
+        'agency_id': 'IMF.RES',
+        'resource_id': 'WEO',
+        'version': '9.0.0',
         'key_template': '{countries}.{indicators}.A',
         'indicators': {
             'GGR': 'revenue_current_lcu',
@@ -38,7 +46,9 @@ SOURCES = [
         'extract_forecast': True,
     },
     {
-        'flow': 'IMF.STA/GFS_SOO/12.0.0',
+        'agency_id': 'IMF.STA',
+        'resource_id': 'GFS_SOO',
+        'version': '12.0.0',
         'key_template': '{countries}.S1311B.*.{indicators}.XDC.*',
         'indicators': {
             'G1_T': 'revenue_current_lcu',
@@ -50,109 +60,75 @@ SOURCES = [
 
 # COMMAND ----------
 
-def _get_attribute_position(payload):
-    """Extract position of COUNTRY_UPDATE_DATE from data response structures.
-
-    Returns the index position of COUNTRY_UPDATE_DATE in series attributes, or None.
-    """
+def _publication_year(series):
+    """Read COUNTRY_UPDATE_DATE from a series's attached attributes (mm/dd/yyyy)."""
+    attrs = getattr(series, 'attrib', None) or getattr(series, 'attached_attribute', None)
+    if not attrs:
+        return None
+    attr = attrs.get('COUNTRY_UPDATE_DATE')
+    if attr is None:
+        return None
+    value = getattr(attr, 'value', attr)
+    if not isinstance(value, str):
+        return None
     try:
-        struct = payload.get('data', {}).get('structures', [{}])[0]
-        attributes = struct.get('attributes', {}).get('series', [])
-        for i, attr in enumerate(attributes):
-            if attr.get('id') == 'COUNTRY_UPDATE_DATE':
-                return i
-        return None
-    except Exception:
+        return datetime.strptime(value, '%m/%d/%Y').year
+    except ValueError:
         return None
 
-def _parse_sdmx_payload(payload, extract_forecast=False, pub_date_attr_idx=None):
-    """Parse one SDMX-JSON v3 response into long-format records: (country_code, year, indicator, value, forecast).
+def _dim_value(series_key, name):
+    kv = getattr(series_key, name)
+    return getattr(kv, 'value', kv)
 
-    If extract_forecast=True, determines forecast status by comparing observation year to publication year.
-    Years >= publication_year are forecasts (forecast=True); earlier years are actual (forecast=False).
-    Publication year is extracted from TIME_PERIOD_END attribute in series attributes.
-    """
-    datasets = payload.get('data', {}).get('dataSets') or []
-    if not datasets or not datasets[0].get('series'):
-        return []
-
-    struct = payload['data']['structures'][0]
-    series_dims = struct['dimensions']['series']
-    obs_dim = struct['dimensions']['observation'][0]
-
-    pos = {d['id']: i for i, d in enumerate(series_dims)}
-    countries = [v['id'] for v in series_dims[pos['COUNTRY']]['values']]
-    indicators = [v['id'] for v in series_dims[pos['INDICATOR']]['values']]
-    years = [int(v['value']) for v in obs_dim['values']]
-
-    records = []
-    for series_key, series in datasets[0]['series'].items():
-        idx = [int(i) for i in series_key.split(':')]
-        country_code = countries[idx[pos['COUNTRY']]]
-        indicator = indicators[idx[pos['INDICATOR']]]
-
-        publication_year = None
-        if extract_forecast and pub_date_attr_idx is not None and series.get('attributes'):
-            pub_date = series['attributes'][pub_date_attr_idx] if pub_date_attr_idx < len(series['attributes']) else None
-            if pub_date and isinstance(pub_date, str):
-                try:
-                    dt = datetime.strptime(pub_date, '%m/%d/%Y')
-                    publication_year = dt.year
-                except ValueError:
-                    publication_year = None
-
-        for time_idx, obs in series['observations'].items():
-            year = years[int(time_idx)]
-            record = {
-                'country_code': country_code,
-                'year': year,
-                'indicator': indicator,
-                'value': float(obs[0]) if obs[0] is not None else None,
-                'forecast': False,
-            }
-            if extract_forecast and publication_year:
-                record['forecast'] = year >= publication_year
-            records.append(record)
-    return records
-
-def fetch_sdmx(country_codes, flow, key_template, indicators, data_source, extract_forecast=False):
-    """Chunked fetch over `country_codes`, pivot to wide, rename indicator codes to nice columns.
-
-    Uses SDMX v3 API with:
-    - format=jsondata: explicit JSON format
-    - attributes=dsd: include Data Structure Definition for proper attribute parsing
-    - detail=full: ensure complete series attributes are returned
-    """
+def fetch_sdmx(country_codes, agency_id, resource_id, version, key_template, indicators, data_source, extract_forecast=False):
+    """Chunked fetch via sdmx1, pivot to wide, rename indicator codes to nice columns."""
     indicator_key = '+'.join(indicators.keys())
     all_records = []
-    pub_date_attr_idx = None
 
     for i in range(0, len(country_codes), CHUNK_SIZE):
         chunk = '+'.join(country_codes[i:i + CHUNK_SIZE])
         key = key_template.format(countries=chunk, indicators=indicator_key)
-        params = {
-            'format': 'jsondata',
-            'attributes': 'dsd',
-            'detail': 'full',
-        }
-        resp = session.get(f'{SDMX_DATA_API}/{flow}/{key}', params=params, timeout=30)
-        if resp.status_code == 404:
-            # No data for any country in this chunk — skip.
-            continue
-        resp.raise_for_status()
-        payload = resp.json()
+        try:
+            msg = client.get(
+                resource_type='data',
+                resource_id=resource_id,
+                provider=agency_id,
+                version=version,
+                key=key,
+                params={'attributes': 'dsd'},
+            )
+        except Exception as e:
+            # IMF returns 404 for chunks where no country has data — skip.
+            if '404' in str(e):
+                continue
+            raise
 
-        # Extract attribute position from first response
-        if extract_forecast and pub_date_attr_idx is None:
-            pub_date_attr_idx = _get_attribute_position(payload)
+        for dataset in msg.data:
+            for series_key, series in dataset.series.items():
+                country_code = _dim_value(series_key, 'COUNTRY')
+                indicator = _dim_value(series_key, 'INDICATOR')
+                publication_year = _publication_year(series) if extract_forecast else None
 
-        all_records.extend(_parse_sdmx_payload(payload, extract_forecast=extract_forecast, pub_date_attr_idx=pub_date_attr_idx))
+                for obs in series.obs:
+                    period = obs.dim if hasattr(obs, 'dim') else obs.key[0]
+                    period = getattr(period, 'value', period)
+                    try:
+                        year = int(str(period))
+                    except (TypeError, ValueError):
+                        continue
+                    value = float(obs.value) if obs.value is not None else None
+                    forecast = bool(publication_year and year >= publication_year)
+                    all_records.append({
+                        'country_code': country_code,
+                        'year': year,
+                        'indicator': indicator,
+                        'value': value,
+                        'forecast': forecast,
+                    })
 
     df = pd.DataFrame(all_records)
-    if extract_forecast:
-        df = df.pivot_table(index=['country_code', 'year', 'forecast'], columns='indicator', values='value', aggfunc='first').reset_index()
-    else:
-        df = df.pivot_table(index=['country_code', 'year'], columns='indicator', values='value', aggfunc='first').reset_index()
+    index_cols = ['country_code', 'year', 'forecast'] if extract_forecast else ['country_code', 'year']
+    df = df.pivot_table(index=index_cols, columns='indicator', values='value', aggfunc='first').reset_index()
     df = df.rename_axis(columns=None).rename(columns=indicators)
     df['data_source'] = data_source
     return df
