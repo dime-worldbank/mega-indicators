@@ -1,17 +1,25 @@
 # Databricks notebook source
 !pip install pdfplumber
 
-
 # COMMAND ----------
 
-import pdfplumber
-import pandas as pd
+import os
 import re
+import pandas as pd
+import pdfplumber
 
-BILLION = 1000000000
+BILLION = 1_000_000_000
+VOLUME_PATH = '/Volumes/prd_mega/sboost4/vboost4/Workspace/auxiliary_data/buget/togo/'
+
+# French DGB budget-execution row label → output column.
+LABELS = {
+    'recettes budgétaires': 'revenue_current_lcu',
+    'dépenses budgétaires': 'expenditure_current_lcu',
+    'dépenses en atténuation': 'tax_expenditure',
+}
 
 def parse_amount(val):
-    """Parse French-formatted PDF amount (e.g. '123 123, 00') to float, returning None on failure."""
+    """Parse French-formatted PDF amount in billions (e.g. '123 123, 00') to float, or None."""
     if not val:
         return None
     try:
@@ -21,103 +29,74 @@ def parse_amount(val):
         return None
 
 def extract_year(filename):
-    """Extract year from filename (e.g. '2022', '2023', '2024')."""
-    match = re.search(r'(202[0-9])', filename)
-    return int(match.group(1)) if match else None
+    # Matches the togo_budget_YYYY.pdf convention emitted by togo_budget_documents_download.py.
+    m = re.fullmatch(r'togo_budget_(\d{4})\.pdf', filename)
+    return int(m.group(1)) if m else None
 
-def extract_table_23_data(pdf, year, extracted_data):
-    """Search for Table 23 in PDF and extract budget data. Updates extracted_data dict in place."""
+def extract_table_23_metrics(pdf):
+    """Return {column: amount} from Table 23's EXECUTION column, or {} if unparsable."""
     for page in pdf.pages:
-        page_text = page.extract_text() or ""
-        if 'Tableau n° 23' not in page_text:
+        if 'Tableau n° 23' not in (page.extract_text() or ''):
             continue
-
         tables = page.extract_tables()
         if not tables:
             continue
-
         df = pd.DataFrame(tables[0])
-        execution_col = next(
+        exec_col = next(
             (i for i in range(len(df.columns))
              if 'execution' in str(df.iloc[1, i]).lower() and 'base' in str(df.iloc[1, i]).lower()),
-            None
+            None,
         )
+        if exec_col is None:
+            return {}
+        metrics = {}
+        for _, row in df.iterrows():
+            label = str(row[0]).strip().lower() if row[0] else ''
+            col = next((c for n, c in LABELS.items() if n in label), None)
+            if col is None:
+                continue
+            val = row[exec_col]
+            # Tax-expenditure value occasionally lives in the next column.
+            if col == 'tax_expenditure' and not (val and str(val).strip()):
+                val = row.get(exec_col + 1)
+            metrics[col] = parse_amount(val)
+        return metrics
+    return {}
 
-        if execution_col is None:
-            print(f"  Warning: Could not find EXECUTION column")
-            return
+# COMMAND ----------
 
-        for idx, row in df.iterrows():
-            row_label = str(row[0]).strip().lower() if row[0] else ""
-            val_cell = row[execution_col]
-
-            if 'recettes budgétaires' in row_label:
-                val = parse_amount(val_cell)
-                extracted_data[year]['revenue_current_lcu'] = val
-                print(f"  ✓ Revenue: {val}")
-            elif 'dépenses budgétaires' in row_label:
-                val = parse_amount(val_cell)
-                extracted_data[year]['expenditure_current_lcu'] = val
-                print(f"  ✓ Expenditure: {val}")
-            elif 'dépenses en atténuation' in row_label:
-                val = val_cell if val_cell and str(val_cell).strip() else row.get(execution_col + 1)
-                val = parse_amount(val)
-                extracted_data[year]['tax_expenditure'] = val
-                print(f"  ✓ Tax expenditure: {val}")
-        return
-
-# Volume path where PDFs are stored
-volume_path = '/Volumes/prd_mega/sboost4/vboost4/Workspace/auxiliary_data/buget/togo/'
-
-# List all PDF files in the volume
-pdf_files = [f for f in dbutils.fs.ls(volume_path) if f.name.endswith('.pdf')]
-
-print(f"Found {len(pdf_files)} PDF files in {volume_path}")
-
-extracted_data = {}
-
-for file_info in pdf_files:
-    pdf_path = file_info.path.replace('dbfs:', '')
-    year = extract_year(file_info.name)
-
+rows_by_year = {}
+for filename in sorted(os.listdir(VOLUME_PATH)):
+    year = extract_year(filename)
     if year is None:
-        print(f"Warning: Could not extract year from {file_info.name}")
         continue
-
-    print(f"\nProcessing: {file_info.name} (Year: {year})")
-
-    if year not in extracted_data:
-        extracted_data[year] = {
-            'country_name': 'Togo',
-            'country_code': 'TGO',
-            'year': year,
-            'revenue_current_lcu': None,
-            'expenditure_current_lcu': None,
-            'tax_expenditure': None,
-            'data_source': 'Togo DGB Budget Execution Report'
-        }
-
     try:
-        with pdfplumber.open(pdf_path) as pdf:
-            extract_table_23_data(pdf, year, extracted_data)
+        with pdfplumber.open(VOLUME_PATH + filename) as pdf:
+            metrics = extract_table_23_metrics(pdf)
     except Exception as e:
-        print(f"  Error processing {file_info.name}: {str(e)}")
+        print(f"✗ {filename}: {e}")
+        continue
+    if not metrics:
+        print(f"✗ {filename}: Table 23 not found / unparsable")
+        continue
+    rows_by_year[year] = {
+        'country_name': 'Togo',
+        'country_code': 'TGO',
+        'year': year,
+        'revenue_current_lcu': metrics.get('revenue_current_lcu'),
+        'expenditure_current_lcu': metrics.get('expenditure_current_lcu'),
+        'tax_expenditure': metrics.get('tax_expenditure'),
+        'data_source': 'Togo DGB Budget Execution Report',
+    }
+    print(f"✓ {filename}: {metrics}")
 
-# Convert dictionary to list
-extracted_data = list(extracted_data.values())
+if not rows_by_year:
+    raise RuntimeError("No PDFs successfully parsed")
 
-# Create DataFrame from merged data
-if extracted_data:
-    df = pd.DataFrame(extracted_data)
+df = pd.DataFrame(rows_by_year.values())
+print(df.to_string(index=False))
 
-    print(f"\n{'='*60}")
-    print("Extracted Data:")
-    print(f"{'='*60}")
-    print(df.to_string(index=False))
+# COMMAND ----------
 
-    # Convert to Spark DataFrame and save
-    sdf = spark.createDataFrame(df)
-    sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.togo_revenue_budget")
-    print(f"\nData saved to: prd_mega.indicator.togo_revenue_budget")
-else:
-    print("No data extracted!")
+sdf = spark.createDataFrame(df)
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.togo_revenue_budget")
