@@ -32,8 +32,10 @@ for idx, url in enumerate(urls, 1):
         # Full file path in volume
         file_path = volume_path + filename
 
-        # Write file to volume
-        dbutils.fs.put(file_path, response.content, overwrite=True)
+        # Write binary content directly — dbutils.fs.put expects a string and
+        # corrupts bytes payloads like PDFs.
+        with open(file_path, 'wb') as f:
+            f.write(response.content)
 
         file_size = len(response.content)
         print(f"✓ Successfully downloaded {filename} ({file_size} bytes)")
