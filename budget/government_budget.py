@@ -97,6 +97,7 @@ def _parse_sdmx_payload(payload, extract_forecast=False):
                 'year': year,
                 'indicator': indicator,
                 'value': float(obs[0]) if obs[0] is not None else None,
+                'forecast': False,
             }
             if extract_forecast and publication_year:
                 record['forecast'] = year >= publication_year
