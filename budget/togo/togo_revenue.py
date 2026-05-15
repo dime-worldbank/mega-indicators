@@ -1,9 +1,15 @@
 # Databricks notebook source
+!pip install pdfplumber
+
+
+# COMMAND ----------
+
 import pdfplumber
 import pandas as pd
 import os
 import re
 from datetime import datetime
+BILLION = 1000000000
 
 def parse_amount(val):
     """Parse French-formatted PDF amount (e.g. '123 123, 00') to float, returning None on failure."""
@@ -13,7 +19,7 @@ def parse_amount(val):
     if not s:
         return None
     try:
-        return float(s)
+        return float(s)*BILLION
     except ValueError:
         return None
 
