@@ -18,7 +18,8 @@ from datetime import datetime
 
 # COMMAND ----------
 
-SDMX_API = 'https://api.imf.org/external/sdmx/3.0/data/dataflow'
+SDMX_DATA_API = 'https://api.imf.org/external/sdmx/3.0/data/dataflow'
+SDMX_METADATA_API = 'https://api.imf.org/external/sdmx/3.0/metadata/metadataflow'
 CHUNK_SIZE = 50
 
 session = requests.Session()
@@ -49,7 +50,22 @@ SOURCES = [
 
 # COMMAND ----------
 
-def _parse_sdmx_payload(payload, extract_forecast=False):
+def _get_attribute_position(payload):
+    """Extract position of COUNTRY_UPDATE_DATE from data response structures.
+
+    Returns the index position of COUNTRY_UPDATE_DATE in series attributes, or None.
+    """
+    try:
+        struct = payload.get('data', {}).get('structures', [{}])[0]
+        attributes = struct.get('attributes', {}).get('series', [])
+        for i, attr in enumerate(attributes):
+            if attr.get('id') == 'COUNTRY_UPDATE_DATE':
+                return i
+        return None
+    except Exception:
+        return None
+
+def _parse_sdmx_payload(payload, extract_forecast=False, pub_date_attr_idx=None):
     """Parse one SDMX-JSON v3 response into long-format records: (country_code, year, indicator, value, forecast).
 
     If extract_forecast=True, determines forecast status by comparing observation year to publication year.
@@ -69,10 +85,6 @@ def _parse_sdmx_payload(payload, extract_forecast=False):
     indicators = [v['id'] for v in series_dims[pos['INDICATOR']]['values']]
     years = [int(v['value']) for v in obs_dim['values']]
 
-    # Find TIME_PERIOD_END attribute position (usually last)
-    attr_ids = [a['id'] for a in struct.get('attributes', {}).get('series', [])]
-    time_period_end_idx = attr_ids.index('TIME_PERIOD_END') if 'TIME_PERIOD_END' in attr_ids else None
-
     records = []
     for series_key, series in datasets[0]['series'].items():
         idx = [int(i) for i in series_key.split(':')]
@@ -80,11 +92,10 @@ def _parse_sdmx_payload(payload, extract_forecast=False):
         indicator = indicators[idx[pos['INDICATOR']]]
 
         publication_year = None
-        if extract_forecast and time_period_end_idx is not None and series.get('attributes'):
-            pub_date = series['attributes'][time_period_end_idx] if time_period_end_idx < len(series['attributes']) else None
+        if extract_forecast and pub_date_attr_idx is not None and series.get('attributes'):
+            pub_date = series['attributes'][pub_date_attr_idx] if pub_date_attr_idx < len(series['attributes']) else None
             if pub_date and isinstance(pub_date, str):
                 try:
-                    # Parse date in format M/D/YYYY
                     dt = datetime.strptime(pub_date, '%m/%d/%Y')
                     publication_year = dt.year
                 except ValueError:
@@ -114,6 +125,8 @@ def fetch_sdmx(country_codes, flow, key_template, indicators, data_source, extra
     """
     indicator_key = '+'.join(indicators.keys())
     all_records = []
+    pub_date_attr_idx = None
+
     for i in range(0, len(country_codes), CHUNK_SIZE):
         chunk = '+'.join(country_codes[i:i + CHUNK_SIZE])
         key = key_template.format(countries=chunk, indicators=indicator_key)
@@ -122,12 +135,18 @@ def fetch_sdmx(country_codes, flow, key_template, indicators, data_source, extra
             'attributes': 'dsd',
             'detail': 'full',
         }
-        resp = session.get(f'{SDMX_API}/{flow}/{key}', params=params, timeout=30)
+        resp = session.get(f'{SDMX_DATA_API}/{flow}/{key}', params=params, timeout=30)
         if resp.status_code == 404:
             # No data for any country in this chunk — skip.
             continue
         resp.raise_for_status()
-        all_records.extend(_parse_sdmx_payload(resp.json(), extract_forecast=extract_forecast))
+        payload = resp.json()
+
+        # Extract attribute position from first response
+        if extract_forecast and pub_date_attr_idx is None:
+            pub_date_attr_idx = _get_attribute_position(payload)
+
+        all_records.extend(_parse_sdmx_payload(payload, extract_forecast=extract_forecast, pub_date_attr_idx=pub_date_attr_idx))
 
     df = pd.DataFrame(all_records)
     if extract_forecast:
