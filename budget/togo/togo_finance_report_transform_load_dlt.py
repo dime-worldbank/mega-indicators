@@ -1,5 +1,18 @@
 # Databricks notebook source
+!pwd
+
+# COMMAND ----------
+
 !pip install pdfplumber
+
+# COMMAND ----------
+
+# MAGIC %run ../../utils
+
+# COMMAND ----------
+
+VOLUME_ROOT_PATH = get_volume_root_path()
+VOLUME_PATH = f'{VOLUME_ROOT_PATH}/auxiliary_data/official_finance_reports/togo/'
 
 # COMMAND ----------
 
@@ -9,7 +22,6 @@ import pandas as pd
 import pdfplumber
 
 BILLION = 1_000_000_000
-VOLUME_PATH = '/Volumes/prd_mega/sboost4/vboost4/Workspace/auxiliary_data/buget/togo/'
 
 # French DGB budget-execution row label → output column.
 LABELS = {
@@ -33,11 +45,13 @@ def extract_year(filename):
     m = re.fullmatch(r'togo_budget_(\d{4})\.pdf', filename)
     return int(m.group(1)) if m else None
 
-def extract_table_23_metrics(pdf):
-    """Return {column: amount} from Table 23's EXECUTION column, or {} if unparsable."""
+def extract_table_summary_metrics(pdf):
+    """Return {column: amount} from EXECUTION column, or {} if unparsable."""
     for page in pdf.pages:
-        if 'Tableau n° 23' not in (page.extract_text() or ''):
+        if 'tableau n° 22' not in (page.extract_text().lower()):
             continue
+        print(page.page_number)
+
         tables = page.extract_tables()
         if not tables:
             continue
@@ -70,15 +84,12 @@ for filename in sorted(os.listdir(VOLUME_PATH)):
     year = extract_year(filename)
     if year is None:
         continue
-    try:
-        with pdfplumber.open(VOLUME_PATH + filename) as pdf:
-            metrics = extract_table_23_metrics(pdf)
-    except Exception as e:
-        print(f"✗ {filename}: {e}")
-        continue
+    with pdfplumber.open(VOLUME_PATH + filename) as pdf:
+        metrics = extract_table_summary_metrics(pdf)
+
     if not metrics:
-        print(f"✗ {filename}: Table 23 not found / unparsable")
-        continue
+        raise ValueError(f"Summary table not found / unparsable in {filename}")
+                         
     rows_by_year[year] = {
         'country_name': 'Togo',
         'country_code': 'TGO',
@@ -90,11 +101,64 @@ for filename in sorted(os.listdir(VOLUME_PATH)):
     }
     print(f"✓ {filename}: {metrics}")
 
-if not rows_by_year:
-    raise RuntimeError("No PDFs successfully parsed")
-
 df = pd.DataFrame(rows_by_year.values())
 print(df.to_string(index=False))
+
+# COMMAND ----------
+
+metrics
+
+# COMMAND ----------
+
+filename = 'togo_budget_2022.pdf'
+
+# COMMAND ----------
+
+pdf = pdfplumber.open(VOLUME_PATH + filename)
+for page in pdf.pages:
+    if "dépenses en atténuation de recettes " not in (page.extract_text().lower() or ''):
+        continue
+    tables = page.extract_tables()
+    break
+
+# COMMAND ----------
+
+for page in pdf.pages:
+    if 'tableau n° 22' not in (page.extract_text().lower()):
+        continue
+    print(page.page_number)
+
+    tables = page.extract_tables()
+    if not tables:
+        continue
+    df = pd.DataFrame(tables[0])
+    exec_col = next(
+        (i for i in range(len(df.columns))
+            if 'EXECUTION' in str(df.iloc[1, i]).lower() and 'base' in str(df.iloc[1, i]).lower()),
+        None,
+    )
+    if exec_col is None:
+        print('return')
+    metrics = {}
+    for _, row in df.iterrows():
+        label = str(row[0]).strip().lower() if row[0] else ''
+        col = next((c for n, c in LABELS.items() if n in label), None)
+        if col is None:
+            continue
+        val = row[exec_col]
+        # Tax-expenditure value occasionally lives in the next column.
+        if col == 'tax_expenditure' and not (val and str(val).strip()):
+            val = row.get(exec_col + 1)
+        metrics[col] = parse_amount(val)
+
+
+# COMMAND ----------
+
+df
+
+# COMMAND ----------
+
+page.extract_text().lower()
 
 # COMMAND ----------
 

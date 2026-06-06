@@ -1,0 +1,95 @@
+name: update-togo-budget
+description: Extract and format Togo budget metrics from annual reports into nested dictionaries
+category: data
+# Update Togo Budget Data
+
+Extract budget metrics from the official Togo budget execution report (Table 23) and format them for the data pipeline.
+
+## Format
+
+The data should be structured as:
+```python
+{
+    'column_name': {year: value, year: value, ...},
+    'another_column': {year: value, year: value, ...},
+}
+```
+
+## Steps
+
+### 1. Locate the Source Document
+- Visit: https://dgbftg.org/index.php/documentation/category-layout/category-style2?catid=12
+- Download the budget execution report for your target year
+- Save the PDF locally
+
+### 2. Open and Find Table 23
+- Open the PDF
+- Search for: **"Tableau n° 23"** or **"Situation résumée de l'exécution du budget de l'Etat"**
+- This is the summary table of state budget execution
+
+### 3. Extract Values
+Look for the **EXECUTION** column (or similar "actual spending" column). Extract these metric rows:
+
+| Row Label | Dictionary Key | Notes |
+|-----------|-----------------|-------|
+| Total Revenue / Recettes | `revenue` | Total actual revenue |
+| Tax Expenditure | `tax_expenditure` | Tax-related spending |
+| [Other relevant rows] | `other_key` | Add as needed |
+
+### 4. Record the Data
+
+For each metric, record all available years in a nested dictionary:
+
+```python
+BUDGET_DATA = {
+    'revenue': {
+        2024: 1234567890,
+        2023: 1200000000,
+        2022: 1150000000,
+    },
+    'tax_expenditure': {
+        2024: 234567890,
+        2023: 200000000,
+        2022: 180000000,
+    },
+}
+```
+
+### 5. Document the Source
+
+For each entry, include:
+```python
+BUDGET_DATA_SOURCES = {
+    2024: 'https://dgbftg.org/index.php/documentation/.../download.send&id=138',
+    2023: 'https://dgbftg.org/index.php/documentation/.../download.send&id=118',
+    2022: 'https://dgbftg.org/index.php/documentation/.../download.send&id=99',
+}
+```
+
+## Example: Adding 2024 Data
+
+1. Download 2024 budget report from dgbftg.org
+2. Open PDF → Find "Tableau n° 23"
+3. Locate EXECUTION column
+4. Extract values:
+   - Revenue: 1,234,567,890 CFA francs
+   - Tax expenditure: 234,567,890 CFA francs
+5. Update `BUDGET_DATA` dict:
+```python
+'revenue': {
+    2024: 1234567890,  # Source: https://dgbftg.org/.../id=138
+    ...
+}
+```
+
+## Notes
+
+- Values should be in **actual currency units** (CFA francs), not millions
+- If a value is unavailable or unparseable, skip that metric for that year
+- Always record the source URL for audit trail
+- Handle special cases (e.g., tax expenditure sometimes in adjacent column)
+
+## When to Update
+
+- Typically **once per calendar year** when the government releases the latest budget execution report
+- Check dgbftg.org documentation section for new releases
