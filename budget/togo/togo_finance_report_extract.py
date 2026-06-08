@@ -18,6 +18,7 @@ URLS = {
     2022: 'https://togoreformes.gouv.tg/documents/download/449',
     2021: 'https://togoreformes.gouv.tg/documents/download/360',
     2020: 'https://togoreformes.gouv.tg/documents/download/320',
+    2019: 'https://togoreformes.gouv.tg/documents/download/302'
 }
 
 os.makedirs(VOLUME_PATH, exist_ok=True)

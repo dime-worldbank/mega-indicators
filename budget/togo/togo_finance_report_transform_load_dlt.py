@@ -1,164 +1,72 @@
 # Databricks notebook source
-!pwd
 
-# COMMAND ----------
-
-!pip install pdfplumber
-
-# COMMAND ----------
-
-# MAGIC %run ../../utils
-
-# COMMAND ----------
-
-VOLUME_ROOT_PATH = get_volume_root_path()
-VOLUME_PATH = f'{VOLUME_ROOT_PATH}/auxiliary_data/official_finance_reports/togo/'
-
-# COMMAND ----------
-
-import os
-import re
 import pandas as pd
-import pdfplumber
 
-BILLION = 1_000_000_000
-
-# French DGB budget-execution row label → output column.
-LABELS = {
-    'recettes budgétaires': 'revenue_current_lcu',
-    'dépenses budgétaires': 'expenditure_current_lcu',
-    'dépenses en atténuation': 'tax_expenditure',
+# Togo state budget execution metrics, in whole CFA francs.
+# Source: DGB / Direction Générale du Budget budget execution reports.
+# To add a new year (or fix a value), follow the update-togo-budget skill:
+#   .assistant/skills/update_togo_report
+BUDGET_DATA = {
+    2024: {
+        'revenue_current_lcu': 1_336_110_000_000,
+        'expenditure_current_lcu': 1_674_240_000_000,
+        'tax_expenditure': 216_940_000_000,
+        'source_url': 'https://togoreformes.gouv.tg/documents/download/609',
+        'source_page': 42,
+    },
+    2023: {
+        'revenue_current_lcu': 1_317_230_000_000,
+        'expenditure_current_lcu': 1_681_630_000_000,
+        'tax_expenditure': 217_540_000_000,
+        'source_url': 'https://togoreformes.gouv.tg/documents/download/3',
+        'source_page': 43,
+    },
+    2022: {
+        'revenue_current_lcu': 1_051_360_000_000,
+        'expenditure_current_lcu': 1_432_880_000_000,
+        'tax_expenditure': 160_340_000_000,
+        'source_url': 'https://togoreformes.gouv.tg/documents/download/449',
+        'source_page': 44,
+    },
+    2021: {
+        'revenue_current_lcu': 650_670_000_000,
+        'expenditure_current_lcu': 710_970_000_000,
+        'tax_expenditure': 99_990_000_000,
+        'source_url': 'https://togoreformes.gouv.tg/documents/download/360',
+        'source_page': 40,
+    },
+    2020: {
+        'revenue_current_lcu': 830_450_000_000,
+        'expenditure_current_lcu': 1_082_770_000_000,
+        'tax_expenditure': 76_060_000_000,
+        'source_url': 'https://togoreformes.gouv.tg/documents/download/320',
+        'source_page': 31,
+    },
+    2019: {
+        'revenue_current_lcu': 818_400_000_000,
+        'expenditure_current_lcu': 840_430_000_000,
+        'tax_expenditure': 84_150_000_000,
+        'source_url': 'https://togoreformes.gouv.tg/documents/download/302',
+        'source_page': 32,
+    },
 }
 
-def parse_amount(val):
-    """Parse French-formatted PDF amount in billions (e.g. '123 123, 00') to float, or None."""
-    if not val:
-        return None
-    try:
-        s = re.sub(r'\s+', '', str(val)).replace(',', '.')
-        return float(s) * BILLION if s else None
-    except (ValueError, TypeError):
-        return None
-
-def extract_year(filename):
-    # Matches the togo_budget_YYYY.pdf convention emitted by togo_budget_documents_download.py.
-    m = re.fullmatch(r'togo_budget_(\d{4})\.pdf', filename)
-    return int(m.group(1)) if m else None
-
-def extract_table_summary_metrics(pdf):
-    """Return {column: amount} from EXECUTION column, or {} if unparsable."""
-    for page in pdf.pages:
-        if 'tableau n° 22' not in (page.extract_text().lower()):
-            continue
-        print(page.page_number)
-
-        tables = page.extract_tables()
-        if not tables:
-            continue
-        df = pd.DataFrame(tables[0])
-        exec_col = next(
-            (i for i in range(len(df.columns))
-             if 'execution' in str(df.iloc[1, i]).lower() and 'base' in str(df.iloc[1, i]).lower()),
-            None,
-        )
-        if exec_col is None:
-            return {}
-        metrics = {}
-        for _, row in df.iterrows():
-            label = str(row[0]).strip().lower() if row[0] else ''
-            col = next((c for n, c in LABELS.items() if n in label), None)
-            if col is None:
-                continue
-            val = row[exec_col]
-            # Tax-expenditure value occasionally lives in the next column.
-            if col == 'tax_expenditure' and not (val and str(val).strip()):
-                val = row.get(exec_col + 1)
-            metrics[col] = parse_amount(val)
-        return metrics
-    return {}
-
 # COMMAND ----------
 
-rows_by_year = {}
-for filename in sorted(os.listdir(VOLUME_PATH)):
-    year = extract_year(filename)
-    if year is None:
-        continue
-    with pdfplumber.open(VOLUME_PATH + filename) as pdf:
-        metrics = extract_table_summary_metrics(pdf)
-
-    if not metrics:
-        raise ValueError(f"Summary table not found / unparsable in {filename}")
-                         
-    rows_by_year[year] = {
+df = pd.DataFrame([
+    {
         'country_name': 'Togo',
         'country_code': 'TGO',
         'year': year,
-        'revenue_current_lcu': metrics.get('revenue_current_lcu'),
-        'expenditure_current_lcu': metrics.get('expenditure_current_lcu'),
-        'tax_expenditure': metrics.get('tax_expenditure'),
+        'revenue_current_lcu': d['revenue_current_lcu'],
+        'expenditure_current_lcu': d['expenditure_current_lcu'],
+        'tax_expenditure': d['tax_expenditure'],
         'data_source': 'Togo DGB Budget Execution Report',
+        'source_url': d['source_url'],
     }
-    print(f"✓ {filename}: {metrics}")
-
-df = pd.DataFrame(rows_by_year.values())
+    for year, d in sorted(BUDGET_DATA.items())
+])
 print(df.to_string(index=False))
-
-# COMMAND ----------
-
-metrics
-
-# COMMAND ----------
-
-filename = 'togo_budget_2022.pdf'
-
-# COMMAND ----------
-
-pdf = pdfplumber.open(VOLUME_PATH + filename)
-for page in pdf.pages:
-    if "dépenses en atténuation de recettes " not in (page.extract_text().lower() or ''):
-        continue
-    tables = page.extract_tables()
-    break
-
-# COMMAND ----------
-
-for page in pdf.pages:
-    if 'tableau n° 22' not in (page.extract_text().lower()):
-        continue
-    print(page.page_number)
-
-    tables = page.extract_tables()
-    if not tables:
-        continue
-    df = pd.DataFrame(tables[0])
-    exec_col = next(
-        (i for i in range(len(df.columns))
-            if 'EXECUTION' in str(df.iloc[1, i]).lower() and 'base' in str(df.iloc[1, i]).lower()),
-        None,
-    )
-    if exec_col is None:
-        print('return')
-    metrics = {}
-    for _, row in df.iterrows():
-        label = str(row[0]).strip().lower() if row[0] else ''
-        col = next((c for n, c in LABELS.items() if n in label), None)
-        if col is None:
-            continue
-        val = row[exec_col]
-        # Tax-expenditure value occasionally lives in the next column.
-        if col == 'tax_expenditure' and not (val and str(val).strip()):
-            val = row.get(exec_col + 1)
-        metrics[col] = parse_amount(val)
-
-
-# COMMAND ----------
-
-df
-
-# COMMAND ----------
-
-page.extract_text().lower()
 
 # COMMAND ----------
 
