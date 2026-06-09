@@ -1,0 +1,66 @@
+{
+  "meta": {},
+  "data": {
+    "dataSets": [
+      {
+        "structure": 0,
+        "action": "Replace",
+        "series": {
+          "0:0:0": {
+            "attributes": [0, 0, 0, "9/30/2025"],
+            "observations": {
+              "0": ["10000000000000"],
+              "1": ["10500000000000"],
+              "2": ["11000000000000"]
+            }
+          },
+          "1:0:0": {
+            "attributes": [0, 0, 0, "9/25/2025"],
+            "observations": {
+              "0": ["1500000000000"],
+              "1": ["1600000000000"],
+              "2": ["1700000000000"]
+            }
+          }
+        },
+        "dimensionGroupAttributes": {
+          ":0::": [null, ["true"], null],
+          "0:0::": [null, ["2025"], ["US dollar"]],
+          "1:0::": [null, ["2023"], ["CFA franc"]]
+        }
+      }
+    ],
+    "structures": [
+      {
+        "dataSets": [0],
+        "dimensions": {
+          "series": [
+            {"id": "COUNTRY", "keyPosition": 0, "values": [{"id": "USA"}, {"id": "TGO"}]},
+            {"id": "INDICATOR", "keyPosition": 1, "values": [{"id": "GGX"}]},
+            {"id": "FREQUENCY", "keyPosition": 2, "values": [{"id": "A"}]}
+          ],
+          "observation": [
+            {"id": "TIME_PERIOD", "keyPosition": 3, "values": [
+              {"value": "2024"},
+              {"value": "2025"},
+              {"value": "2026"}
+            ]}
+          ]
+        },
+        "attributes": {
+          "dimensionGroup": [
+            {"id": "KEY_INDICATOR"},
+            {"id": "LATEST_ACTUAL_ANNUAL_DATA"},
+            {"id": "PRIMARY_DOMESTIC_CURRENCY"}
+          ],
+          "series": [
+            {"id": "SCALE"},
+            {"id": "DECIMALS_DISPLAYED"},
+            {"id": "OVERLAP"},
+            {"id": "COUNTRY_UPDATE_DATE"}
+          ]
+        }
+      }
+    ]
+  }
+}

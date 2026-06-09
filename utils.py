@@ -31,7 +31,7 @@ def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_countr
 
     country_df = spark.table('indicator.country').select('country_name', 'country_code', 'region', *extra_col_names_from_country_table).toPandas()
     country_df
-    df = pd.merge(merged_df, country_df, left_on='economy', right_on='country_code')[['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names, 'data_source']]
+    df = pd.merge(merged_df, country_df, left_on='economy', right_on='country_code', how='left')[['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names, 'data_source']]
 
     return df
 
