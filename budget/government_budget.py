@@ -103,7 +103,7 @@ def _weo_annotate_forecast(records, payload):
 
     for r in records:
         laad = last_actual.get((r['country_code'], r['indicator']))
-        r['forecast'] = bool(laad is not None and r['year'] > laad)
+        r['is_forecast'] = bool(laad is not None and r['year'] > laad)
 
 def fetch_sdmx(country_codes, flow, key_template, indicators, data_source, post_process=None):
     """Generic SDMX flow fetcher.
@@ -182,12 +182,12 @@ country_df = (spark.table('prd_mega.indicator.country')
 country_codes = country_df['country_code'].dropna().unique().tolist()
 
 combined_df = pd.concat([fetch_sdmx(country_codes, **source) for source in SOURCES], ignore_index=True)
-combined_df['forecast'] = combined_df['forecast'].fillna(False)
+combined_df['is_forecast'] = combined_df['is_forecast'].fillna(False)
 
 # COMMAND ----------
 
 merged_df = (pd.merge(combined_df, country_df, on='country_code', how='inner')
-    [['country_name', 'country_code', 'region', 'year', 'forecast',
+    [['country_name', 'country_code', 'region', 'year', 'is_forecast',
       'revenue_current_lcu', 'expenditure_current_lcu', 'data_source']]
     .sort_values(['country_name', 'year', 'data_source']))
 
