@@ -65,7 +65,9 @@ def _weo_annotate_forecast(records, payload):
         raise RuntimeError(
             f"WEO payload missing dimensionGroup attribute 'LATEST_ACTUAL_ANNUAL_DATA' for "
             f"chunk with countries {countries}. Available dimensionGroup attributes: {available}. "
-            f"WEO schema may have changed, or the request 'attributes' param isn't including MSD (use 'all' or 'msd')."
+            f"WEO schema may have changed, or the request is missing params — check that "
+            f"`attributes=all`, `detail=full`, AND an explicit `limit` are all set (without "
+            f"`limit`, the dimensionGroup attribute values are stripped from the response)."
         )
 
     country_pos = pos['COUNTRY']

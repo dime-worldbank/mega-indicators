@@ -5,7 +5,7 @@ import pandas as pd
 # Togo state budget execution metrics, in whole CFA francs.
 # Source: DGB / Direction Générale du Budget budget execution reports.
 # To add a new year (or fix a value), follow the update-togo-budget skill:
-#   .assistant/skills/update_togo_report
+#   .claude/skills/update-togo-budget/SKILL.md
 BUDGET_DATA = {
     2024: {
         'revenue_current_lcu': 1_336_110_000_000,

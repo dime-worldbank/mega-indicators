@@ -33,8 +33,8 @@ def fetch_sdmx(country_codes, flow, key_template, indicators, data_source, post_
 
     Chunks countries, fetches each chunk, parses, and pivots indicators into columns.
     `post_process(chunk_records, payload)` is called per chunk if provided; any extra
-    keys it adds to records (e.g., 'forecast' for WEO) become additional pivot index
-    columns automatically.
+    keys it adds to records (e.g., 'is_forecast' for WEO) become additional pivot
+    index columns automatically.
     """
     indicator_key = '+'.join(indicators.keys())
     records = []
