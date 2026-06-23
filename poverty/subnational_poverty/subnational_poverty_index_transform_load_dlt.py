@@ -90,7 +90,7 @@ def subnational_poverty_rate_silver():
     )
 
     return (
-        spark.table('prd_mega.indicator_intermediate.poverty_rate_spid_gsap')
+        spark.table('prd_mega.indicator_intermediate.poverty_rate_SPID_GSAP')
         .join(generic_region_name_fixes, ['region_name'], 'left')
         .join(country_region_name_fixes, ['country_code', 'region_name'], 'left')
         .withColumn(
