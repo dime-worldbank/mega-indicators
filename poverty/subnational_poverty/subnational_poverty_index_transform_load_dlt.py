@@ -4,7 +4,7 @@ import pyspark.sql.functions as F
 from pyspark.sql import Window
 
 
-## Intead of when clauses, using a map so it improves readability improve updates for new cases. 
+# Instead of chained when clauses, use a mapping table to improve readability and make it easier to add new cases.
 REGION_NAME_FIXES = [
     (None, 'Maputo City', 'Cidade de Maputo'),
     (None, 'Maputo Cidade', 'Cidade de Maputo'),
