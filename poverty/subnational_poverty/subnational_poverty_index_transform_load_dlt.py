@@ -6,16 +6,6 @@ from pyspark.sql import Window
 
 # Instead of chained when clauses, use a mapping table to improve readability and make it easier to add new cases.
 REGION_NAME_FIXES = [
-    (None, 'Maputo City', 'Cidade de Maputo'),
-    (None, 'Maputo Cidade', 'Cidade de Maputo'),
-    (None, 'Maputo Province', 'Maputo'),
-    (None, "Murang'a", "Murang'a County"),
-    (None, 'Tana River', 'Tana River County'),
-    (None, 'Ha', 'Haa'),
-    (None, 'Wangdi Phodrang', 'Wangduephodrang'),
-    (None, 'Chukha', 'Chhukha'),
-    (None, 'Lhuntshi', 'Lhuentse'),
-    (None, 'Tashi Yangtse', 'Trashiyangtse'),
     ('ALB', 'Durrës', 'Durres'),
     ('ALB', 'Durrës (AL012)', 'Durres'),
     ('ALB', 'Kukës', 'Kukes'),
@@ -40,17 +30,11 @@ REGION_NAME_FIXES = [
     ('BFA', 'Est', 'Est Region Burkina Faso'),
     ('BFA', 'Centre Sud', 'Centre Sud Region Burkina Faso'),
     ('BFA', 'Boucle du Mouhoun', 'Boucle Du Mouhoun'),
-    ('NGA', 'FCT', 'Federal Capital Territory'),
-    ('TUN', 'CenterE', 'Centre Est'),
-    ('TUN', 'CenterW', 'Centre Ouest'),
-    ('TUN', 'NE', 'Nord Est'),
-    ('TUN', 'NW', 'Nord Ouest'),
-    ('TUN', 'SE', 'Sud Est'),
-    ('TUN', 'SW', 'Sud Ouest'),
-    ('KEN', 'Elgeyo/Marakwet', 'Elgeyo Marakwet'),
-    ('KEN', 'Taita/Taveta', 'Taita Taveta'),
-    ('KEN', 'Muranga', "Murang'a County"),
-    ('KEN', 'Nairobi', 'Nairobi City'),
+    ('BTN', 'Ha', 'Haa'),
+    ('BTN', 'Wangdi Phodrang', 'Wangduephodrang'),
+    ('BTN', 'Chukha', 'Chhukha'),
+    ('BTN', 'Lhuntshi', 'Lhuentse'),
+    ('BTN', 'Tashi Yangtse', 'Trashiyangtse'),
     ('CHL', 'I Región de Tarapacá', 'Tarapacá'),
     ('CHL', 'X Región de Los Lagos', 'Los Lagos'),
     ('CHL', 'XI Región de Aysén del Gral Carlos Ibáñez', 'Aysén'),
@@ -67,6 +51,22 @@ REGION_NAME_FIXES = [
     ('CHL', 'VII Región del Maule', 'Maule'),
     ('CHL', 'VIII Región del BioBío', 'Biobío'),
     ('CHL', 'IX Región de la Araucanía', 'Araucanía'),
+    ('KEN', 'Elgeyo/Marakwet', 'Elgeyo Marakwet'),
+    ('KEN', 'Taita/Taveta', 'Taita Taveta'),
+    ('KEN', 'Muranga', "Murang'a County"),
+    ('KEN', "Murang'a", "Murang'a County"),
+    ('KEN', 'Nairobi', 'Nairobi City'),
+    ('KEN', 'Tana River', 'Tana River County'),
+    ('MOZ', 'Maputo City', 'Cidade de Maputo'),
+    ('MOZ', 'Maputo Cidade', 'Cidade de Maputo'),
+    ('MOZ', 'Maputo Province', 'Maputo'),
+    ('NGA', 'FCT', 'Federal Capital Territory'),
+    ('TUN', 'CenterE', 'Centre Est'),
+    ('TUN', 'CenterW', 'Centre Ouest'),
+    ('TUN', 'NE', 'Nord Est'),
+    ('TUN', 'NW', 'Nord Ouest'),
+    ('TUN', 'SE', 'Sud Est'),
+    ('TUN', 'SW', 'Sud Ouest'),
 ]
 
 
@@ -75,34 +75,21 @@ def subnational_poverty_rate_silver():
     countries = spark.table('prd_mega.indicator.country').select('country_name', 'country_code', 'income_level')
     region_name_fixes = spark.createDataFrame(
         REGION_NAME_FIXES,
-        ['country_code', 'region_name', 'fixed_region_name']
-    )
-    generic_region_name_fixes = (
-        region_name_fixes
-        .where(F.col('country_code').isNull())
-        .drop('country_code')
-        .withColumnRenamed('fixed_region_name', 'generic_fixed_region_name')
-    )
-    country_region_name_fixes = (
-        region_name_fixes
-        .where(F.col('country_code').isNotNull())
-        .withColumnRenamed('fixed_region_name', 'country_fixed_region_name')
+        ['country_code', 'region_name', 'country_fixed_region_name']
     )
 
     return (
         spark.table('prd_mega.indicator_intermediate.poverty_rate_SPID_GSAP')
-        .join(generic_region_name_fixes, ['region_name'], 'left')
-        .join(country_region_name_fixes, ['country_code', 'region_name'], 'left')
+        .join(region_name_fixes, ['country_code', 'region_name'], 'left')
         .withColumn(
             'region_name',
             F.coalesce(
-                F.col('generic_fixed_region_name'),
                 F.when(F.col('country_code') == 'COL', F.initcap(F.col('region_name'))),
                 F.col('country_fixed_region_name'),
                 F.col('region_name')
             )
         )
-        .drop('country_fixed_region_name', 'generic_fixed_region_name')
+        .drop('country_fixed_region_name')
         .join(countries, ["country_code"], "inner") # TODO: change to left & investigate dropped
         .withColumn(
             'poverty_rate',
