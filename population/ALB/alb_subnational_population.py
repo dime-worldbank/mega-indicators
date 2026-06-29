@@ -1,13 +1,5 @@
 # Databricks notebook source
-# /// script
-# [tool.databricks.environment]
-# environment_version = "1"
-# dependencies = [
-#   "openpyxl",
-# ]
-# ///
 # MAGIC %pip install openpyxl
-
 # COMMAND ----------
 
 import requests
