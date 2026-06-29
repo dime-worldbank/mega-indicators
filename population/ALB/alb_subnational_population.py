@@ -66,7 +66,7 @@ df_instat = pd.read_excel(io.BytesIO(response.content), sheet_name=0, header=3)
 # selecting the column containing the adm1_names as a variable in case the exact name changes in future iterations
 adm1_name_column = [x for x in df_instat.columns if 'prefectures' in str(x).lower()][0]
 df_instat = df_instat.rename(columns={adm1_name_column: 'adm1_name'})
-selected_columns = ['adm1_name'] + [x for x in df_instat.columns if isinstance(x, int)]
+selected_columns = ['adm1_name'] + [x for x in df_instat.columns if isinstance(x, int) and 2018 <= x <= 2023]
 
 def remove_accents(input_str: str) -> str:
     return ''.join(
@@ -92,7 +92,7 @@ df_instat_long['data_source'] = 'instat.gov.al'
 
 # COMMAND ----------
 
-# Extract the data from 2024 and later from
+# Extract the data from 2024 and later
 url_instat2024_later = "https://www.instat.gov.al/media/qqofjboc/popullsia-m%C3%AB-1-janar-sipas-qarkut-dhe-gjinis%C3%AB.xlsx"
 
 response = requests.get(url_instat2024_later)
@@ -103,10 +103,11 @@ adm1_name_column = [x for x in df_instat_2024.columns if 'prefectures' in str(x)
 df_instat_2024 = df_instat_2024.rename(columns={adm1_name_column: 'adm1_name'})
 selected_columns = ['adm1_name'] + [x for x in df_instat_2024.columns if isinstance(x, int) and x >= 2024]
 
+
 df_instat_2024 = (
     df_instat_2024[selected_columns]
     .dropna()
-    .loc[~df_instat_2024['adm1_name'].str.contains('total', case=False, na=False)]
+    .loc[lambda df: ~df['adm1_name'].str.contains('total', case=False, na=False)]
     .assign(adm1_name=lambda df: df['adm1_name'].apply(remove_accents))
 )
 
