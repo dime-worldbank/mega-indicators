@@ -1,5 +1,6 @@
 # Databricks notebook source
 # MAGIC %pip install openpyxl
+
 # COMMAND ----------
 
 import requests
@@ -49,16 +50,16 @@ assert df_wb_long.adm1_name.nunique() == 12, f'Expected 12 counties, got {df_wb_
 
 # COMMAND ----------
 
-# Extract the data from 2018 to 2023
-url_instat2018_23 = "https://www.instat.gov.al/media/9831/tab2.xlsx"
+# Extract the data from 2018 and later from
+url_instat = "https://www.instat.gov.al/media/9831/tab2.xlsx"
 
-response = requests.get(url_instat2018_23)
+response = requests.get(url_instat)
 response.raise_for_status()
 df_instat = pd.read_excel(io.BytesIO(response.content), sheet_name=0, header=3)
 # selecting the column containing the adm1_names as a variable in case the exact name changes in future iterations
 adm1_name_column = [x for x in df_instat.columns if 'prefectures' in str(x).lower()][0]
 df_instat = df_instat.rename(columns={adm1_name_column: 'adm1_name'})
-selected_columns = ['adm1_name'] + [x for x in df_instat.columns if isinstance(x, int) and 2018 <= x <= 2023]
+selected_columns = ['adm1_name'] + [x for x in df_instat.columns if isinstance(x, int)]
 
 def remove_accents(input_str: str) -> str:
     return ''.join(
@@ -81,37 +82,6 @@ df_instat_long = df_instat.melt(
 
 df_instat_long['country_name'] = 'Albania'
 df_instat_long['data_source'] = 'instat.gov.al'
-
-# COMMAND ----------
-
-# Extract the data from 2024 and later
-url_instat2024_later = "https://www.instat.gov.al/media/qqofjboc/popullsia-m%C3%AB-1-janar-sipas-qarkut-dhe-gjinis%C3%AB.xlsx"
-
-response = requests.get(url_instat2024_later)
-response.raise_for_status()
-df_instat_2024 = pd.read_excel(io.BytesIO(response.content), sheet_name=0, header=3)
-# selecting the column containing the adm1_names as a variable in case the exact name changes in future iterations
-adm1_name_column = [x for x in df_instat_2024.columns if 'prefectures' in str(x).lower()][0]
-df_instat_2024 = df_instat_2024.rename(columns={adm1_name_column: 'adm1_name'})
-selected_columns = ['adm1_name'] + [x for x in df_instat_2024.columns if isinstance(x, int) and x >= 2024]
-
-
-df_instat_2024 = (
-    df_instat_2024[selected_columns]
-    .dropna()
-    .loc[lambda df: ~df['adm1_name'].str.contains('total', case=False, na=False)]
-    .assign(adm1_name=lambda df: df['adm1_name'].apply(remove_accents))
-)
-
-df_instat_2024_long = df_instat_2024.melt(
-    id_vars=['adm1_name'], 
-    var_name='year', 
-    value_name='population'
-)
-
-df_instat_2024_long['country_name'] = 'Albania'
-df_instat_2024_long['data_source'] = 'instat.gov.al'
-df_instat_long = pd.concat([df_instat_long, df_instat_2024_long], ignore_index=True)
 
 assert all(df_instat_long.population.notnull()), f'Expected no missing values in population field, got {sum(df_instat_long.population.isnull())} null values'
 assert df_instat_long.adm1_name.nunique() == 12, f'Expected 12 counties, got {df_instat_long.adm1_name.nunique()}'
