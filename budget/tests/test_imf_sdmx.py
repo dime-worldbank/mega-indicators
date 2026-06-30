@@ -16,12 +16,24 @@ The tests don't depend on exact numeric values; they check structure and
 forecast logic, so either fixture variant works.
 """
 import copy
+import importlib.util
 import json
 from pathlib import Path
 
 import pytest
 
-from imf_sdmx import _parse_payload, _weo_annotate_forecast
+# `imf_sdmx.py` carries a `# Databricks notebook source` header (it's %run'd by
+# government_budget.py), so a plain `import imf_sdmx` fails on Databricks: the
+# runtime's import hook refuses to import a notebook as a module. Load it
+# straight from its file with the standard SourceFileLoader instead, which reads
+# the raw source and treats that header as the ordinary comment it is. This also
+# works locally and needs no sys.path manipulation.
+_imf_sdmx_path = Path(__file__).parent.parent / 'imf_sdmx.py'
+_spec = importlib.util.spec_from_file_location('imf_sdmx', _imf_sdmx_path)
+imf_sdmx = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(imf_sdmx)
+_parse_payload = imf_sdmx._parse_payload
+_weo_annotate_forecast = imf_sdmx._weo_annotate_forecast
 
 
 FIXTURE_PATH = Path(__file__).parent / 'fixtures' / 'weo_sample_payload.json'

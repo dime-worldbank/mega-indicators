@@ -1,6 +1,10 @@
-"""Pytest setup: put `budget/` on sys.path so tests can `from imf_sdmx import ...`
-the same way the Databricks notebook does (Databricks adds the notebook's own
-directory to sys.path but not the repo root, so we mirror that here).
+"""Pytest setup for the budget tests.
+
+Note: the tests load `imf_sdmx` directly from its file via importlib (see
+test_imf_sdmx.py) rather than `import imf_sdmx`, because that module carries a
+`# Databricks notebook source` header and the Databricks runtime refuses to
+import notebooks as modules. So no sys.path manipulation is needed here, but we
+still add `budget/` to sys.path for any future test that imports a plain helper.
 """
 import sys
 from pathlib import Path
