@@ -16,7 +16,7 @@ URLS = {
     2024: 'https://togoreformes.gouv.tg/documents/download/609',
     2023: 'https://togoreformes.gouv.tg/documents/download/3',
     2022: 'https://togoreformes.gouv.tg/documents/download/449',
-    2021: 'https://togoreformes.gouv.tg/documents/download/360',
+    2021: 'https://togoreformes.gouv.tg/documents/download/357',
     2020: 'https://togoreformes.gouv.tg/documents/download/320',
     2019: 'https://togoreformes.gouv.tg/documents/download/302'
 }

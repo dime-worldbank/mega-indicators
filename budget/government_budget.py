@@ -83,14 +83,14 @@ def fetch_sdmx(country_codes, flow, key_template, indicators, data_source, post_
 SOURCES = [
     {
         'flow': 'IMF.RES/WEO/9.0.0',
-        'key_template': '{countries}.{indicators}.A',
+        'key_template': '{countries}.{indicators}.A',#A = Annual
         'indicators': {'GGR': 'revenue_current_lcu', 'GGX': 'expenditure_current_lcu'},
         'data_source': 'WEO (World Economic Outlook), IMF — General Government',
         'post_process': _weo_annotate_forecast,
     },
     {
         'flow': 'IMF.STA/GFS_SOO/12.0.0',
-        'key_template': '{countries}.S1311B.*.{indicators}.XDC.*',
+        'key_template': '{countries}.S1311B.*.{indicators}.XDC.*', #S1311B = Budgetary Central Government, XDC = Current LCU
         'indicators': {'G1_T': 'revenue_current_lcu', 'G2M_T': 'expenditure_current_lcu'},
         'data_source': 'GFS_SOO (Statement of Operations), IMF — Budgetary Central Government',
     },
