@@ -4,8 +4,8 @@ import pandas as pd
 
 # Togo state budget execution metrics, in whole CFA francs.
 # Source: DGB / Direction Générale du Budget budget execution reports.
-# To add a new year (or fix a value), follow the update-togo-budget skill:
-#   .claude/skills/update-togo-budget/SKILL.md
+# To add a new year (or fix a value), see budget/togo/README.md — values are
+# extracted manually from the DGB report and committed as Python literals.
 BUDGET_DATA = {
     2024: {
         'revenue_current_lcu': 1_336_110_000_000,
@@ -29,11 +29,11 @@ BUDGET_DATA = {
         'source_page': 44,
     },
     2021: {
-        'revenue_current_lcu': 650_670_000_000,
-        'expenditure_current_lcu': 710_970_000_000,
-        'tax_expenditure': 99_990_000_000,
-        'source_url': 'https://togoreformes.gouv.tg/documents/download/360',
-        'source_page': 40,
+        'revenue_current_lcu': 921_580_000_000,
+        'expenditure_current_lcu': 1_137_290_000_000,
+        'tax_expenditure': 135_800_000_000,
+        'source_url': 'https://togoreformes.gouv.tg/documents/download/357',
+        'source_page': 41,
     },
     2020: {
         'revenue_current_lcu': 830_450_000_000,

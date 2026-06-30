@@ -22,10 +22,25 @@ When a new report is published:
 
 1. Add the URL to `URLS` in `togo_finance_report_extract.py` and run it to
    archive the PDF in the volume.
-2. Open Claude Code in this repo and ask it to update the Togo budget for the
-   new year. The `update-togo-budget` skill
-   (`.claude/skills/update-togo-budget/SKILL.md`) walks through finding the
-   summary table, extracting the three metrics, and updating `BUDGET_DATA`.
+2. Open the archived PDF and find the budget-execution summary table, titled
+   *Situation résumée de l'exécution du budget de l'État*. **Identify it by
+   that title, not by the `Tableau n°` number** — the number drifts year to
+   year. Note its page number for `source_page`.
+
+   Read the three values from the **`EXECUTION`** column (usually subtitled
+   *base ordonnancement*):
+
+   | PDF row | Dict key |
+   |---|---|
+   | `Recettes budgétaires` | `revenue_current_lcu` |
+   | `Dépenses budgétaires` | `expenditure_current_lcu` |
+   | `Dépenses en atténuation de recettes` | `tax_expenditure` (sometimes sits in the column just right of `EXECUTION`) |
+
+   Values are in **billions of CFA** with French formatting (space thousands
+   separator, comma decimal). Convert to whole CFA by multiplying by 1e9 —
+   e.g. `1 234,5` billions → `1_234_500_000_000`. Add a new entry to
+   `BUDGET_DATA` as underscored integer literals; use `None` for any metric
+   genuinely absent from the table.
 3. Review the PR — eyeball each value against the source page recorded in
    `source_page`. Magnitudes should be plausible (revenue is typically
    hundreds of billions to low trillions of CFA).
@@ -44,9 +59,8 @@ shifts in the data, and an audit trail that links each row in the Delta
 table back to a specific model response. That's a real amount of engineering
 to harden one annual extract.
 
-Instead, we use the LLM where it pays off without the production overhead:
-as a **developer-time skill** that helps a human extract the values once,
-which then get committed as Python literals. The reviewer sanity-checks the
-diff, the PR is the audit trail, and the pipeline stays a deterministic
-"read the dict, write Delta." LLM as productivity tool, not as runtime
-dependency.
+Instead, a human extracts the values once and commits them as Python
+literals. The reviewer sanity-checks the diff, the PR is the audit trail, and
+the pipeline stays a deterministic "read the dict, write Delta." It's one
+small annual extract — manual extraction is cheap and keeps the data
+trustworthy without any runtime model dependency.
