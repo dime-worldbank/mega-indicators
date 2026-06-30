@@ -1,4 +1,14 @@
 # Databricks notebook source
+import os
+
+def get_volume_root_path():
+    return os.getenv(
+        'VOLUME_ROOT_PATH',
+        '/Volumes/prd_mega/sboost4/vboost4/Workspace'
+    )
+
+# COMMAND ----------
+
 import wbgapi as wb
 import pandas as pd
 from databricks.sdk.runtime import spark
@@ -24,3 +34,4 @@ def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_countr
     df = pd.merge(merged_df, country_df, left_on='economy', right_on='country_code', how='left')[['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names, 'data_source']]
 
     return df
+

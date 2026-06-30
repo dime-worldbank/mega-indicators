@@ -1,0 +1,25 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Only the deps unit tests actually need — not the full notebook stack
+      # (no pyspark, no openai, etc.). Keep this list minimal so adding a
+      # heavy dependency to a notebook doesn't slow CI down.
+      - name: Install test dependencies
+        run: pip install pytest pandas
+
+      - name: Run tests
+        run: pytest budget/tests/ -v
