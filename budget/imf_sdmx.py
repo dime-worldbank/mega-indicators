@@ -42,15 +42,10 @@ def _parse_payload(payload):
 
 
 def _laad_to_year(raw):
-    """Coerce a LATEST_ACTUAL_ANNUAL_DATA value to the integer calendar year used
-    for the forecast comparison.
+    """LATEST_ACTUAL_ANNUAL_DATA -> integer calendar year, or None if unrecognized.
 
-    WEO reports LAAD either as a plain calendar year ("2025") or, for the ~33
-    fiscal-year reporters, as a fiscal-year span ("FY2024/25"). A fiscal-year
-    span always covers two consecutive calendar years; we map it to the *later*
-    (ending) one — FY2024/25 -> 2025. (WEO's actual FY->CY mapping is country-
-    specific and stated only in free-text METHODOLOGY_NOTES; the later year is
-    the majority convention.) Returns None for anything unrecognized.
+    LAAD is either a plain year ("2025") or a fiscal-year span ("FY2024/25"),
+    which maps to its later year (2025) per the majority WEO FY->CY convention.
     """
     if raw is None:
         return None
@@ -60,9 +55,7 @@ def _laad_to_year(raw):
     if not m:
         return None
     year = int(m.group(1))
-    # The "/25" in "FY2024/25" denotes a span across two consecutive calendar
-    # years; use the later one.
-    return year + 1 if m.group(2) else year
+    return year + 1 if m.group(2) else year  # fiscal-year span -> later year
 
 
 def _weo_annotate_forecast(records, payload):
@@ -74,8 +67,7 @@ def _weo_annotate_forecast(records, payload):
     `dataSets[0].dimensionGroupAttributes`, keyed by positional strings like '0:0::'
     (COUNTRY_idx : INDICATOR_idx : FREQUENCY : TIME_PERIOD; blank positions mean
     "applies to all values in that dimension"). Values come wrapped in lists, e.g.
-    `["2025"]` — or, for fiscal-year reporters, a span like `["FY2024/25"]`
-    (see `_laad_to_year`).
+    `["2025"]` or a fiscal-year span `["FY2024/25"]` (see `_laad_to_year`).
     """
     struct = payload['data']['structures'][0]
     dims = struct['dimensions']['series']
@@ -120,10 +112,8 @@ def _weo_annotate_forecast(records, payload):
         if year is not None:
             last_actual[(countries[int(c_part)], indicators[int(i_part)])] = year
         else:
-            # Present but neither a plain year nor a recognized fiscal-year span:
-            # an unexpected LAAD format our parser doesn't handle. Skipping it
-            # would silently leave every year for this series is_forecast=False,
-            # so flag it loudly instead — likely a WEO format change to handle.
+            # Unrecognized format — surface it instead of silently leaving the
+            # whole series is_forecast=False (likely a WEO format change).
             unrecognized.append((countries[int(c_part)], indicators[int(i_part)], raw))
 
     if unrecognized:
