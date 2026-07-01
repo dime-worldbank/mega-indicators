@@ -55,6 +55,7 @@ def _laad_to_year(raw):
         return raw
     if isinstance(raw, float):
         return int(raw) if raw.is_integer() else None
+    m = re.match(r'\s*(?:FY)?\s*(\d{4})(/\d{2,4})?\s*$', str(raw), re.IGNORECASE)
     if not m:
         return None
     year = int(m.group(1))
