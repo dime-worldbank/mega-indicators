@@ -49,9 +49,12 @@ def _laad_to_year(raw):
     """
     if raw is None:
         return None
-    if isinstance(raw, (int, float)):
-        return int(raw)
-    m = re.match(r'\s*(?:FY)?\s*(\d{4})(/\d{2,4})?\s*$', str(raw), re.IGNORECASE)
+    if isinstance(raw, bool):
+        return None
+    if isinstance(raw, int):
+        return raw
+    if isinstance(raw, float):
+        return int(raw) if raw.is_integer() else None
     if not m:
         return None
     year = int(m.group(1))
@@ -117,7 +120,11 @@ def _weo_annotate_forecast(records, payload):
             unrecognized.append((countries[int(c_part)], indicators[int(i_part)], raw))
 
     if unrecognized:
-        details = ', '.join(f'{c}/{ind}={raw!r}' for c, ind, raw in unrecognized)
+        max_show = 10
+        shown = unrecognized[:max_show]
+        details = ', '.join(f'{c}/{ind}={raw!r}' for c, ind, raw in shown)
+        if len(unrecognized) > max_show:
+            details = f"{details}, ... (+{len(unrecognized) - max_show} more)"
         warnings.warn(
             f"WEO LATEST_ACTUAL_ANNUAL_DATA in an unrecognized format for "
             f"{len(unrecognized)} (country, indicator) pair(s); their records are "
