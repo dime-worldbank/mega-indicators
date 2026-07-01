@@ -34,6 +34,7 @@ imf_sdmx = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(imf_sdmx)
 _parse_payload = imf_sdmx._parse_payload
 _weo_annotate_forecast = imf_sdmx._weo_annotate_forecast
+_laad_to_year = imf_sdmx._laad_to_year
 
 
 FIXTURE_PATH = Path(__file__).parent / 'fixtures' / 'weo_sample_payload.json'
@@ -91,6 +92,51 @@ def test_weo_annotate_forecast_raises_when_laad_missing(weo_payload):
     ]
     with pytest.raises(RuntimeError, match='LATEST_ACTUAL_ANNUAL_DATA'):
         _weo_annotate_forecast([], payload)
+
+
+@pytest.mark.parametrize('raw, expected', [
+    ('2025', 2025),          # plain calendar year (most countries)
+    (2025, 2025),            # already an int
+    (2025.0, 2025),          # numeric float
+    ('FY2024/25', 2025),     # fiscal-year span -> later (ending) year
+    ('FY2019/20', 2020),     # ...century-boundary-adjacent span, still later year
+    ('fy2024/25', 2025),     # case-insensitive
+    (None, None),            # missing
+    ('NOT_A_YEAR', None),    # unparseable -> None (no silent crash)
+    ('', None),
+])
+def test_laad_to_year(raw, expected):
+    assert _laad_to_year(raw) == expected
+
+
+def test_weo_annotate_forecast_handles_fiscal_year_laad(weo_payload):
+    """A fiscal-year LAAD like 'FY2024/25' maps to its later (ending) calendar
+    year (2025), so only 2026 is a forecast — not silently dropped (which would
+    mislabel every projection year as actual)."""
+    payload = copy.deepcopy(weo_payload)
+    # TGO's LAAD is a plain '2023' in the fixture; make it a fiscal-year span.
+    payload['data']['dataSets'][0]['dimensionGroupAttributes']['1:0::'] = [
+        None, ["FY2024/25"], ["CFA franc"]
+    ]
+    records = list(_parse_payload(payload))
+    _weo_annotate_forecast(records, payload)
+    by_key = {(r['country_code'], r['year']): r['is_forecast'] for r in records}
+    assert by_key[('TGO', 2024)] is False
+    assert by_key[('TGO', 2025)] is False  # ending year of FY2024/25, still actual
+    assert by_key[('TGO', 2026)] is True
+
+
+def test_weo_annotate_forecast_warns_on_unrecognized_laad(weo_payload):
+    """An LAAD value that's present but neither a plain year nor a fiscal-year
+    span must warn and name the offending country (rather than silently leaving
+    that series is_forecast=False), so a future WEO format change is noticed."""
+    payload = copy.deepcopy(weo_payload)
+    payload['data']['dataSets'][0]['dimensionGroupAttributes']['1:0::'] = [
+        None, ["Q3-2025"], ["CFA franc"]
+    ]
+    records = list(_parse_payload(payload))
+    with pytest.warns(UserWarning, match=r"TGO/GGX='Q3-2025'"):
+        _weo_annotate_forecast(records, payload)
 
 
 def test_weo_annotate_forecast_skips_blank_positional_keys(weo_payload):

@@ -11,6 +11,9 @@
 # The `# Databricks notebook source` header above is a comment in plain Python
 # but tells Databricks to treat this as a notebook.
 
+import re
+import warnings
+
 
 def _parse_payload(payload):
     """Generic SDMX-JSON parser. Yields one dict per (country, indicator, year) observation."""
@@ -38,6 +41,30 @@ def _parse_payload(payload):
             }
 
 
+def _laad_to_year(raw):
+    """Coerce a LATEST_ACTUAL_ANNUAL_DATA value to the integer calendar year used
+    for the forecast comparison.
+
+    WEO reports LAAD either as a plain calendar year ("2025") or, for the ~33
+    fiscal-year reporters, as a fiscal-year span ("FY2024/25"). A fiscal-year
+    span always covers two consecutive calendar years; we map it to the *later*
+    (ending) one — FY2024/25 -> 2025. (WEO's actual FY->CY mapping is country-
+    specific and stated only in free-text METHODOLOGY_NOTES; the later year is
+    the majority convention.) Returns None for anything unrecognized.
+    """
+    if raw is None:
+        return None
+    if isinstance(raw, (int, float)):
+        return int(raw)
+    m = re.match(r'\s*(?:FY)?\s*(\d{4})(/\d{2,4})?\s*$', str(raw), re.IGNORECASE)
+    if not m:
+        return None
+    year = int(m.group(1))
+    # The "/25" in "FY2024/25" denotes a span across two consecutive calendar
+    # years; use the later one.
+    return year + 1 if m.group(2) else year
+
+
 def _weo_annotate_forecast(records, payload):
     """Set `is_forecast` on each record using WEO's LATEST_ACTUAL_ANNUAL_DATA attribute.
 
@@ -47,7 +74,8 @@ def _weo_annotate_forecast(records, payload):
     `dataSets[0].dimensionGroupAttributes`, keyed by positional strings like '0:0::'
     (COUNTRY_idx : INDICATOR_idx : FREQUENCY : TIME_PERIOD; blank positions mean
     "applies to all values in that dimension"). Values come wrapped in lists, e.g.
-    `["2025"]`.
+    `["2025"]` — or, for fiscal-year reporters, a span like `["FY2024/25"]`
+    (see `_laad_to_year`).
     """
     struct = payload['data']['structures'][0]
     dims = struct['dimensions']['series']
@@ -73,6 +101,7 @@ def _weo_annotate_forecast(records, payload):
     country_pos = pos['COUNTRY']
     indicator_pos = pos['INDICATOR']
     last_actual = {}
+    unrecognized = []
     for key_str, values in payload['data']['dataSets'][0].get('dimensionGroupAttributes', {}).items():
         parts = key_str.split(':')
         # COUNTRY and INDICATOR index strings from the positional key — e.g.
@@ -87,10 +116,24 @@ def _weo_annotate_forecast(records, payload):
             raw = raw[0]
         if raw is None:
             continue
-        try:
-            last_actual[(countries[int(c_part)], indicators[int(i_part)])] = int(raw)
-        except (ValueError, TypeError):
-            pass
+        year = _laad_to_year(raw)
+        if year is not None:
+            last_actual[(countries[int(c_part)], indicators[int(i_part)])] = year
+        else:
+            # Present but neither a plain year nor a recognized fiscal-year span:
+            # an unexpected LAAD format our parser doesn't handle. Skipping it
+            # would silently leave every year for this series is_forecast=False,
+            # so flag it loudly instead — likely a WEO format change to handle.
+            unrecognized.append((countries[int(c_part)], indicators[int(i_part)], raw))
+
+    if unrecognized:
+        details = ', '.join(f'{c}/{ind}={raw!r}' for c, ind, raw in unrecognized)
+        warnings.warn(
+            f"WEO LATEST_ACTUAL_ANNUAL_DATA in an unrecognized format for "
+            f"{len(unrecognized)} (country, indicator) pair(s); their records are "
+            f"left is_forecast=False. Extend _laad_to_year to handle: {details}",
+            stacklevel=2,
+        )
 
     for r in records:
         laad = last_actual.get((r['country_code'], r['indicator']))
