@@ -1,5 +1,13 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "1"
+# dependencies = [
+#   "openpyxl",
+# ]
+# ///
 # MAGIC %pip install openpyxl
+
 # COMMAND ----------
 
 import requests
@@ -85,7 +93,7 @@ def remove_accents(input_str: str) -> str:
 df_instat = (
     df_instat
     .dropna()
-    .loc[~df_instat['adm1_name'].str.contains('total', case=False, na=False)]
+    .loc[lambda df: ~df['adm1_name'].str.contains('total', case=False, na=False)]
     .assign(adm1_name=lambda df: df['adm1_name'].apply(remove_accents))
 )
 
