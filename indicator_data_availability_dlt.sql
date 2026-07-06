@@ -111,7 +111,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     FROM
       prd_mega.indicator.pupil_teacher_ratio
     WHERE
-      pupil_teacher_ratio_primary IS NOT NULL
+      COALESCE(pupil_teacher_ratio_pre_primary, pupil_teacher_ratio_primary, pupil_teacher_ratio_secondary, pupil_teacher_ratio_lower_secondary, pupil_teacher_ratio_upper_secondary, pupil_teacher_ratio_tertiary) IS NOT NULL
     GROUP BY
       1
   ),

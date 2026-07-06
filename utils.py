@@ -13,7 +13,11 @@ import wbgapi as wb
 import pandas as pd
 from databricks.sdk.runtime import spark
 
-def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_country_table=[], how='inner'):
+def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_country_table=None, how: str = 'inner'):
+    if extra_col_names_from_country_table is None:
+        extra_col_names_from_country_table = []
+    if how not in {'inner', 'outer', 'left', 'right'}:
+        raise ValueError(f"Unsupported merge how='{how}'")
     long_dfs = []
     for series, col_name in zip(indicators, col_names):
         df = wb.data.DataFrame(series, skipBlanks=True).reset_index()
