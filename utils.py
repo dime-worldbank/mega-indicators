@@ -13,7 +13,7 @@ import wbgapi as wb
 import pandas as pd
 from databricks.sdk.runtime import spark
 
-def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_country_table=[]):
+def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_country_table=[], how='inner'):
     long_dfs = []
     for series, col_name in zip(indicators, col_names):
         df = wb.data.DataFrame(series, skipBlanks=True).reset_index()
@@ -25,7 +25,7 @@ def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_countr
 
     merged_df = long_dfs[0]
     for df in long_dfs[1:]:
-        merged_df = pd.merge(merged_df, df, on=['economy', 'year'])
+        merged_df = pd.merge(merged_df, df, on=['economy', 'year'], how=how)
 
     merged_df['data_source'] = data_source
 

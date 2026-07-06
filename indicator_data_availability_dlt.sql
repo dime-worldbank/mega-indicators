@@ -102,6 +102,19 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     GROUP BY
       1
   ),
+  pupil_teacher_ratio AS (
+    SELECT
+      country_name,
+      'pupil_teacher_ratio' AS indicator_key,
+      CAST(min(year) AS INT) AS earliest_year,
+      CAST(max(year) AS INT) AS latest_year
+    FROM
+      prd_mega.indicator.pupil_teacher_ratio
+    WHERE
+      pupil_teacher_ratio_primary IS NOT NULL
+    GROUP BY
+      1
+  ),
   all_indicators AS (
     SELECT * FROM hd_index
     UNION ALL
@@ -118,6 +131,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT * FROM national_poverty
     UNION ALL
     SELECT * FROM edu_attendance
+    UNION ALL
+    SELECT * FROM pupil_teacher_ratio
   ),
   source_urls AS (
     SELECT * FROM (
@@ -129,7 +144,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
         ('pefa_by_pillar', 'https://www.pefa.org/assessments/batch-downloads'),
         ('health_private_expenditure', 'https://www.who.int/data/gho/data/indicators/indicator-details/GHO/out-of-pocket-expenditure-(oop)-per-capita-in-us'),
         ('poverty_rate', 'https://data360.worldbank.org/en/dataset/WB_PIP'),
-        ('global_data_lab_attendance', 'https://globaldatalab.org/education/about/')
+        ('global_data_lab_attendance', 'https://globaldatalab.org/education/about/'),
+        ('pupil_teacher_ratio', 'https://databrowser.uis.unesco.org/resources/glossary/3189')
     ) AS t(indicator_key, source_url)
   )
   SELECT
