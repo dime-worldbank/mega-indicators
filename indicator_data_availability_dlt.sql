@@ -115,6 +115,24 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     GROUP BY
       1
   ),
+  school_basic_services AS (
+    SELECT
+      country_name,
+      'school_basic_services' AS indicator_key,
+      CAST(min(year) AS INT) AS earliest_year,
+      CAST(max(year) AS INT) AS latest_year
+    FROM
+      prd_mega.indicator.school_basic_services
+    WHERE
+      COALESCE(
+        schools_with_electricity_primary, schools_with_electricity_lower_secondary, schools_with_electricity_upper_secondary,
+        schools_with_internet_primary, schools_with_internet_lower_secondary, schools_with_internet_upper_secondary,
+        schools_with_computers_primary, schools_with_computers_lower_secondary, schools_with_computers_upper_secondary,
+        schools_with_basic_water_primary, schools_with_basic_water_lower_secondary, schools_with_basic_water_upper_secondary
+      ) IS NOT NULL
+    GROUP BY
+      1
+  ),
   all_indicators AS (
     SELECT * FROM hd_index
     UNION ALL
@@ -133,6 +151,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT * FROM edu_attendance
     UNION ALL
     SELECT * FROM pupil_teacher_ratio
+    UNION ALL
+    SELECT * FROM school_basic_services
   ),
   source_urls AS (
     SELECT * FROM (
@@ -145,7 +165,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
         ('health_private_expenditure', 'https://www.who.int/data/gho/data/indicators/indicator-details/GHO/out-of-pocket-expenditure-(oop)-per-capita-in-us'),
         ('poverty_rate', 'https://data360.worldbank.org/en/dataset/WB_PIP'),
         ('global_data_lab_attendance', 'https://globaldatalab.org/education/about/'),
-        ('pupil_teacher_ratio', 'https://databrowser.uis.unesco.org/resources/glossary/3189')
+        ('pupil_teacher_ratio', 'https://databrowser.uis.unesco.org/resources/glossary/3189'),
+        ('school_basic_services', 'https://unstats.un.org/wiki/spaces/SDGeHandbook/pages/35291744/Indicator+4.a.1')
     ) AS t(indicator_key, source_url)
   )
   SELECT
