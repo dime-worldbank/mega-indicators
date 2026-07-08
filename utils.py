@@ -58,6 +58,8 @@ def uis_fetch(series_to_col_name, data_source, extra_col_names_from_country_tabl
         extra_col_names_from_country_table = []
     if how not in {'inner', 'outer', 'left', 'right'}:
         raise ValueError(f"Unsupported merge how='{how}'")
+    if not series_to_col_name:
+        raise ValueError("series_to_col_name must contain at least one indicator")
     col_names = list(series_to_col_name.values())
 
     params = [('indicator', ind) for ind in series_to_col_name]
@@ -67,7 +69,11 @@ def uis_fetch(series_to_col_name, data_source, extra_col_names_from_country_tabl
         params.append(('stop', stop))
     resp = requests.get(UIS_API_URL, params=params, timeout=60)
     resp.raise_for_status()
-    raw_df = pd.DataFrame.from_records(resp.json()['records'])
+    payload = resp.json()
+    raw_df = pd.DataFrame.from_records(payload.get('records', []))
+    if raw_df.empty:
+        cols = ['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names, 'data_source']
+        return pd.DataFrame(columns=cols)
 
     long_dfs = []
     for series, col_name in series_to_col_name.items():
