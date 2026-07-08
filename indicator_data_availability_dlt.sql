@@ -133,6 +133,22 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     GROUP BY
       1
   ),
+  teacher_salaries AS (
+    SELECT
+      country_name,
+      'teacher_salaries' AS indicator_key,
+      CAST(min(year) AS INT) AS earliest_year,
+      CAST(max(year) AS INT) AS latest_year
+    FROM
+      prd_mega.indicator.teacher_salaries
+    WHERE
+      COALESCE(
+        teacher_salary_pre_primary, teacher_salary_primary,
+        teacher_salary_lower_secondary, teacher_salary_upper_secondary
+      ) IS NOT NULL
+    GROUP BY
+      1
+  ),
   all_indicators AS (
     SELECT * FROM hd_index
     UNION ALL
@@ -153,6 +169,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT * FROM pupil_teacher_ratio
     UNION ALL
     SELECT * FROM school_basic_services
+    UNION ALL
+    SELECT * FROM teacher_salaries
   ),
   source_urls AS (
     SELECT * FROM (
@@ -166,7 +184,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
         ('poverty_rate', 'https://data360.worldbank.org/en/dataset/WB_PIP'),
         ('global_data_lab_attendance', 'https://globaldatalab.org/education/about/'),
         ('pupil_teacher_ratio', 'https://databrowser.uis.unesco.org/resources/glossary/3189'),
-        ('school_basic_services', 'https://unstats.un.org/wiki/spaces/SDGeHandbook/pages/35291744/Indicator+4.a.1')
+        ('school_basic_services', 'https://databrowser.uis.unesco.org/resources/glossary/3145'),
+        ('teacher_salaries', 'https://databrowser.uis.unesco.org/resources/glossary/3218')
     ) AS t(indicator_key, source_url)
   )
   SELECT
