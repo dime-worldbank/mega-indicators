@@ -1,4 +1,6 @@
 # Databricks notebook source
+# MAGIC %pip install openpyxl
+
 # COMMAND ----------
 
 import requests
