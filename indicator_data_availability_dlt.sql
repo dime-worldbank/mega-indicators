@@ -149,6 +149,21 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     GROUP BY
       1
   ),
+  completion_rates AS (
+    SELECT
+      country_name,
+      'completion_rates' AS indicator_key,
+      CAST(min(year) AS INT) AS earliest_year,
+      CAST(max(year) AS INT) AS latest_year
+    FROM
+      prd_mega.indicator.completion_rates
+    WHERE
+      COALESCE(
+        completion_rate_primary, completion_rate_lower_secondary, completion_rate_upper_secondary
+      ) IS NOT NULL
+    GROUP BY
+      1
+  ),
   all_indicators AS (
     SELECT * FROM hd_index
     UNION ALL
@@ -171,6 +186,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT * FROM school_basic_services
     UNION ALL
     SELECT * FROM teacher_salaries
+    UNION ALL
+    SELECT * FROM completion_rates
   ),
   source_urls AS (
     SELECT * FROM (
@@ -185,7 +202,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
         ('global_data_lab_attendance', 'https://globaldatalab.org/education/about/'),
         ('pupil_teacher_ratio', 'https://databrowser.uis.unesco.org/resources/glossary/3189'),
         ('school_basic_services', 'https://databrowser.uis.unesco.org/resources/glossary/3145'),
-        ('teacher_salaries', 'https://databrowser.uis.unesco.org/resources/glossary/3218')
+        ('teacher_salaries', 'https://databrowser.uis.unesco.org/resources/glossary/3218'),
+        ('completion_rates', 'https://databrowser.uis.unesco.org/resources/glossary/3201')
     ) AS t(indicator_key, source_url)
   )
   SELECT
