@@ -10,7 +10,7 @@ so the per-country forecast lookup is exercised:
 To replace it with a real captured API response (recommended before each
 release of WEO 9.x), run:
 
-    python budget/tests/fixtures/refresh_weo_fixture.py
+    python public_finance/tests/fixtures/refresh_weo_fixture.py
 
 The tests don't depend on exact numeric values; they check structure and
 forecast logic, so either fixture variant works.

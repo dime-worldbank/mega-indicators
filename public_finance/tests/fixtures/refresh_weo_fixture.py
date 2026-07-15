@@ -6,7 +6,7 @@ returns the structure our parser expects). The git diff on
 weo_sample_payload.json then shows exactly what changed in the API.
 
     cd <repo root>
-    python budget/tests/fixtures/refresh_weo_fixture.py
+    python public_finance/tests/fixtures/refresh_weo_fixture.py
 """
 import json
 from pathlib import Path
