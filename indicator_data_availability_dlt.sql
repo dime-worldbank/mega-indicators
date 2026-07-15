@@ -102,6 +102,68 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     GROUP BY
       1
   ),
+  pupil_teacher_ratio AS (
+    SELECT
+      country_name,
+      'pupil_teacher_ratio' AS indicator_key,
+      CAST(min(year) AS INT) AS earliest_year,
+      CAST(max(year) AS INT) AS latest_year
+    FROM
+      prd_mega.indicator.pupil_teacher_ratio
+    WHERE
+      COALESCE(pupil_teacher_ratio_pre_primary, pupil_teacher_ratio_primary, pupil_teacher_ratio_secondary, pupil_teacher_ratio_lower_secondary, pupil_teacher_ratio_upper_secondary, pupil_teacher_ratio_tertiary) IS NOT NULL
+    GROUP BY
+      1
+  ),
+  school_basic_services AS (
+    SELECT
+      country_name,
+      'school_basic_services' AS indicator_key,
+      CAST(min(year) AS INT) AS earliest_year,
+      CAST(max(year) AS INT) AS latest_year
+    FROM
+      prd_mega.indicator.school_basic_services
+    WHERE
+      COALESCE(
+        schools_with_electricity_primary, schools_with_electricity_lower_secondary, schools_with_electricity_upper_secondary,
+        schools_with_internet_primary, schools_with_internet_lower_secondary, schools_with_internet_upper_secondary,
+        schools_with_computers_primary, schools_with_computers_lower_secondary, schools_with_computers_upper_secondary,
+        schools_with_basic_water_primary, schools_with_basic_water_lower_secondary, schools_with_basic_water_upper_secondary
+      ) IS NOT NULL
+    GROUP BY
+      1
+  ),
+  teacher_salaries AS (
+    SELECT
+      country_name,
+      'teacher_salaries' AS indicator_key,
+      CAST(min(year) AS INT) AS earliest_year,
+      CAST(max(year) AS INT) AS latest_year
+    FROM
+      prd_mega.indicator.teacher_salaries
+    WHERE
+      COALESCE(
+        teacher_salary_pre_primary, teacher_salary_primary,
+        teacher_salary_lower_secondary, teacher_salary_upper_secondary
+      ) IS NOT NULL
+    GROUP BY
+      1
+  ),
+  completion_rates AS (
+    SELECT
+      country_name,
+      'completion_rates' AS indicator_key,
+      CAST(min(year) AS INT) AS earliest_year,
+      CAST(max(year) AS INT) AS latest_year
+    FROM
+      prd_mega.indicator.completion_rates
+    WHERE
+      COALESCE(
+        completion_rate_primary, completion_rate_lower_secondary, completion_rate_upper_secondary
+      ) IS NOT NULL
+    GROUP BY
+      1
+  ),
   all_indicators AS (
     SELECT * FROM hd_index
     UNION ALL
@@ -118,6 +180,14 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT * FROM national_poverty
     UNION ALL
     SELECT * FROM edu_attendance
+    UNION ALL
+    SELECT * FROM pupil_teacher_ratio
+    UNION ALL
+    SELECT * FROM school_basic_services
+    UNION ALL
+    SELECT * FROM teacher_salaries
+    UNION ALL
+    SELECT * FROM completion_rates
   ),
   source_urls AS (
     SELECT * FROM (
@@ -129,7 +199,11 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
         ('pefa_by_pillar', 'https://www.pefa.org/assessments/batch-downloads'),
         ('health_private_expenditure', 'https://www.who.int/data/gho/data/indicators/indicator-details/GHO/out-of-pocket-expenditure-(oop)-per-capita-in-us'),
         ('poverty_rate', 'https://data360.worldbank.org/en/dataset/WB_PIP'),
-        ('global_data_lab_attendance', 'https://globaldatalab.org/education/about/')
+        ('global_data_lab_attendance', 'https://globaldatalab.org/education/about/'),
+        ('pupil_teacher_ratio', 'https://databrowser.uis.unesco.org/resources/glossary/3189'),
+        ('school_basic_services', 'https://databrowser.uis.unesco.org/resources/glossary/3145'),
+        ('teacher_salaries', 'https://databrowser.uis.unesco.org/resources/glossary/3218'),
+        ('completion_rates', 'https://databrowser.uis.unesco.org/resources/glossary/3201')
     ) AS t(indicator_key, source_url)
   )
   SELECT
