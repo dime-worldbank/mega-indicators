@@ -121,4 +121,4 @@ merged_df.sample(5)
 # COMMAND ----------
 
 sdf = spark.createDataFrame(merged_df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.government_budget")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.government_revenue_expenditure")
