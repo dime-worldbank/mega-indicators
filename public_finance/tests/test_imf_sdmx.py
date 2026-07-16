@@ -10,7 +10,7 @@ so the per-country forecast lookup is exercised:
 To replace it with a real captured API response (recommended before each
 release of WEO 9.x), run:
 
-    python budget/tests/fixtures/refresh_weo_fixture.py
+    python public_finance/tests/fixtures/refresh_weo_fixture.py
 
 The tests don't depend on exact numeric values; they check structure and
 forecast logic, so either fixture variant works.
@@ -23,7 +23,7 @@ from pathlib import Path
 import pytest
 
 # `imf_sdmx.py` carries a `# Databricks notebook source` header (it's %run'd by
-# government_budget.py), so a plain `import imf_sdmx` fails on Databricks: the
+# government_revenue_expenditure.py), so a plain `import imf_sdmx` fails on Databricks: the
 # runtime's import hook refuses to import a notebook as a module. Load it
 # straight from its file with the standard SourceFileLoader instead, which reads
 # the raw source and treats that header as the ordinary comment it is. This also

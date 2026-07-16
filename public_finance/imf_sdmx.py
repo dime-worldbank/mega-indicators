@@ -2,11 +2,11 @@
 # Pure helpers for parsing IMF SDMX-JSON responses.
 #
 # This file is BOTH:
-#   - A Databricks notebook, %run'd from government_budget.py so the functions
-#     land in the notebook's namespace (sys.path doesn't reliably include
+#   - A Databricks notebook, %run'd from government_revenue_expenditure.py so the
+#     functions land in the notebook's namespace (sys.path doesn't reliably include
 #     sibling directories in Git Folders, hence the %run pattern).
 #   - A regular importable Python module, used by the unit tests in
-#     budget/tests/test_imf_sdmx.py via `from imf_sdmx import ...`.
+#     public_finance/tests/test_imf_sdmx.py via `from imf_sdmx import ...`.
 #
 # The `# Databricks notebook source` header above is a comment in plain Python
 # but tells Databricks to treat this as a notebook.

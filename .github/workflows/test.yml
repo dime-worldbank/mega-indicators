@@ -22,4 +22,4 @@ jobs:
         run: pip install pytest pandas
 
       - name: Run tests
-        run: pytest budget/tests/ -v
+        run: pytest public_finance/tests/ -v
