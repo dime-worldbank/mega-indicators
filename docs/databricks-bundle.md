@@ -72,12 +72,11 @@ GitHub `main`; it runs what was last deployed):
 databricks bundle deploy -t prod -p $P
 ```
 
-### 3. prod root-path warning
+### 3. prod deploy location
 
-`bundle validate -t prod` warns that `/Workspace/Shared/.bundle/...` is writable by
-all workspace users. Options: deploy prod via a **service principal** into a
-restricted folder, or add an explicit `permissions:` block. Left as-is here because
-the deploying identity/governance is a maintainer decision.
+Prod deploys to `/Workspace/Repos/boostprocessed/.bundle/mega_indicators/prod` — the
+team's Git-folders container, accessible to the team but not all-users-writable like
+`/Workspace/Shared`. `bundle validate -t prod` passes with no warnings.
 
 ## What changed vs the hand-configured jobs
 
