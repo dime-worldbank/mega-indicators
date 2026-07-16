@@ -1,0 +1,16 @@
+resources:
+  pipelines:
+    indicator_metadata:
+      name: Indicator Metadata
+      serverless: true
+      catalog: prd_mega
+      schema: indicator
+      channel: CURRENT
+      continuous: false
+      libraries:
+      - notebook:
+          path: ../indicator_data_availability_dlt.sql
+      - notebook:
+          path: ../source_registry_dlt.sql
+      - notebook:
+          path: ../indicator_source_dlt.sql
