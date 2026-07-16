@@ -1,0 +1,21 @@
+resources:
+  pipelines:
+    subnational_poverty_index_uc:
+      name: Subnational Poverty Index UC
+      clusters:
+      - autoscale:
+          max_workers: 5
+          min_workers: 1
+          mode: ENHANCED
+        label: default
+        policy_id: 6063D2D4F500272A
+      - label: maintenance
+        policy_id: 6063D2D4F500272A
+      libraries:
+      - notebook:
+          path: ../poverty/subnational_poverty/subnational_poverty_index_transform_load_dlt.py
+      catalog: prd_mega
+      channel: CURRENT
+      continuous: false
+      photon: false
+      schema: indicator

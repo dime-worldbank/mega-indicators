@@ -1,0 +1,21 @@
+resources:
+  pipelines:
+    subnational_population_agg_uc:
+      name: Subnational Population agg UC
+      clusters:
+      - autoscale:
+          max_workers: 5
+          min_workers: 1
+          mode: ENHANCED
+        label: default
+        policy_id: 6063D2D4F500272A
+      - label: maintenance
+        policy_id: 6063D2D4F500272A
+      libraries:
+      - notebook:
+          path: ../population/subnational_population_official_dlt.py
+      catalog: prd_mega
+      channel: CURRENT
+      continuous: false
+      photon: false
+      target: indicator

@@ -1,0 +1,21 @@
+resources:
+  pipelines:
+    subnational_human_development_index_uc:
+      name: Subnational Human Development Index UC
+      clusters:
+      - autoscale:
+          max_workers: 5
+          min_workers: 1
+          mode: ENHANCED
+        label: default
+        policy_id: 6063D2D4F500272A
+      - label: maintenance
+        policy_id: 6063D2D4F500272A
+      libraries:
+      - notebook:
+          path: ../human_development/global_data_lab_hid_transform_load_dlt.py
+      catalog: prd_mega
+      channel: CURRENT
+      continuous: false
+      photon: false
+      target: indicator

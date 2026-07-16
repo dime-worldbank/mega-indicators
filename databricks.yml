@@ -1,0 +1,26 @@
+bundle:
+  name: mega_indicators
+
+include:
+  - resources/*.yml
+
+variables:
+  shared_cluster_id:
+    description: Existing all-purpose cluster the notebook tasks run on.
+    default: "1111-165457-9ia3jd1w"
+  gdl_secret_scope:
+    description: Databricks secret scope holding gdl_api_token (see docs bind runbook).
+    default: mega_indicators
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://adb-6102124407836814.14.azuredatabricks.net
+
+  prod:
+    mode: production
+    workspace:
+      host: https://adb-6102124407836814.14.azuredatabricks.net
+      root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
