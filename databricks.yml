@@ -9,8 +9,8 @@ variables:
     description: Existing all-purpose cluster the notebook tasks run on.
     default: "1111-165457-9ia3jd1w"
   gdl_secret_scope:
-    description: Databricks secret scope holding gdl_api_token (see docs bind runbook).
-    default: mega_indicators
+    description: Existing Databricks secret scope holding the GDL_API_TOKEN key.
+    default: DIMEBOOSTKEYVAULT
 
 targets:
   dev:

@@ -10,8 +10,6 @@ resources:
         max_retries: 0
         min_retry_interval_millis: 900000
         notebook_task:
-          base_parameters:
-            GDL_API_TOKEN: '{{secrets/${var.gdl_secret_scope}/gdl_api_token}}'
           notebook_path: ../human_development/global_data_lab_hdi_extract.r
         notification_settings:
           alert_on_last_attempt: true
@@ -44,7 +42,7 @@ resources:
         min_retry_interval_millis: 900000
         notebook_task:
           base_parameters:
-            GDL_API_TOKEN: '{{secrets/${var.gdl_secret_scope}/gdl_api_token}}'
+            GDL_API_TOKEN: '{{secrets/${var.gdl_secret_scope}/GDL_API_TOKEN}}'
           notebook_path: ../population/global_data_lab_subnational_population.r
         notification_settings:
           alert_on_last_attempt: true

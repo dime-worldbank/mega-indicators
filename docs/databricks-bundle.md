@@ -31,23 +31,14 @@ databricks bundle run subnational_poverty_index_uc -t dev -p $P
 > validating orchestration/wiring, not for safe data experiments. True isolation
 > (parameterized catalog/schema) is a documented follow-up in the design spec.
 
+> **Secret:** nothing to set up. The Monthly job's `GDL_API_TOKEN` is read from the
+> **existing** `DIMEBOOSTKEYVAULT` scope, key `GDL_API_TOKEN` — the same scope/key the
+> `global_data_lab_*` notebooks already use (`gdl_secret_scope` bundle variable). The
+> token is never in git.
+
 ## One-time setup (a maintainer runs these once)
 
-### 1. Create the secret scope for the GDL token
-
-The Monthly job needs `GDL_API_TOKEN`. It is **not** in git — it is read from a
-secret scope. Create it and store a **freshly rotated** token (the previous value
-was exposed in plaintext in the job config and should be rotated):
-
-```bash
-P=adb-6102124407836814
-databricks secrets create-scope mega_indicators -p $P
-databricks secrets put-secret mega_indicators gdl_api_token --string-value '<ROTATED_TOKEN>' -p $P
-```
-
-(The scope name is the `gdl_secret_scope` bundle variable, default `mega_indicators`.)
-
-### 2. Adopt the existing prod jobs & pipelines (bind)
+### 1. Adopt the existing prod jobs & pipelines (bind)
 
 So `prod` manages the EXISTING resources instead of creating duplicates, bind each
 bundle resource to its live id once:
@@ -72,7 +63,7 @@ GitHub `main`; it runs what was last deployed):
 databricks bundle deploy -t prod -p $P
 ```
 
-### 3. prod deploy location
+### 2. prod deploy location
 
 Prod deploys to `/Workspace/Repos/boostprocessed/.bundle/mega_indicators/prod` — the
 team's Git-folders container, accessible to the team but not all-users-writable like
