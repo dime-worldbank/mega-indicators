@@ -32,6 +32,7 @@ correct_admin1_names = {
         ('BFA', 'Est'): 'Est Region Burkina Faso',
         ('CHL', 'Biobio'): 'Biobío',
         ('NGA', 'Nassarawa'): 'Nasarawa',
+        ('NGA', 'Akwa lbom'): 'Akwa Ibom',  # WB geojson misspells with lowercase 'l'
         ('KEN', 'Nairobi'): 'Nairobi City County',
         #('COL', 'Buenaventura'), should be mapped to  'Valle Del Cauca' but this entry exists
         ('COL', 'La Guajira'):  'La Guajira',

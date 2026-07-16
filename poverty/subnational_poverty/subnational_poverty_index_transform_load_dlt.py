@@ -43,35 +43,38 @@ REGION_NAME_FIXES = [
     ('BTN', 'Monggar', 'Mongar'),
     ('BTN', 'Samdrupjongkhar', 'Samdrup Jongkhar'),
     ('BTN', 'Tashi Yangtse', 'Trashiyangtse'),
-    ('CHL', 'I Región de Tarapacá', 'Tarapacá'),
-    ('CHL', 'X Región de Los Lagos', 'Los Lagos'),
-    ('CHL', 'XI Región de Aysén del Gral Carlos Ibáñez', 'Aysén'),
-    ('CHL', 'XII Región de Magallanes y de la Antártica', 'Magallanes y la Antártica Chilena'),
-    ('CHL', 'XIII Región Metropolitana de Santiago', 'Región Metropolitana de Santiago'),
-    ('CHL', 'XIV Región de Los Ríos', 'Los Ríos'),
-    ('CHL', 'XV Región de Arica y Parinacota', 'Arica y Parinacota'),
-    ('CHL', 'XVI Región del Ñuble', 'Ñuble'),
-    ('CHL', 'II Región de Antofagasta', 'Antofagasta'),
-    ('CHL', 'III Región de Atacama', 'Atacama'),
-    ('CHL', 'IV Región de Coquimbo', 'Coquimbo'),
-    ('CHL', 'V Región de Valparaíso', 'Valparaíso'),
-    ('CHL', "VI Región del Libertador Gral B O'Higgins", "Libertador General Bernardo O'Higgins"),
-    ('CHL', 'VII Región del Maule', 'Maule'),
-    ('CHL', 'VIII Región del BioBío', 'Biobío'),
-    ('CHL', 'IX Región de la Araucanía', 'Araucanía'),
+    # SPID_GSAP uses plain region names, not the Roman-numeral form; Antofagasta,
+    # Atacama, Coquimbo, Los Lagos, Maule and 'Arica y Painacota' already match gold.
+    # 'Ñuble' has no WB official admin1 boundary (region created 2018), so it stays unmapped.
+    ('CHL', 'Aisen del Gral. Carlos Ibañez del Campo', 'Aysén'),
+    ('CHL', 'Araucania', 'Araucanía'),
+    ('CHL', 'Biobio', 'Biobío'),
+    ('CHL', "Libertador Gral. Bernardo O'Higgins", "Libertador General Bernardo O'Higgins"),
+    ('CHL', 'Los Rios', 'Los Ríos'),
+    ('CHL', 'Magallanes y Antartica chilena', 'Magallanes y la Antártica Chilena'),
+    ('CHL', 'Metropolitana', 'Región Metropolitana de Santiago'),
+    ('CHL', 'Tarapaca', 'Tarapacá'),
+    ('CHL', 'Valparaiso', 'Valparaíso'),
+    ('COL', 'Guajira', 'La Guajira'),
+    ('COL', 'Norte De Santander', 'Norte de Santander'),  # initcap over-capitalizes 'de'
+    ('COL', 'Santafe De Bogota D.c.', 'Bogota'),
     ('KEN', 'Elgeyo/Marakwet', 'Elgeyo Marakwet'),
     ('KEN', 'Taita/Taveta', 'Taita Taveta'),
     ('KEN', 'Nairobi', 'Nairobi City County'),
     ('MOZ', 'Maputo City', 'Cidade de Maputo'),
     ('MOZ', 'Maputo Cidade', 'Cidade de Maputo'),
     ('MOZ', 'Maputo Province', 'Maputo'),
-    ('NGA', 'FCT', 'Federal Capital Territory'),
+    ('NGA', 'Abuja', 'Federal Capital Territory'),
+    ('NGA', 'Nassarawa', 'Nasarawa'),
     ('TUN', 'CenterE', 'Centre Est'),
     ('TUN', 'CenterW', 'Centre Ouest'),
     ('TUN', 'NE', 'Nord Est'),
     ('TUN', 'NW', 'Nord Ouest'),
     ('TUN', 'SE', 'Sud Est'),
     ('TUN', 'SW', 'Sud Ouest'),
+    ('ZAF', 'KwaZulu-Natal', 'Kwa-Zulu Natal'),
+    ('ZAF', 'North West', 'North-west'),
+    ('ZAF', 'Limpopo', 'Northern Province'),
 ]
 
 
@@ -89,8 +92,8 @@ def subnational_poverty_rate_silver():
         .withColumn(
             'region_name',
             F.coalesce(
+                F.col('country_fixed_region_name'),  # explicit fixes win over the COL initcap default below
                 F.when(F.col('country_code') == 'COL', F.initcap(F.col('region_name'))),
-                F.col('country_fixed_region_name'),
                 F.col('region_name')
             )
         )
