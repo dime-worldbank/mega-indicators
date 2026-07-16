@@ -34,7 +34,7 @@ REGION_NAME_FIXES = [
     ('BFA', 'Centre-est', 'Centre Est'),
     ('BFA', 'Centre-ouest', 'Centre Ouest'),
     ('BFA', 'Sud-ouest', 'Sud Ouest'),
-    ('BFA', 'Haut-bassins', 'Hauts Bassins'),
+    ('BFA', 'Hauts-bassins', 'Hauts Bassins'),
     ('BFA', 'Boucle du Mouhoun', 'Boucle Du Mouhoun'),
     ('BTN', 'Ha', 'Haa'),
     ('BTN', 'Wangdi Phodrang', 'Wangduephodrang'),
