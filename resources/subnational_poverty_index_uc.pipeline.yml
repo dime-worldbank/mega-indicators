@@ -2,6 +2,8 @@ resources:
   pipelines:
     subnational_poverty_index_uc:
       name: Subnational Poverty Index UC
+      run_as:
+        user_name: wlu4@worldbank.org
       clusters:
       - autoscale:
           max_workers: 5

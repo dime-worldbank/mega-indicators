@@ -2,6 +2,8 @@ resources:
   pipelines:
     subnational_human_development_index_uc:
       name: Subnational Human Development Index UC
+      run_as:
+        user_name: sbhupatiraju@worldbank.org
       clusters:
       - autoscale:
           max_workers: 5

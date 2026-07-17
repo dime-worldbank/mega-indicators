@@ -2,6 +2,8 @@ resources:
   pipelines:
     subnational_population_agg_uc:
       name: Subnational Population agg UC
+      run_as:
+        user_name: sbhupatiraju@worldbank.org
       clusters:
       - autoscale:
           max_workers: 5

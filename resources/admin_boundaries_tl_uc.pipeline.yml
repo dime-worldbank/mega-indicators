@@ -2,6 +2,8 @@ resources:
   pipelines:
     admin_boundaries_tl_uc:
       name: admin boundaries TL UC
+      run_as:
+        user_name: ysuzuki2@worldbank.org
       clusters:
       - autoscale:
           max_workers: 5
