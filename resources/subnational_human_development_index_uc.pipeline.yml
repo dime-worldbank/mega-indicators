@@ -15,7 +15,7 @@ resources:
         policy_id: 6063D2D4F500272A
       libraries:
       - notebook:
-          path: ../human_development/global_data_lab_hid_transform_load_dlt.py
+          path: ../human_development/global_data_lab_hdi_transform_load_dlt.py
       catalog: prd_mega
       channel: CURRENT
       continuous: false
