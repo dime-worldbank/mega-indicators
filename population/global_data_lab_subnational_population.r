@@ -18,12 +18,13 @@ GOLD_TABLE <- paste0(CATALOG, '.', SCHEMA, '.global_data_lab_subnational_populat
 
 # COMMAND ----------
 
-# general purpose alternative
-# api_token <- Sys.getenv("GDL_API_TOKEN")
-
-# Databricks specific
-dbutils.widgets.text("GDL_API_TOKEN", "", "GDL API Token")
-api_token <- dbutils.widgets.get("GDL_API_TOKEN")
+# On Databricks read the token from the shared secret scope; otherwise fall back
+# to the GDL_API_TOKEN environment variable for a general-purpose run.
+if (nzchar(Sys.getenv("DATABRICKS_RUNTIME_VERSION"))) {
+  api_token <- dbutils.secrets.get("DIMEBOOSTKEYVAULT", "GDL_API_TOKEN")
+} else {
+  api_token <- Sys.getenv("GDL_API_TOKEN")
+}
 
 sess <- gdl_session(api_token)
 

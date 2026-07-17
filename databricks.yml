@@ -8,9 +8,6 @@ variables:
   shared_cluster_id:
     description: Existing all-purpose cluster the notebook tasks run on.
     default: "1111-165457-9ia3jd1w"
-  gdl_secret_scope:
-    description: Existing Databricks secret scope holding the GDL_API_TOKEN key.
-    default: DIMEBOOSTKEYVAULT
 
 targets:
   dev:

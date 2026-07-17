@@ -41,8 +41,6 @@ resources:
         max_retries: 0
         min_retry_interval_millis: 900000
         notebook_task:
-          base_parameters:
-            GDL_API_TOKEN: '{{secrets/${var.gdl_secret_scope}/GDL_API_TOKEN}}'
           notebook_path: ../population/global_data_lab_subnational_population.r
         notification_settings:
           alert_on_last_attempt: true
