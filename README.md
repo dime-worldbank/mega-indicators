@@ -9,24 +9,29 @@ The jobs and DLT pipelines are defined as a [Databricks Asset Bundle](https://do
 
 ```bash
 # lint the bundle
-databricks bundle validate -t dev
+databricks bundle validate -t dev -p adb-6102124407836814
 
 # deploy your current working tree as [dev <you>] copies (schedules paused) and run one
-databricks bundle deploy -t dev
-databricks bundle run indicators_weekly -t dev
+databricks bundle deploy -t dev -p adb-6102124407836814
+databricks bundle run indicators_weekly -t dev -p adb-6102124407836814
 ```
 
 ### Production (prod)
 
 ```bash
-databricks bundle deploy -t prod
-databricks bundle run indicators_weekly -t prod
+databricks bundle deploy -t prod -p adb-6102124407836814
+databricks bundle run indicators_weekly -t prod -p adb-6102124407836814
 ```
 
-The `prod` target is bound to the existing jobs/pipelines (no duplicates) and deploys
-to the team's `/Workspace/Repos/boostprocessed` folder. First-time setup — the shared
-secret and the one-time `bundle deployment bind` for each resource — is documented in
-[docs/databricks-bundle.md](docs/databricks-bundle.md).
+Prod is bound to the existing jobs/pipelines (no duplicates) and deploys to the team's
+`/Workspace/Repos/boostprocessed` folder. Everything runs as the deploying user
+(`run_as: ${workspace.current_user.userName}`) until a service principal is set up. The
+GDL token is read from the existing `DIMEBOOSTKEYVAULT` secret scope — no setup needed.
+
+### TODO
+
+- Parameterize catalog/schema for real dev write-isolation — notebooks and pipelines
+  hardcode `prd_mega`, so `dev` deploys still write prod tables.
 
 ## Contributing
 
