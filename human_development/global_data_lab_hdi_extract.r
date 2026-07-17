@@ -110,7 +110,7 @@ indicator_merged <- indicator_merged %>%
 # for each of the specified indicator columns.
 
 collapsed_df <- indicator_merged %>%
-  dplyr::group_by(Country, Region, year) %>%
+  dplyr::group_by(Country, ISO_Code, Region, year) %>%
   dplyr::summarise(
     dplyr::across(
       c(
