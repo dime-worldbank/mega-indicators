@@ -4,6 +4,11 @@ bundle:
 include:
   - resources/*.yml
 
+# Run everything as whoever deploys the bundle. A non-admin can only set run_as
+# to themselves, so this keeps deploys working until a service principal exists.
+run_as:
+  user_name: ${workspace.current_user.userName}
+
 variables:
   shared_cluster_id:
     description: Existing all-purpose cluster the notebook tasks run on.
