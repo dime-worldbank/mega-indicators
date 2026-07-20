@@ -15,7 +15,7 @@ OR REFRESH LIVE TABLE source_registry USING DELTA AS (
       ('pip_spid',        'PIP — Subnational Poverty (SPID)',                                             'World Bank',       'https://pipmaps.worldbank.org/en/data/datatopics/poverty-portal/home'),
       ('pip_gsap',        'PIP — Global Subnational Atlas of Poverty (GSAP)',                             'World Bank',       'https://pipmaps.worldbank.org/en/data/datatopics/poverty-portal/home'),
       ('world_bank_icp',  'International Comparison Program',                                             'World Bank',       'https://www.worldbank.org/en/programs/icp/data'),
-      ('unesco_uis',      'Institute for Statistics',                                                    'UNESCO',           'https://uis.unesco.org/'),
+      ('world_bank_lpgd', 'Global Learning Poverty Database',                                            'World Bank',       'https://data360.worldbank.org/en/int/dataset/WB_LPGD'),
       ('who_gho',         'Global Health Observatory',                                                   'WHO',              'https://www.who.int/data/gho'),
       ('who_nha',         'Global Health Expenditure Database',                                          'WHO',              'https://apps.who.int/nha/database/'),
       ('pefa',            'Public Expenditure & Financial Accountability',                               'PEFA Secretariat', 'https://www.pefa.org/assessments/batch-downloads'),

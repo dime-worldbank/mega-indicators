@@ -3,19 +3,21 @@
 -- attribution as table-level metadata (replacing the per-row `data_source`
 -- column). One indicator may have several sources (e.g. government_revenue_
 -- expenditure ← imf_weo + imf_gfs); one source may feed several indicators
--- (e.g. global_data_lab). source_id references source_registry.
+-- (e.g. global_data_lab). source_id references source_registry. `boost` is a
+-- pseudo-indicator for the core expenditure data (coverage from boost_source_urls),
+-- so charts can resolve their source through this bridge uniformly.
 CREATE
 OR REFRESH LIVE TABLE indicator_source USING DELTA AS (
   SELECT * FROM (
     VALUES
+      ('boost',                               'boost'),
       ('government_revenue_expenditure',      'imf_weo'),
       ('government_revenue_expenditure',      'imf_gfs'),
       ('togo_revenue_budget',                 'togo_dgb'),
       ('subnational_poverty_rate',            'pip_spid'),
       ('subnational_poverty_rate',            'pip_gsap'),
       ('poverty_rate',                        'world_bank_pip'),
-      ('learning_poverty_rate',               'world_bank_pip'),
-      ('learning_poverty_rate',               'unesco_uis'),
+      ('learning_poverty_rate',               'world_bank_lpgd'),
       ('pefa_by_pillar',                      'pefa'),
       ('universal_health_coverage_index_gho', 'who_gho'),
       ('health_private_expenditure',          'who_nha'),
