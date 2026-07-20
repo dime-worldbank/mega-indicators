@@ -55,4 +55,16 @@ resources:
         - task_key: public_sector_employment_E
         pipeline_task:
           pipeline_id: ${resources.pipelines.public_sector_employment_uc.id}
+      - task_key: refresh_indicator_metadata
+        depends_on:
+        - task_key: consumer_price_index
+        - task_key: edu_learning_poverty
+        - task_key: edu_priv_expenditure
+        - task_key: edu_sdg
+        - task_key: health_expenditure
+        - task_key: health_sdg
+        - task_key: poverty
+        - task_key: public_sector_employment_TL
+        pipeline_task:
+          pipeline_id: ${resources.pipelines.indicator_metadata.id}
       performance_target: PERFORMANCE_OPTIMIZED

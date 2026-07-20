@@ -43,6 +43,14 @@ resources:
         - task_key: country
         pipeline_task:
           pipeline_id: ${resources.pipelines.subnational_poverty_index_uc.id}
+      - task_key: refresh_indicator_metadata
+        depends_on:
+        - task_key: admin1_boundary_transform_load
+        - task_key: energy
+        - task_key: pefa
+        - task_key: subnational_poverty_index_TL
+        pipeline_task:
+          pipeline_id: ${resources.pipelines.indicator_metadata.id}
       max_concurrent_runs: 20
       performance_target: PERFORMANCE_OPTIMIZED
       queue:

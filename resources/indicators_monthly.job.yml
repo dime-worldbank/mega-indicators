@@ -122,4 +122,13 @@ resources:
         - task_key: subnational_population_chl
         pipeline_task:
           pipeline_id: ${resources.pipelines.subnational_population_agg_uc.id}
+      - task_key: refresh_indicator_metadata
+        depends_on:
+        - task_key: gdl_subnat_hdi_TL
+        - task_key: gdl_subnational_population
+        - task_key: imf_govt_budget
+        - task_key: wb_national_population
+        - task_key: subnational_population
+        pipeline_task:
+          pipeline_id: ${resources.pipelines.indicator_metadata.id}
       performance_target: PERFORMANCE_OPTIMIZED
