@@ -1,4 +1,8 @@
 # Databricks notebook source
+# MAGIC %run ../config
+
+# COMMAND ----------
+
 import pandas as pd
 from pathlib import Path
 import requests
@@ -25,7 +29,7 @@ raw_df = pd.DataFrame(data["data"])
 
 # These areas were excluded by the merge. But none of them were recognized country
 country_df = (
-    spark.table(f"prd_mega.indicator.country")
+    spark.table(f"{INDICATOR_SCHEMA}.country")
     .select("country_name", "country_code", "region")
     .toPandas()
 )
@@ -119,5 +123,5 @@ energy_df.rename(
 
 sdf = spark.createDataFrame(energy_df)
 sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
-    f"prd_mega.indicator.energy_generation"
+    f"{INDICATOR_SCHEMA}.energy_generation"
 )

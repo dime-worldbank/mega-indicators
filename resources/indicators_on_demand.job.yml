@@ -2,8 +2,7 @@ resources:
   jobs:
     indicators_on_demand:
       name: Indicators on Demand
-      # Job parameter reaches every notebook task as a widget; config.py reads it to
-      # pick the target schema. Empty for dev/prod, "_staging" for the staging target.
+      # Reaches every notebook task as a widget; config.py reads it to pick the schema.
       parameters:
         - name: schema_suffix
           default: "${var.schema_suffix}"

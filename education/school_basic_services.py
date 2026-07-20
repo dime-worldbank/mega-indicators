@@ -3,6 +3,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../config
+
+# COMMAND ----------
+
 # Proportion of schools with access to basic services / infrastructure, by
 # education level (UIS "school basic services", SDG 4.a.1). Pulled directly from
 # the UNESCO Institute for Statistics (UIS) API. Values are percentages (0-100).
@@ -31,4 +35,4 @@ df
 # COMMAND ----------
 
 sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.school_basic_services")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.school_basic_services")

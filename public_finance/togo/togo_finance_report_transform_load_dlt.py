@@ -1,4 +1,8 @@
 # Databricks notebook source
+# MAGIC %run ../../config
+
+# COMMAND ----------
+
 
 import pandas as pd
 
@@ -71,4 +75,4 @@ print(df.to_string(index=False))
 # COMMAND ----------
 
 sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.togo_revenue_budget")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.togo_revenue_budget")

@@ -3,6 +3,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../config
+
+# COMMAND ----------
+
 # Teachers' salaries by education level (UIS TSALARY series). Pulled directly
 # from the UNESCO Institute for Statistics (UIS) API.
 # Levels: .0 = pre-primary, .1 = primary, .2 = lower secondary, .3 = upper secondary.
@@ -22,4 +26,4 @@ df
 # COMMAND ----------
 
 sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.teacher_salaries")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.teacher_salaries")
