@@ -93,3 +93,24 @@ def uis_fetch(series_to_col_name, data_source, extra_col_names_from_country_tabl
 
     return df
 
+# COMMAND ----------
+
+from urllib.parse import urlparse, unquote
+
+def ddh_volume_path(url):
+    """Volume path mirroring a DDH download URL
+    (.../ddh-published/{dataset}/{resource}/{filename})."""
+    parts = [unquote(p) for p in urlparse(url).path.split('/') if p]
+    i = parts.index('ddh-published')
+    return "/Volumes/prd_development_data/files/ddh/" + "/".join(parts[i + 1:])
+
+def ddh_bytes(url):
+    """Bytes of a DDH file: the mounted volume copy if present, else download the URL."""
+    vol = ddh_volume_path(url)
+    if os.path.exists(vol):
+        with open(vol, 'rb') as f:
+            return f.read()
+    resp = requests.get(url)
+    resp.raise_for_status()
+    return resp.content
+

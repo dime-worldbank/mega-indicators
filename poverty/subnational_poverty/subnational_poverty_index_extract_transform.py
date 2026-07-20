@@ -7,6 +7,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../../utils
+
+# COMMAND ----------
+
 import requests
 import pandas as pd
 import numpy as np
@@ -17,19 +21,10 @@ import re
 
 spid_resource_url = 'https://ddh-openapi.worldbank.org/resources/DR0092191'
 response = requests.get(spid_resource_url)
-if response.status_code == 200:
-    resource_metadata = response.json()
-    spid_url = resource_metadata['distribution']['url']
-    print(f"Downloading SPID data from: {spid_url}")
-    excel_response = requests.get(spid_url)
-    if excel_response.status_code == 200:
-        df_SPID = pd.read_excel(BytesIO(excel_response.content), sheet_name="Data")
-    else:
-        print(f"Failed to download the Excel file. Status code: {excel_response.status_code}")
-        exit()
-else:
-    print(f"Failed to fetch resource metadata. Status code: {response.status_code}")
-    exit()
+response.raise_for_status()
+spid_url = response.json()['distribution']['url']
+# Prefer the mounted DDH volume; fall back to the URL (see ddh_bytes in utils).
+df_SPID = pd.read_excel(BytesIO(ddh_bytes(spid_url)), sheet_name="Data")
 
 df_SPID = df_SPID[df_SPID.data_group == 'ALL']
 df_SPID
@@ -38,20 +33,10 @@ df_SPID
 
 gsap_resource_url = 'https://ddh-openapi.worldbank.org/resources/DR0052555'
 response = requests.get(gsap_resource_url)
-if response.status_code == 200:
-    resource_metadata = response.json()
-    gsap_url = resource_metadata['distribution']['url']
-    print(f"Downloading GSAP data from: {gsap_url}")
-    excel_response = requests.get(gsap_url)
-    if excel_response.status_code == 200:
-        # expect the first sheet to be metadata, followed by the latest lineup data sheet
-        df_GSAP = pd.read_excel(BytesIO(excel_response.content), sheet_name=1) # use latest lineup
-    else:
-        print(f"Failed to download the Excel file. Status code: {excel_response.status_code}")
-        exit()
-else:
-    print(f"Failed to fetch resource metadata. Status code: {response.status_code}")
-    exit()
+response.raise_for_status()
+gsap_url = response.json()['distribution']['url']
+# expect the first sheet to be metadata, followed by the latest lineup data sheet
+df_GSAP = pd.read_excel(BytesIO(ddh_bytes(gsap_url)), sheet_name=1) # use latest lineup
 df_GSAP
 
 # COMMAND ----------

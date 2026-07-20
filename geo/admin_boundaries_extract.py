@@ -1,11 +1,13 @@
 # Databricks notebook source
-import shutil
+# MAGIC %run ../utils
 
-# The WB DDH published URL 404s; the GeoJSON is served from the DDH volume, so copy it
-# into the auxiliary_data volume the boundary DLT reads.
-SOURCE = '/Volumes/prd_development_data/files/ddh/0038272/DR0095369/World Bank Official Boundaries (GeoJSON)/World Bank Official Boundaries - Admin 1.geojson'
+# COMMAND ----------
+
+URL = 'https://datacatalogfiles.worldbank.org/ddh-published/0038272/DR0095369/World%20Bank%20Official%20Boundaries%20(GeoJSON)/World%20Bank%20Official%20Boundaries%20-%20Admin%201.geojson'
 DATA_DIR = '/Volumes/prd_mega/sboost4/vboost4/Workspace/auxiliary_data/admin1geoboundaries'
 WB_ADM1_GEO_FILENAME = f'{DATA_DIR}/World Bank Official Boundaries - Admin 1.geojson'
 
-shutil.copyfile(SOURCE, WB_ADM1_GEO_FILENAME)
-print(f"Copied '{SOURCE}' to '{WB_ADM1_GEO_FILENAME}'")
+# Prefer the mounted DDH volume; fall back to the URL (see ddh_bytes in utils).
+with open(WB_ADM1_GEO_FILENAME, 'wb') as f:
+    f.write(ddh_bytes(URL))
+print(f"Wrote '{WB_ADM1_GEO_FILENAME}'")
