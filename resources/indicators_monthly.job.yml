@@ -72,6 +72,255 @@ resources:
         run_if: ALL_SUCCESS
         timeout_seconds: 0
         webhook_notifications: {}
+      - task_key: subnational_population_bfa
+        existing_cluster_id: ${var.shared_cluster_id}
+        disabled: false
+        email_notifications: {}
+        max_retries: 0
+        min_retry_interval_millis: 900000
+        notebook_task:
+          notebook_path: ../population/BFA/bfa_subnational_population.py
+        notification_settings:
+          alert_on_last_attempt: true
+          no_alert_for_canceled_runs: false
+          no_alert_for_skipped_runs: false
+        retry_on_timeout: false
+        run_if: ALL_SUCCESS
+        timeout_seconds: 0
+        webhook_notifications: {}
+      - task_key: subnational_population_bgd
+        existing_cluster_id: ${var.shared_cluster_id}
+        disabled: false
+        email_notifications: {}
+        max_retries: 0
+        min_retry_interval_millis: 900000
+        notebook_task:
+          notebook_path: ../population/BGD/bgd_subnational_population.py
+        notification_settings:
+          alert_on_last_attempt: true
+          no_alert_for_canceled_runs: false
+          no_alert_for_skipped_runs: false
+        retry_on_timeout: false
+        run_if: ALL_SUCCESS
+        timeout_seconds: 0
+        webhook_notifications: {}
+      - task_key: subnational_population_btn
+        existing_cluster_id: ${var.shared_cluster_id}
+        disabled: false
+        email_notifications: {}
+        max_retries: 0
+        min_retry_interval_millis: 900000
+        notebook_task:
+          notebook_path: ../population/BTN/btn_subnational_population.py
+        notification_settings:
+          alert_on_last_attempt: true
+          no_alert_for_canceled_runs: false
+          no_alert_for_skipped_runs: false
+        retry_on_timeout: false
+        run_if: ALL_SUCCESS
+        timeout_seconds: 0
+        webhook_notifications: {}
+      - task_key: subnational_population_chl
+        existing_cluster_id: ${var.shared_cluster_id}
+        disabled: false
+        email_notifications: {}
+        max_retries: 0
+        min_retry_interval_millis: 900000
+        notebook_task:
+          notebook_path: ../population/CHL/chl_subnational_population.py
+        notification_settings:
+          alert_on_last_attempt: true
+          no_alert_for_canceled_runs: false
+          no_alert_for_skipped_runs: false
+        retry_on_timeout: false
+        run_if: ALL_SUCCESS
+        timeout_seconds: 0
+        webhook_notifications: {}
+      - task_key: subnational_population_cod
+        depends_on:
+        - task_key: gdl_subnational_population
+        existing_cluster_id: ${var.shared_cluster_id}
+        disabled: false
+        email_notifications: {}
+        max_retries: 0
+        min_retry_interval_millis: 900000
+        notebook_task:
+          notebook_path: ../population/COD/cod_subnational_population.py
+        notification_settings:
+          alert_on_last_attempt: true
+          no_alert_for_canceled_runs: false
+          no_alert_for_skipped_runs: false
+        retry_on_timeout: false
+        run_if: ALL_SUCCESS
+        timeout_seconds: 0
+        webhook_notifications: {}
+      - task_key: subnational_population_col
+        existing_cluster_id: ${var.shared_cluster_id}
+        disabled: false
+        email_notifications: {}
+        max_retries: 0
+        min_retry_interval_millis: 900000
+        notebook_task:
+          notebook_path: ../population/COL/col_subnational_population.py
+        notification_settings:
+          alert_on_last_attempt: true
+          no_alert_for_canceled_runs: false
+          no_alert_for_skipped_runs: false
+        retry_on_timeout: false
+        run_if: ALL_SUCCESS
+        timeout_seconds: 0
+        webhook_notifications: {}
+      - task_key: subnational_population_ken
+        existing_cluster_id: ${var.shared_cluster_id}
+        disabled: false
+        email_notifications: {}
+        max_retries: 0
+        min_retry_interval_millis: 900000
+        notebook_task:
+          notebook_path: ../population/KEN/ken_subnational_population.py
+        notification_settings:
+          alert_on_last_attempt: true
+          no_alert_for_canceled_runs: false
+          no_alert_for_skipped_runs: false
+        retry_on_timeout: false
+        run_if: ALL_SUCCESS
+        timeout_seconds: 0
+        webhook_notifications: {}
+      - task_key: subnational_population_lbr
+        depends_on:
+        - task_key: gdl_subnational_population
+        existing_cluster_id: ${var.shared_cluster_id}
+        disabled: false
+        email_notifications: {}
+        notebook_task:
+          notebook_path: ../population/LBR/lbr_subnational_population.py
+        run_if: ALL_SUCCESS
+        timeout_seconds: 0
+        webhook_notifications: {}
+      - task_key: subnational_population_moz
+        existing_cluster_id: ${var.shared_cluster_id}
+        disabled: false
+        email_notifications: {}
+        max_retries: 0
+        min_retry_interval_millis: 900000
+        notebook_task:
+          notebook_path: ../population/MOZ/moz_subnational_population.py
+        notification_settings:
+          alert_on_last_attempt: true
+          no_alert_for_canceled_runs: false
+          no_alert_for_skipped_runs: false
+        retry_on_timeout: false
+        run_if: ALL_SUCCESS
+        timeout_seconds: 0
+        webhook_notifications: {}
+      - task_key: subnational_population_nga
+        existing_cluster_id: ${var.shared_cluster_id}
+        disabled: false
+        email_notifications: {}
+        max_retries: 0
+        min_retry_interval_millis: 900000
+        notebook_task:
+          notebook_path: ../population/NGA/nga_subnational_population.py
+        notification_settings:
+          alert_on_last_attempt: true
+          no_alert_for_canceled_runs: false
+          no_alert_for_skipped_runs: false
+        retry_on_timeout: false
+        run_if: ALL_SUCCESS
+        timeout_seconds: 0
+        webhook_notifications: {}
+      - task_key: subnational_population_pak
+        existing_cluster_id: ${var.shared_cluster_id}
+        disabled: false
+        email_notifications: {}
+        max_retries: 0
+        min_retry_interval_millis: 900000
+        notebook_task:
+          notebook_path: ../population/PAK/pak_subnational_population.py
+        notification_settings:
+          alert_on_last_attempt: true
+          no_alert_for_canceled_runs: false
+          no_alert_for_skipped_runs: false
+        retry_on_timeout: false
+        run_if: ALL_SUCCESS
+        timeout_seconds: 0
+        webhook_notifications: {}
+      - task_key: subnational_population_pry
+        existing_cluster_id: ${var.shared_cluster_id}
+        disabled: false
+        email_notifications: {}
+        max_retries: 0
+        min_retry_interval_millis: 900000
+        notebook_task:
+          notebook_path: ../population/PRY/pry_subnational_population.py
+        notification_settings:
+          alert_on_last_attempt: true
+          no_alert_for_canceled_runs: false
+          no_alert_for_skipped_runs: false
+        retry_on_timeout: false
+        run_if: ALL_SUCCESS
+        timeout_seconds: 0
+        webhook_notifications: {}
+      - task_key: subnational_population_tun
+        existing_cluster_id: ${var.shared_cluster_id}
+        disabled: false
+        email_notifications: {}
+        max_retries: 0
+        min_retry_interval_millis: 900000
+        notebook_task:
+          notebook_path: ../population/TUN/tun_subnational_population.py
+        notification_settings:
+          alert_on_last_attempt: true
+          no_alert_for_canceled_runs: false
+          no_alert_for_skipped_runs: false
+        retry_on_timeout: false
+        run_if: ALL_SUCCESS
+        timeout_seconds: 0
+        webhook_notifications: {}
+      - task_key: subnational_population_zaf
+        existing_cluster_id: ${var.shared_cluster_id}
+        disabled: false
+        email_notifications: {}
+        max_retries: 0
+        min_retry_interval_millis: 900000
+        notebook_task:
+          notebook_path: ../population/ZAF/zaf_subnational_population.py
+        notification_settings:
+          alert_on_last_attempt: true
+          no_alert_for_canceled_runs: false
+          no_alert_for_skipped_runs: false
+        retry_on_timeout: false
+        run_if: ALL_SUCCESS
+        timeout_seconds: 0
+        webhook_notifications: {}
+      - task_key: subnational_population
+        depends_on:
+        - task_key: subnational_population_bfa
+        - task_key: subnational_population_moz
+        - task_key: subnational_population_bgd
+        - task_key: subnational_population_lbr
+        - task_key: subnational_population_ken
+        - task_key: subnational_population_col
+        - task_key: subnational_population_tun
+        - task_key: subnational_population_pak
+        - task_key: subnational_population_btn
+        - task_key: subnational_population_zaf
+        - task_key: subnational_population_nga
+        - task_key: subnational_population_cod
+        - task_key: subnational_population_pry
+        - task_key: subnational_population_chl
+        disabled: false
+        email_notifications: {}
+        notification_settings:
+          alert_on_last_attempt: false
+          no_alert_for_canceled_runs: false
+          no_alert_for_skipped_runs: false
+        pipeline_task:
+          full_refresh: false
+          pipeline_id: ${resources.pipelines.subnational_population_agg_uc.id}
+        run_if: ALL_SUCCESS
+        timeout_seconds: 0
+        webhook_notifications: {}
       email_notifications:
         no_alert_for_skipped_runs: false
         on_failure:
