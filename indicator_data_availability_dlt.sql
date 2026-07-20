@@ -6,7 +6,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'global_data_lab_hd_index' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       prd_mega.indicator.global_data_lab_hd_index
     WHERE
@@ -20,7 +21,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'learning_poverty_rate' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       prd_mega.indicator.learning_poverty_rate
     GROUP BY
@@ -31,7 +33,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'subnational_poverty_rate' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       prd_mega.indicator.subnational_poverty_rate
     WHERE
@@ -44,7 +47,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'universal_health_coverage_index_gho' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       prd_mega.indicator.universal_health_coverage_index_gho
     WHERE
@@ -57,7 +61,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'pefa_by_pillar' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       prd_mega.indicator.pefa_by_pillar
     GROUP BY
@@ -68,7 +73,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'health_private_expenditure' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       prd_mega.indicator.health_expenditure
     WHERE
@@ -81,7 +87,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'poverty_rate' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       prd_mega.indicator.poverty_rate
     WHERE
@@ -94,7 +101,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'global_data_lab_attendance' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       prd_mega.indicator.global_data_lab_hd_index
     WHERE
@@ -107,7 +115,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'pupil_teacher_ratio' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       prd_mega.indicator.pupil_teacher_ratio
     WHERE
@@ -120,7 +129,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'school_basic_services' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       prd_mega.indicator.school_basic_services
     WHERE
@@ -138,7 +148,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'teacher_salaries' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       prd_mega.indicator.teacher_salaries
     WHERE
@@ -154,7 +165,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'completion_rates' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       prd_mega.indicator.completion_rates
     WHERE
@@ -193,7 +205,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     country_name,
     indicator_key,
     earliest_year,
-    latest_year
+    latest_year,
+    years
   FROM
     all_indicators
 )
