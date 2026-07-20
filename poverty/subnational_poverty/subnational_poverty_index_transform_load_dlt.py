@@ -1,4 +1,10 @@
 # Databricks notebook source
+# Staging schema redirect: DLT reads schema_suffix from its pipeline configuration.
+_suffix = spark.conf.get("schema_suffix", "")
+INDICATOR_SCHEMA = f"prd_mega.indicator{_suffix}"
+
+# COMMAND ----------
+
 import dlt
 import pyspark.sql.functions as F
 from pyspark.sql import Window
@@ -72,14 +78,14 @@ REGION_NAME_FIXES = [
 
 @dlt.table(name='subnational_poverty_rate_silver')
 def subnational_poverty_rate_silver():
-    countries = spark.table('prd_mega.indicator.country').select('country_name', 'country_code', 'income_level')
+    countries = spark.table(f'{INDICATOR_SCHEMA}.country').select('country_name', 'country_code', 'income_level')
     region_name_fixes = spark.createDataFrame(
         REGION_NAME_FIXES,
         ['country_code', 'region_name', 'country_fixed_region_name']
     )
 
     return (
-        spark.table('prd_mega.indicator_intermediate.poverty_rate_SPID_GSAP')
+        spark.table(f'{INDICATOR_SCHEMA}.poverty_rate_SPID_GSAP_silver')
         .join(region_name_fixes, ['country_code', 'region_name'], 'left')
         .withColumn(
             'region_name',

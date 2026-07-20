@@ -3,6 +3,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../../config
+
+# COMMAND ----------
+
 import pandas as pd
 import wbgapi as wb
 
@@ -59,13 +63,11 @@ assert num_adm1_units_src2 == 13
 
 # COMMAND ----------
 
-# Write to indicator_intermediate
-
-database_name = "prd_mega.indicator_intermediate"
+database_name = INDICATOR_SCHEMA
 
 if not spark.catalog.databaseExists(database_name):
     print(f"Database '{database_name}' does not exist. Creating the database.")
     spark.sql(f"CREATE DATABASE {database_name}")
 
 sdf = spark.createDataFrame(pop)
-sdf.write.mode("overwrite").saveAsTable(f"{database_name}.bfa_subnational_population")
+sdf.write.mode("overwrite").saveAsTable(f"{database_name}.bfa_subnational_population_silver")

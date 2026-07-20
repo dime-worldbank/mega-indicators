@@ -1,4 +1,8 @@
 # Databricks notebook source
+# MAGIC %run ../config
+
+# COMMAND ----------
+
 # TODO: Add PEFA score extraction step. Currently the data is imported manually for prototyping
 # Data source: https://www.pefa.org/assessments/batch-downloads 
 # Download once for 2016 framework then uploaded to prd_mega.indicator_intermediate.pefa_2016_bronze, 
@@ -44,10 +48,10 @@ COUNTRY_NAME_MAPPING = {
     'The Bahamas': 'Bahamas, The',
 }
 
-INTERMEDIATE_SCHEMA = 'prd_mega.indicator_intermediate'
+# pefa's bronze/silver tables keep their medallion names.
 
 def process_pefa_silver(year):
-    pefa_data = spark.table(f'{INTERMEDIATE_SCHEMA}.pefa_{year}_bronze').toPandas()
+    pefa_data = spark.table(f'{INDICATOR_SCHEMA}.pefa_{year}_bronze').toPandas()
 
     # Only apply the clean_score to top level PI columns
     pi_columns = [col for col in pefa_data.columns if re.fullmatch(r'PI-\d{2}', col)]
@@ -86,7 +90,7 @@ def write_pefa_silver_table(df, year):
     sdf = spark.createDataFrame(df)
     sdf.write.mode("overwrite")\
         .option("overwriteSchema", "true")\
-        .saveAsTable(f"{INTERMEDIATE_SCHEMA}.pefa_{year}_silver")
+        .saveAsTable(f"{INDICATOR_SCHEMA}.pefa_{year}_silver")
     return sdf
 
 # COMMAND ----------
@@ -111,4 +115,4 @@ pefa_gold
 sdf = spark.createDataFrame(pefa_gold)
 sdf.write.mode("overwrite")\
     .option("overwriteSchema", "true")\
-    .saveAsTable("prd_mega.indicator.pefa_by_pillar")
+    .saveAsTable(f"{INDICATOR_SCHEMA}.pefa_by_pillar")

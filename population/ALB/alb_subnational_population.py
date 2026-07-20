@@ -3,6 +3,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../../config
+
+# COMMAND ----------
+
 import requests
 from zipfile import ZipFile
 import pandas as pd
@@ -180,13 +184,11 @@ df_pop['population'] = df_pop['population'].astype(int)
 
 # COMMAND ----------
 
-# Write to indicator_intermediate
-
-database_name = "prd_mega.indicator_intermediate"
+database_name = INDICATOR_SCHEMA
 
 if not spark.catalog.databaseExists(database_name):
     print(f"Database '{database_name}' does not exist. Creating the database.")
     spark.sql(f"CREATE DATABASE {database_name}")
 
 sdf = spark.createDataFrame(df_pop)
-sdf.write.mode("overwrite").saveAsTable(f"{database_name}.alb_subnational_population")
+sdf.write.mode("overwrite").saveAsTable(f"{database_name}.alb_subnational_population_silver")

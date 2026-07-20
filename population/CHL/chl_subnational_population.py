@@ -1,4 +1,8 @@
 # Databricks notebook source
+# MAGIC %run ../../config
+
+# COMMAND ----------
+
 import requests
 from zipfile import ZipFile
 import pandas as pd
@@ -80,14 +84,12 @@ if 2019 in ddf_pop.year.unique():
 
 # COMMAND ----------
 
-# Write to indicator_intermediate
-
-database_name = "prd_mega.indicator_intermediate"
+database_name = INDICATOR_SCHEMA
 
 if not spark.catalog.databaseExists(database_name):
     print(f"Database '{database_name}' does not exist. Creating the database.")
     spark.sql(f"CREATE DATABASE {database_name}")
 
 sdf = spark.createDataFrame(ddf_pop)
-sdf.write.mode("overwrite").saveAsTable(f"{database_name}.chl_subnational_population")
+sdf.write.mode("overwrite").saveAsTable(f"{database_name}.chl_subnational_population_silver")
 

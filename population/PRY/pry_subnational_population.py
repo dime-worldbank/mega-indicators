@@ -1,4 +1,8 @@
 # Databricks notebook source
+# MAGIC %run ../../config
+
+# COMMAND ----------
+
 import pandas as pd
 
 # COMMAND ----------
@@ -40,7 +44,7 @@ assert num_departments == 18, f'Expect 18 distinct departments, got {num_departm
 
 # COMMAND ----------
 
-database_name = "prd_mega.indicator_intermediate"
+database_name = INDICATOR_SCHEMA
 
 if not spark.catalog.databaseExists(database_name):
     print(f"Database '{database_name}' does not exist. Creating the database.")
@@ -49,5 +53,5 @@ if not spark.catalog.databaseExists(database_name):
 # COMMAND ----------
 
 sdf = spark.createDataFrame(df_pop)
-sdf.write.mode("overwrite").saveAsTable(f"{database_name}.pry_subnational_population")
+sdf.write.mode("overwrite").saveAsTable(f"{database_name}.pry_subnational_population_silver")
 

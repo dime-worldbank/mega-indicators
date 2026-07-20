@@ -3,6 +3,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../../config
+
+# COMMAND ----------
+
 import requests
 import pandas as pd
 import numpy as np
@@ -101,4 +105,4 @@ df_combined
 # COMMAND ----------
 
 sdf = spark.createDataFrame(df_combined)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator_intermediate.poverty_rate_SPID_GSAP")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.poverty_rate_SPID_GSAP_silver")
