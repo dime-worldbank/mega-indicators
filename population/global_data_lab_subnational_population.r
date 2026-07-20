@@ -10,11 +10,11 @@ library(dplyr)
 
 # COMMAND ----------
 
-CATALOG <- 'prd_mega'
-INTERMEDIATE_SCHEMA  <- 'indicator_intermediate'
-SCHEMA <- 'indicator'
-BRONZE_TABLE <- paste0(CATALOG, '.', INTERMEDIATE_SCHEMA, '.global_data_lab_subnational_population_bronze')
-GOLD_TABLE <- paste0(CATALOG, '.', SCHEMA, '.global_data_lab_subnational_population')
+# schema_suffix ("" for dev/prod, "_staging" for staging) comes from the job parameter.
+schema_suffix <- tryCatch(dbutils.widgets.get("schema_suffix"), error = function(e) "")
+INDICATOR_SCHEMA <- paste0('prd_mega.indicator', schema_suffix)
+BRONZE_TABLE <- paste0(INDICATOR_SCHEMA, '.global_data_lab_subnational_population_bronze')
+GOLD_TABLE <- paste0(INDICATOR_SCHEMA, '.global_data_lab_subnational_population')
 
 # COMMAND ----------
 

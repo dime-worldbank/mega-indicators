@@ -31,6 +31,10 @@ INDICATORS <- c('healthindex', 'edindex', 'incindex')
 DATASET <- 'shdi'
 END_YEAR <- as.integer(format(Sys.Date(), "%Y"))
 
+# schema_suffix ("" for dev/prod, "_staging" for staging) comes from the job parameter.
+schema_suffix <- tryCatch(dbutils.widgets.get("schema_suffix"), error = function(e) "")
+INDICATOR_SCHEMA <- paste0('prd_mega.indicator', schema_suffix)
+
 # COMMAND ----------
 
 sess <- sess %>%
@@ -80,13 +84,13 @@ for (year in START_YEAR:END_YEAR) {
 # COMMAND ----------
 
 sdf <- createDataFrame(indicator_merged)
-table_name <- paste0("prd_mega.indicator_intermediate.global_data_lab_hd_index_bronze")
+table_name <- paste0(INDICATOR_SCHEMA, ".global_data_lab_hd_index_bronze")
 saveAsTable(sdf, tableName = table_name, mode = "overwrite")
 
 # COMMAND ----------
 
-# now read the bronze table 
-sdf <- SparkR::sql("SELECT * FROM prd_mega.indicator_intermediate.global_data_lab_hd_index_bronze")
+# now read the bronze table
+sdf <- SparkR::sql(paste0("SELECT * FROM ", INDICATOR_SCHEMA, ".global_data_lab_hd_index_bronze"))
 indicator_merged <-SparkR:: collect(sdf)
 
 # Rename columns in the R data.frame
@@ -173,7 +177,7 @@ if (!all(grouped_counts$obs_count == 1)) {
 
 
 sdf <- createDataFrame(collapsed_df)
-table_name <- paste0("prd_mega.indicator_intermediate.global_data_lab_hd_index")
+table_name <- paste0(INDICATOR_SCHEMA, ".global_data_lab_hd_index_silver")
 saveAsTable(sdf, tableName = table_name, mode = "overwrite",  overwriteSchema = "true")
 
 print(paste(table_name, 'nrow:', nrow(collapsed_df)))
