@@ -28,6 +28,8 @@ resources:
         timeout_seconds: 0
         webhook_notifications: {}
       - task_key: country
+        depends_on:
+        - task_key: admin1_boundary_transform_load
         existing_cluster_id: ${var.shared_cluster_id}
         disabled: false
         email_notifications: {}
