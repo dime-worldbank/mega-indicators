@@ -56,7 +56,6 @@ df_pop_wide = df_raw[df_raw.adm_level == 1].drop(columns=['adm2_name', 'adm_leve
 df_pop = pd.melt(df_pop_wide, id_vars=['adm1_name'], var_name='year', value_name='population')
 df_pop['year'] = df_pop['year'].str.extract(r'(\d+)').astype(int)
 df_pop['country_name'] = 'Colombia'
-df_pop['data_source'] = URL
 df_pop
 
 # COMMAND ----------

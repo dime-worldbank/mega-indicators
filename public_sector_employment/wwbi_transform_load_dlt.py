@@ -14,8 +14,7 @@ def public_sector_employment():
         employment.groupBy("region", "year")
             .agg(F.mean("wage_percent_gdp").alias("wage_percent_gdp"),
                  F.mean("wage_percent_expenditure").alias("wage_percent_expenditure"),
-                 F.mean("wage_premium").alias("wage_premium"),
-                 F.first("data_source").alias("data_source"))
+                 F.mean("wage_premium").alias("wage_premium"))
             .withColumnRenamed("region", "country_code")
             .join(countries, on=['country_code'], how="inner")
     )

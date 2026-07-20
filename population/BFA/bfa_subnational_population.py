@@ -32,7 +32,6 @@ ddf_pop['year'] = ddf_pop.year.map(lambda x: int(x[2:]))
 # select the years on or before 2014
 ddf_pop = ddf_pop[ddf_pop.year<2015]
 ddf_pop['country_name'] = 'Burkina Faso'
-ddf_pop['data_source'] = "WB API Database ID 50"
 
 # Final concatenated dataset
 pop =  pd.concat([df_pop, ddf_pop]).sort_values(['adm1_name', 'year'])

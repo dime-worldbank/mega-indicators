@@ -30,10 +30,9 @@ def get_pop_from_census_gov(country_filename, timeseries='pepfar'):
     df_pop['year'] = df_pop['year'].str.extract(r'(\d+)').astype(int)
     df_pop.columns = ['country_name', 'adm1_name', 'year', 'population']
 
-    # Modifications to the admin1 and county name and add data_source
+    # Modifications to the admin1 and county name
     df_pop['country_name'] = df_pop['country_name'].str.title()
     df_pop['adm1_name'] = df_pop['adm1_name'].str.replace(r'[-/]+', ' ', regex=True).str.title()
-    df_pop['data_source'] = url
     df_pop = df_pop.astype({'year': 'int', 'population': 'int'})
     df_pop = df_pop.sort_values(['adm1_name', 'year'], ignore_index=True)
     

@@ -35,7 +35,6 @@ first_key = list(outcome_series_to_col_name.keys())[0]
 long_df = outcome_df.melt(id_vars='economy', var_name='year', value_name=outcome_series_to_col_name[first_key])
 long_df['year'] = long_df['year'].str.replace('YR', '')
 long_df = long_df.astype({'year': 'int'})
-long_df['data_source'] = 'UNESCO Institute for Statistics (UIS)'
 long_df = long_df.dropna(subset=['youth_literacy_rate']).sort_values(by=['economy', 'year'])
 long_df['youth_literacy_rate'] = long_df['youth_literacy_rate']/100
 long_df
@@ -47,7 +46,7 @@ country_df
 
 # COMMAND ----------
 
-lit_df = pd.merge(long_df, country_df, left_on='economy', right_on='country_code', how='left')[['country_name', 'country_code', 'region', 'year', 'youth_literacy_rate', 'data_source']]
+lit_df = pd.merge(long_df, country_df, left_on='economy', right_on='country_code', how='left')[['country_name', 'country_code', 'region', 'year', 'youth_literacy_rate']]
 lit_df
 
 # COMMAND ----------

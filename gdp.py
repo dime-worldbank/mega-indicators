@@ -24,9 +24,7 @@ col_names = [
     'gdp_per_capita_2017_ppp'
 ]
 
-data_source = 'WB & OECD National Accounts, WB International Comparison Program, Eurostat-OECD PPP Programme'
-
-df = wbgapi_fetch(indicators, col_names, data_source)
+df = wbgapi_fetch(indicators, col_names)
 
 sdf = spark.createDataFrame(df)
 sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.gdp")

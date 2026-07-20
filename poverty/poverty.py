@@ -18,9 +18,7 @@ col_names = [
     'poor830',
 ]
 
-data_source = 'WB Poverty and Inequality Platform'
-
-df = wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_country_table=['income_level'])
+df = wbgapi_fetch(indicators, col_names, extra_col_names_from_country_table=['income_level'])
 df
 
 # COMMAND ----------

@@ -46,7 +46,6 @@ for series, col_name in series_to_col_name.items():
 
 long_df['year'] = long_df['year'].str.replace('YR', '')
 long_df = long_df.astype({'year': 'int'})
-long_df['data_source'] = 'WWBI'
 long_df
 
 # COMMAND ----------

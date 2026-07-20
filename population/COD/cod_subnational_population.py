@@ -23,7 +23,6 @@ ddf['population'] = ddf.population.map(lambda x: x*1_000_000)
 ddf['adm1_name'] = ddf.adm1_name.map(lambda x: adm1_name_map.get(x.lower(), x.lower()))
 pop = ddf[ddf.adm1_name!='total'].sort_values(['year', 'adm1_name'])
 pop.country_name = 'Congo, Dem. Rep.'
-pop['data_source'] = 'Global Data Lab'
 
 # COMMAND ----------
 

@@ -4,7 +4,7 @@ import wbgapi as wb
 import pandas as pd
 from databricks.sdk.runtime import spark
 
-def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_country_table=None, how: str = 'inner'):
+def wbgapi_fetch(indicators, col_names, extra_col_names_from_country_table=None, how: str = 'inner'):
     if extra_col_names_from_country_table is None:
         extra_col_names_from_country_table = []
     if how not in {'inner', 'outer', 'left', 'right'}:
@@ -22,11 +22,9 @@ def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_countr
     for df in long_dfs[1:]:
         merged_df = pd.merge(merged_df, df, on=['economy', 'year'], how=how)
 
-    merged_df['data_source'] = data_source
-
     country_df = spark.table(f'{INDICATOR_SCHEMA}.country').select('country_name', 'country_code', 'region', *extra_col_names_from_country_table).toPandas()
     country_df
-    df = pd.merge(merged_df, country_df, left_on='economy', right_on='country_code', how='left')[['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names, 'data_source']]
+    df = pd.merge(merged_df, country_df, left_on='economy', right_on='country_code', how='left')[['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names]]
 
     return df
 
@@ -36,7 +34,7 @@ import requests
 
 UIS_API_URL = 'https://api.uis.unesco.org/api/public/data/indicators'
 
-def uis_fetch(series_to_col_name, data_source, extra_col_names_from_country_table=None, how: str = 'inner', start: int = None, stop: int = None):
+def uis_fetch(series_to_col_name, extra_col_names_from_country_table=None, how: str = 'inner', start: int = None, stop: int = None):
     """Fetch indicators straight from the UNESCO Institute for Statistics (UIS) API.
 
     Mirrors wbgapi_fetch's output (one row per country-year, one column per
@@ -63,7 +61,7 @@ def uis_fetch(series_to_col_name, data_source, extra_col_names_from_country_tabl
     payload = resp.json()
     raw_df = pd.DataFrame.from_records(payload.get('records', []))
     if raw_df.empty:
-        cols = ['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names, 'data_source']
+        cols = ['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names]
         return pd.DataFrame(columns=cols)
 
     long_dfs = []
@@ -77,10 +75,9 @@ def uis_fetch(series_to_col_name, data_source, extra_col_names_from_country_tabl
         merged_df = pd.merge(merged_df, df, on=['geoUnit', 'year'], how=how)
 
     merged_df = merged_df.astype({'year': 'int'})
-    merged_df['data_source'] = data_source
 
     country_df = spark.table(f'{INDICATOR_SCHEMA}.country').select('country_name', 'country_code', 'region', *extra_col_names_from_country_table).toPandas()
-    df = pd.merge(merged_df, country_df, left_on='geoUnit', right_on='country_code', how='inner')[['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names, 'data_source']]
+    df = pd.merge(merged_df, country_df, left_on='geoUnit', right_on='country_code', how='inner')[['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names]]
 
     return df
 

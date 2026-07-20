@@ -18,8 +18,12 @@ COUNTRY_CODE = "ALB"
 INSTAT_2018_2023_URL = "https://www.instat.gov.al/media/9831/tab2.xlsx"
 INSTAT_2024_LATER_URL = "https://www.instat.gov.al/media/qqofjboc/popullsia-m%C3%AB-1-janar-sipas-qarkut-dhe-gjinis%C3%AB.xlsx"
 
-WB_SUBNATIONAL_POPULATION_SOURCE = "WB subnational population database"
-INSTAT_SOURCE = "instat.gov.al"
+# Per-row provenance — the documented exception to the drop-data_source rule: rows
+# come from different upstream sources and the 2017 rows are imputed, so no single
+# table-level source describes them. Kept as clean source_id codes (not free text).
+WB_SUBNATIONAL_POPULATION_SOURCE_ID = "wb_subnational_population"
+INSTAT_SOURCE_ID = "alb_instat"
+IMPUTED_SOURCE_ID = "imputed"
 EXPECTED_ADM1_COUNT = 12
 
 def remove_accents(input_str: str) -> str:
@@ -37,7 +41,7 @@ df_wb_long = (
     .toPandas()
 )
 df_wb_long['country_name'] = COUNTRY_NAME
-df_wb_long['data_source'] = WB_SUBNATIONAL_POPULATION_SOURCE
+df_wb_long['source_id'] = WB_SUBNATIONAL_POPULATION_SOURCE_ID
 
 assert df_wb_long.shape[0] >= 204, f'Expect at least 204 rows, got {df_wb_long.shape[0]}'
 assert all(df_wb_long.population.notnull()), f'Expect no missing values in population field, got {sum(df_wb_long.population.isnull())} null values'
@@ -85,7 +89,7 @@ df_instat_long = df_instat.melt(
 )
 
 df_instat_long['country_name'] = COUNTRY_NAME
-df_instat_long['data_source'] = INSTAT_SOURCE
+df_instat_long['source_id'] = INSTAT_SOURCE_ID
 
 # COMMAND ----------
 
@@ -122,7 +126,7 @@ df_instat_2024_long = df_instat_2024.melt(
 )
 
 df_instat_2024_long['country_name'] = COUNTRY_NAME
-df_instat_2024_long['data_source'] = INSTAT_SOURCE
+df_instat_2024_long['source_id'] = INSTAT_SOURCE_ID
 df_instat_long = pd.concat([df_instat_long, df_instat_2024_long], ignore_index=True)
 
 assert all(df_instat_long.population.notnull()), f'Expected no missing values in population field, got {sum(df_instat_long.population.isnull())} null values'
@@ -150,7 +154,7 @@ imputed_df = pivot_df.reset_index().melt(
     value_name='population'
 )
 imputed_df.loc[imputed_df['year'] == 2017, 'country_name'] = COUNTRY_NAME
-imputed_df.loc[imputed_df['year'] == 2017, 'data_source'] = f'Imputed from WB subnational population and {INSTAT_SOURCE}'
+imputed_df.loc[imputed_df['year'] == 2017, 'source_id'] = IMPUTED_SOURCE_ID
 
 df_pop = pd.concat([df, imputed_df], ignore_index=True).drop_duplicates(subset=['adm1_name', 'year'])
 
