@@ -19,6 +19,17 @@ OR REFRESH LIVE TABLE source_registry USING DELTA AS (
       ('who_gho',         'Global Health Observatory',                                                   'WHO',              'https://www.who.int/data/gho'),
       ('who_nha',         'Global Health Expenditure Database',                                          'WHO',              'https://apps.who.int/nha/database/'),
       ('pefa',            'Public Expenditure & Financial Accountability',                               'PEFA Secretariat', 'https://www.pefa.org/assessments/batch-downloads'),
-      ('global_data_lab', 'Subnational HDI / Area Database',                                             'Global Data Lab',  'https://globaldatalab.org/shdi/about/')
+      ('global_data_lab', 'Subnational HDI / Area Database',                                             'Global Data Lab',  'https://globaldatalab.org/shdi/about/'),
+      ('uis',                       'Institute for Statistics database',                                 'UNESCO',           'https://uis.unesco.org/'),
+      ('wdi_population',            'World Development Indicators — Total population',                    'World Bank',       'https://data.worldbank.org/indicator/SP.POP.TOTL'),
+      ('wdi_gdp',                   'World Development Indicators — GDP, national accounts (NY.GDP.*)',   'World Bank',       'https://datatopics.worldbank.org/world-development-indicators/themes/economy.html#production'),
+      ('oecd_eag',                  'Education at a Glance (UOE finance)',                               'OECD',             'https://www.oecd.org/en/about/programmes/education-at-a-glance.html'),
+      ('wwbi',                      'Worldwide Bureaucracy Indicators',                                  'World Bank',       'https://www.worldbank.org/en/data/interactive/2019/05/21/worldwide-bureaucracy-indicators-dashboard'),
+      ('who_mmr',                   'Maternal Mortality Estimates (MMEIG)',                              'WHO',              'https://www.who.int/data/gho/data/indicators/indicator-details/GHO/maternal-mortality-ratio'),
+      ('census_gov',                'International Database',                                             'US Census Bureau', 'https://www.census.gov/programs-surveys/international-programs/about/idb.html'),
+      ('wb_subnational_population', 'Subnational Population database',                                    'World Bank',       'https://databank.worldbank.org/source/subnational-population'),
+      ('alb_instat',                'Population by prefecture',                                           'INSTAT',           'https://www.instat.gov.al/'),
+      ('moz_ine',                   'Population projections',                                             'INE Mozambique',   'https://mozambique.opendataforafrica.org/'),
+      ('pry_ine',                   'Population by department',                                           'INE Paraguay',     'https://www.ine.gov.py/')
   ) AS t(source_id, name, publisher, url)
 )
