@@ -2,6 +2,11 @@ resources:
   jobs:
     indicators_weekly:
       name: Indicators.Weekly
+      # Job parameter reaches every notebook task as a widget; config.py reads it to
+      # pick the target schema. Empty for dev/prod, "_staging" for the staging target.
+      parameters:
+        - name: schema_suffix
+          default: "${var.schema_suffix}"
       tasks:
       - task_key: consumer_price_index
         existing_cluster_id: ${var.shared_cluster_id}

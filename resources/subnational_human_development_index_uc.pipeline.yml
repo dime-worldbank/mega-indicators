@@ -15,7 +15,9 @@ resources:
       - notebook:
           path: ../human_development/global_data_lab_hdi_transform_load_dlt.py
       catalog: prd_mega
+      configuration:
+        schema_suffix: "${var.schema_suffix}"
       channel: CURRENT
       continuous: false
       photon: false
-      target: indicator
+      target: "indicator${var.schema_suffix}"

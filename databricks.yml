@@ -13,6 +13,14 @@ variables:
   shared_cluster_id:
     description: Existing all-purpose cluster the notebook tasks run on.
     default: "1111-165457-9ia3jd1w"
+  schema_suffix:
+    description: >-
+      Appended to the target schema names — empty for dev/prod, "_staging" for the
+      staging target — so a deploy can redirect every write to a staging schema
+      (prd_mega.indicator_staging / indicator_intermediate_staging) without editing
+      notebooks. Threaded to DLT pipelines via the schema field + configuration, and
+      to batch notebooks via a job parameter read in config.py.
+    default: ""
 
 targets:
   dev:
@@ -20,6 +28,19 @@ targets:
     default: true
     workspace:
       host: https://adb-6102124407836814.14.azuredatabricks.net
+
+  # Mirror of prod that writes to prd_mega.indicator_staging so pipeline changes can be
+  # validated end-to-end (and against the dashboard) before a prod cutover. Distinct
+  # root_path + name prefix keep it from clobbering prod resources.
+  staging:
+    mode: production
+    variables:
+      schema_suffix: _staging
+    presets:
+      name_prefix: "[staging] "
+    workspace:
+      host: https://adb-6102124407836814.14.azuredatabricks.net
+      root_path: /Workspace/Repos/boostprocessed/.bundle/${bundle.name}/${bundle.target}
 
   prod:
     mode: production

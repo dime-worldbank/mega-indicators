@@ -15,7 +15,9 @@ resources:
       - notebook:
           path: ../poverty/subnational_poverty/subnational_poverty_index_transform_load_dlt.py
       catalog: prd_mega
+      configuration:
+        schema_suffix: "${var.schema_suffix}"
       channel: CURRENT
       continuous: false
       photon: false
-      schema: indicator
+      schema: "indicator${var.schema_suffix}"
