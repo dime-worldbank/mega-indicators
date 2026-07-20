@@ -7,6 +7,22 @@ resources:
         - name: schema_suffix
           default: "${var.schema_suffix}"
       tasks:
+      - task_key: gdp
+        existing_cluster_id: ${var.shared_cluster_id}
+        disabled: false
+        email_notifications: {}
+        max_retries: 0
+        min_retry_interval_millis: 900000
+        notebook_task:
+          notebook_path: ../gdp.py
+        notification_settings:
+          alert_on_last_attempt: true
+          no_alert_for_canceled_runs: false
+          no_alert_for_skipped_runs: false
+        retry_on_timeout: false
+        run_if: ALL_SUCCESS
+        timeout_seconds: 0
+        webhook_notifications: {}
       - task_key: consumer_price_index
         existing_cluster_id: ${var.shared_cluster_id}
         disabled: false
@@ -40,6 +56,8 @@ resources:
         timeout_seconds: 0
         webhook_notifications: {}
       - task_key: edu_priv_expenditure
+        depends_on:
+        - task_key: gdp
         existing_cluster_id: ${var.shared_cluster_id}
         disabled: false
         email_notifications: {}
@@ -72,6 +90,8 @@ resources:
         timeout_seconds: 0
         webhook_notifications: {}
       - task_key: health_expenditure
+        depends_on:
+        - task_key: gdp
         existing_cluster_id: ${var.shared_cluster_id}
         disabled: false
         email_notifications: {}
