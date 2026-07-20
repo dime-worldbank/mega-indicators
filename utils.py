@@ -33,7 +33,7 @@ def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_countr
 
     merged_df['data_source'] = data_source
 
-    country_df = spark.table('indicator.country').select('country_name', 'country_code', 'region', *extra_col_names_from_country_table).toPandas()
+    country_df = spark.table(f'{INDICATOR_SCHEMA}.country').select('country_name', 'country_code', 'region', *extra_col_names_from_country_table).toPandas()
     country_df
     df = pd.merge(merged_df, country_df, left_on='economy', right_on='country_code', how='left')[['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names, 'data_source']]
 
@@ -88,7 +88,7 @@ def uis_fetch(series_to_col_name, data_source, extra_col_names_from_country_tabl
     merged_df = merged_df.astype({'year': 'int'})
     merged_df['data_source'] = data_source
 
-    country_df = spark.table('indicator.country').select('country_name', 'country_code', 'region', *extra_col_names_from_country_table).toPandas()
+    country_df = spark.table(f'{INDICATOR_SCHEMA}.country').select('country_name', 'country_code', 'region', *extra_col_names_from_country_table).toPandas()
     df = pd.merge(merged_df, country_df, left_on='geoUnit', right_on='country_code', how='inner')[['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names, 'data_source']]
 
     return df
