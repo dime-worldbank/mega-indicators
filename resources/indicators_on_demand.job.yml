@@ -9,107 +9,45 @@ resources:
       tasks:
       - task_key: admin1_boundary_extract
         existing_cluster_id: ${var.shared_cluster_id}
-        disabled: false
-        email_notifications: {}
         notebook_task:
           notebook_path: ../geo/admin_boundaries_extract.py
-        run_if: ALL_SUCCESS
-        timeout_seconds: 0
-        webhook_notifications: {}
       - task_key: admin1_boundary_transform_load
         depends_on:
         - task_key: admin1_boundary_extract
-        disabled: false
-        email_notifications: {}
         pipeline_task:
           full_refresh: true
           pipeline_id: ${resources.pipelines.admin_boundaries_tl_uc.id}
-        run_if: ALL_SUCCESS
-        timeout_seconds: 0
-        webhook_notifications: {}
       - task_key: country
         depends_on:
         - task_key: admin1_boundary_transform_load
         existing_cluster_id: ${var.shared_cluster_id}
-        disabled: false
-        email_notifications: {}
-        max_retries: 0
-        min_retry_interval_millis: 900000
         notebook_task:
           notebook_path: ../country.py
-        notification_settings:
-          alert_on_last_attempt: true
-          no_alert_for_canceled_runs: false
-          no_alert_for_skipped_runs: false
-        retry_on_timeout: false
-        run_if: ALL_SUCCESS
-        timeout_seconds: 0
-        webhook_notifications: {}
       - task_key: energy
         depends_on:
         - task_key: country
         existing_cluster_id: ${var.shared_cluster_id}
-        disabled: false
-        email_notifications: {}
         notebook_task:
           notebook_path: ../energy/energy_generation_consumption.py
-        notification_settings:
-          alert_on_last_attempt: false
-          no_alert_for_canceled_runs: false
-          no_alert_for_skipped_runs: false
-        run_if: ALL_SUCCESS
-        timeout_seconds: 0
-        webhook_notifications: {}
       - task_key: pefa
         existing_cluster_id: ${var.shared_cluster_id}
-        disabled: false
-        email_notifications: {}
         notebook_task:
           notebook_path: ../pefa/pefa_transform_load.py
-        run_if: ALL_SUCCESS
-        timeout_seconds: 0
-        webhook_notifications: {}
       - task_key: subnational_poverty_index_ET
         existing_cluster_id: ${var.shared_cluster_id}
-        disabled: false
-        email_notifications: {}
-        max_retries: 0
-        min_retry_interval_millis: 900000
         notebook_task:
           notebook_path: ../poverty/subnational_poverty/subnational_poverty_index_extract_transform.py
-        notification_settings:
-          alert_on_last_attempt: true
-          no_alert_for_canceled_runs: false
-          no_alert_for_skipped_runs: false
-        retry_on_timeout: false
-        run_if: ALL_SUCCESS
-        timeout_seconds: 0
-        webhook_notifications: {}
       - task_key: subnational_poverty_index_TL
         depends_on:
         - task_key: subnational_poverty_index_ET
         - task_key: country
-        disabled: false
-        email_notifications: {}
-        notification_settings:
-          alert_on_last_attempt: false
-          no_alert_for_canceled_runs: false
-          no_alert_for_skipped_runs: false
         pipeline_task:
-          full_refresh: false
           pipeline_id: ${resources.pipelines.subnational_poverty_index_uc.id}
-        run_if: ALL_SUCCESS
-        timeout_seconds: 0
-        webhook_notifications: {}
       email_notifications:
-        no_alert_for_skipped_runs: false
         on_failure:
         - ysuzuki2@worldbank.org
         - wlu4@worldbank.org
       max_concurrent_runs: 20
-      notification_settings:
-        no_alert_for_canceled_runs: false
-        no_alert_for_skipped_runs: false
       performance_target: PERFORMANCE_OPTIMIZED
       queue:
         enabled: true
@@ -117,5 +55,3 @@ resources:
         pause_status: PAUSED
         quartz_cron_expression: 28 17 8 ? * Mon
         timezone_id: UTC
-      timeout_seconds: 0
-      webhook_notifications: {}

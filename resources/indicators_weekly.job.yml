@@ -9,159 +9,51 @@ resources:
       tasks:
       - task_key: gdp
         existing_cluster_id: ${var.shared_cluster_id}
-        disabled: false
-        email_notifications: {}
-        max_retries: 0
-        min_retry_interval_millis: 900000
         notebook_task:
           notebook_path: ../gdp.py
-        notification_settings:
-          alert_on_last_attempt: true
-          no_alert_for_canceled_runs: false
-          no_alert_for_skipped_runs: false
-        retry_on_timeout: false
-        run_if: ALL_SUCCESS
-        timeout_seconds: 0
-        webhook_notifications: {}
       - task_key: consumer_price_index
         existing_cluster_id: ${var.shared_cluster_id}
-        disabled: false
-        email_notifications: {}
-        max_retries: 0
-        min_retry_interval_millis: 900000
         notebook_task:
           notebook_path: ../consumer_price_index.py
-        notification_settings:
-          alert_on_last_attempt: true
-          no_alert_for_canceled_runs: false
-          no_alert_for_skipped_runs: false
-        retry_on_timeout: false
-        run_if: ALL_SUCCESS
-        timeout_seconds: 0
-        webhook_notifications: {}
       - task_key: edu_learning_poverty
         existing_cluster_id: ${var.shared_cluster_id}
-        disabled: false
-        email_notifications: {}
-        max_retries: 0
-        min_retry_interval_millis: 900000
         notebook_task:
           notebook_path: ../education/learning_poverty.py
-        notification_settings:
-          alert_on_last_attempt: true
-          no_alert_for_canceled_runs: false
-          no_alert_for_skipped_runs: false
-        retry_on_timeout: false
-        run_if: ALL_SUCCESS
-        timeout_seconds: 0
-        webhook_notifications: {}
       - task_key: edu_priv_expenditure
         depends_on:
         - task_key: gdp
         existing_cluster_id: ${var.shared_cluster_id}
-        disabled: false
-        email_notifications: {}
-        max_retries: 0
-        min_retry_interval_millis: 900000
         notebook_task:
           notebook_path: ../education/education_private_spending.py
-        notification_settings:
-          alert_on_last_attempt: true
-          no_alert_for_canceled_runs: false
-          no_alert_for_skipped_runs: false
-        retry_on_timeout: false
-        run_if: ALL_SUCCESS
-        timeout_seconds: 0
-        webhook_notifications: {}
       - task_key: edu_sdg
         existing_cluster_id: ${var.shared_cluster_id}
-        disabled: false
-        email_notifications: {}
-        max_retries: 0
-        min_retry_interval_millis: 900000
         notebook_task:
           notebook_path: ../education/education_sdg.py
-        notification_settings:
-          alert_on_last_attempt: true
-          no_alert_for_canceled_runs: false
-          no_alert_for_skipped_runs: false
-        retry_on_timeout: false
-        run_if: ALL_SUCCESS
-        timeout_seconds: 0
-        webhook_notifications: {}
       - task_key: health_expenditure
         depends_on:
         - task_key: gdp
         existing_cluster_id: ${var.shared_cluster_id}
-        disabled: false
-        email_notifications: {}
-        max_retries: 0
-        min_retry_interval_millis: 900000
         notebook_task:
           notebook_path: ../health/health_expenditure.py
-        notification_settings:
-          alert_on_last_attempt: true
-          no_alert_for_canceled_runs: false
-          no_alert_for_skipped_runs: false
-        retry_on_timeout: false
-        run_if: ALL_SUCCESS
-        timeout_seconds: 0
-        webhook_notifications: {}
       - task_key: health_sdg
         existing_cluster_id: ${var.shared_cluster_id}
-        disabled: false
-        email_notifications: {}
-        max_retries: 0
-        min_retry_interval_millis: 900000
         notebook_task:
           notebook_path: ../health/sdg_health.py
-        notification_settings:
-          alert_on_last_attempt: true
-          no_alert_for_canceled_runs: false
-          no_alert_for_skipped_runs: false
-        retry_on_timeout: false
-        run_if: ALL_SUCCESS
-        timeout_seconds: 0
-        webhook_notifications: {}
       - task_key: poverty
         existing_cluster_id: ${var.shared_cluster_id}
-        disabled: false
-        email_notifications: {}
         notebook_task:
           notebook_path: ../poverty/poverty.py
-        run_if: ALL_SUCCESS
-        timeout_seconds: 0
-        webhook_notifications: {}
       - task_key: public_sector_employment_E
         existing_cluster_id: ${var.shared_cluster_id}
-        disabled: false
-        email_notifications: {}
-        max_retries: 0
-        min_retry_interval_millis: 900000
         notebook_task:
           notebook_path: ../public_sector_employment/wwbi_extract.py
-        notification_settings:
-          alert_on_last_attempt: true
-          no_alert_for_canceled_runs: false
-          no_alert_for_skipped_runs: false
-        retry_on_timeout: false
-        run_if: ALL_SUCCESS
-        timeout_seconds: 0
-        webhook_notifications: {}
       email_notifications:
-        no_alert_for_skipped_runs: false
         on_failure:
         - wlu4@worldbank.org
         - sbhupatiraju@worldbank.org
         - ysuzuki2@worldbank.org
-      max_concurrent_runs: 1
-      notification_settings:
-        no_alert_for_canceled_runs: false
-        no_alert_for_skipped_runs: false
       performance_target: PERFORMANCE_OPTIMIZED
       schedule:
         pause_status: UNPAUSED
         quartz_cron_expression: 28 17 8 ? * Mon
         timezone_id: UTC
-      timeout_seconds: 0
-      webhook_notifications: {}
