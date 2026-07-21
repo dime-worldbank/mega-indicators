@@ -3,19 +3,23 @@
 
 # COMMAND ----------
 
-import io
+# MAGIC %run ../../utils
+
+# COMMAND ----------
+
 import unicodedata
 
 import pandas as pd
-import requests
 
 COUNTRY_NAME = "Moldova"
 COUNTRY_CODE = "MDA"
 
 # Population with usual residence by locality (village/commune, town/municipality),
 # published by the National Bureau of Statistics of the Republic of Moldova.
-NBS_POPULATION_URL = "https://statistica.gov.md/files/files/serii_de_timp/populatie/numarul_PRO_profil_teritorial/Populatia_sate_comune_orase_2014-2023.xlsx"
-NBS_SOURCE = "statistica.gov.md"
+# Downloaded to the volume by mda_subnational_population_extract.py.
+VOLUME_ROOT_PATH = get_volume_root_path()
+NBS_POPULATION_PATH = f'{VOLUME_ROOT_PATH}/auxiliary_data/population/mda/Populatia_sate_comune_orase_2014-2023.xlsx'
+NBS_SOURCE = "National Bureau of Statistics of the Republic of Moldova"
 
 # 32 raions + 2 municipalities (Chisinau, Balti) + the autonomous region of Gagauzia.
 # Excludes Transnistria and Bender, which are not covered by the NBS estimates.
@@ -57,9 +61,7 @@ def clean_adm1_name(raw_name: str) -> str:
 
 # COMMAND ----------
 
-response = requests.get(NBS_POPULATION_URL)
-response.raise_for_status()
-xls = pd.ExcelFile(io.BytesIO(response.content))
+xls = pd.ExcelFile(NBS_POPULATION_PATH)
 
 # One sheet per year, named after the year
 sheet_years = sorted(int(sheet_name) for sheet_name in xls.sheet_names)
