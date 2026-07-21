@@ -10,9 +10,13 @@ library(dplyr)
 
 # COMMAND ----------
 
-# schema_suffix ("" for dev/prod, "_staging" for staging) comes from the job parameter.
-schema_suffix <- tryCatch(dbutils.widgets.get("schema_suffix"), error = function(e) "")
-INDICATOR_SCHEMA <- paste0('prd_mega.indicator', schema_suffix)
+# The bundle_target job parameter (dev/prod/staging) maps to a schema suffix; no default.
+suffix_by_target <- list(prod = "", staging = "_staging")
+target <- dbutils.widgets.get("bundle_target")
+if (is.null(suffix_by_target[[target]])) {
+  stop(paste0("Unknown bundle target '", target, "'; expected one of: ", paste(names(suffix_by_target), collapse = ", "), "."))
+}
+INDICATOR_SCHEMA <- paste0("prd_mega.indicator", suffix_by_target[[target]])
 BRONZE_TABLE <- paste0(INDICATOR_SCHEMA, '.global_data_lab_subnational_population_bronze')
 GOLD_TABLE <- paste0(INDICATOR_SCHEMA, '.global_data_lab_subnational_population')
 

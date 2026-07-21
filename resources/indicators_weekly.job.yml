@@ -4,8 +4,8 @@ resources:
       name: Indicators.Weekly
       # Reaches every notebook task as a widget; config.py reads it to pick the schema.
       parameters:
-        - name: schema_suffix
-          default: "${var.schema_suffix}"
+        - name: bundle_target
+          default: ${bundle.target}
       tasks:
       - task_key: gdp
         existing_cluster_id: ${var.shared_cluster_id}

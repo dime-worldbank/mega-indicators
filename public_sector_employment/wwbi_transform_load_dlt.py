@@ -1,18 +1,12 @@
 # Databricks notebook source
-# Staging schema redirect: DLT reads schema_suffix from its pipeline configuration.
-_suffix = spark.conf.get("schema_suffix", "")
-INDICATOR_SCHEMA = f"prd_mega.indicator{_suffix}"
-
-# COMMAND ----------
-
 import dlt
 import pyspark.sql.functions as F
 
 @dlt.table(name=f'public_sector_employment')
 def public_sector_employment():
-    countries = spark.table(f'{INDICATOR_SCHEMA}.country').select('country_name', 'country_code', 'region')
+    countries = spark.table('country').select('country_name', 'country_code', 'region')
 
-    employment = (spark.table(f'{INDICATOR_SCHEMA}.public_sector_employment_silver')
+    employment = (spark.table('public_sector_employment_silver')
         .withColumnRenamed("economy", 'country_code')
         .join(countries, on=["country_code"], how="inner"))
 

@@ -9,7 +9,6 @@ include:
 run_as:
   user_name: ${workspace.current_user.userName}
 
-# Everyone in the boostprocessed group can manage every deployed job and pipeline.
 permissions:
   - group_name: ITSDA-LKHS-DAP-PROD-boostprocessed
     level: CAN_MANAGE
@@ -18,28 +17,24 @@ variables:
   shared_cluster_id:
     description: Existing all-purpose cluster the notebook tasks run on.
     default: "1111-165457-9ia3jd1w"
-  schema_suffix:
-    description: >-
-      "" for dev/prod, "_staging" for the staging target — redirects every write to
-      prd_mega.indicator_staging. Reaches DLT via the schema field + configuration, and
-      batch notebooks via a job parameter read in config.py.
-    default: ""
 
 targets:
-  dev:
-    mode: development
-    default: true
-    workspace:
-      host: https://adb-6102124407836814.14.azuredatabricks.net
-
-  # Mirror of prod writing to prd_mega.indicator_staging for pre-cutover validation;
-  # distinct root_path + name prefix avoid clobbering prod.
   staging:
     mode: production
-    variables:
-      schema_suffix: _staging
+    default: true
     presets:
       name_prefix: "[staging] "
+    # DLT LIVE TABLES write to the staging schema (notebooks resolve it from bundle_target).
+    resources:
+      pipelines:
+        admin_boundaries_tl_uc:
+          schema: indicator_staging
+        subnational_poverty_index_uc:
+          schema: indicator_staging
+        subnational_human_development_index_uc:
+          schema: indicator_staging
+        subnational_population_agg_uc:
+          schema: indicator_staging
     workspace:
       host: https://adb-6102124407836814.14.azuredatabricks.net
       root_path: /Workspace/Repos/boostprocessed/.bundle/${bundle.name}/${bundle.target}

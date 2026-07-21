@@ -1,12 +1,10 @@
 # Databricks notebook source
-# Shared schema config for `%run`. schema_suffix ("" for dev/prod, "_staging" for the
-# staging target) redirects writes to a staging schema. Batch tasks get it as a job-param
-# widget; DLT can't %run this and reads spark.conf instead — hence the fallback.
-try:
-    _suffix = dbutils.widgets.get("schema_suffix")
-except Exception:
-    _suffix = spark.conf.get("schema_suffix", "")
+
+_SUFFIX_BY_TARGET = {"prod": "", "staging": "_staging"}
+
+_target = dbutils.widgets.get("bundle_target")
+if _target not in _SUFFIX_BY_TARGET:
+    raise RuntimeError(f"Unknown bundle target {_target!r}; expected one of {sorted(_SUFFIX_BY_TARGET)}.")
 
 CATALOG = "prd_mega"
-# Silver (intermediate) tables live here too, _silver-suffixed.
-INDICATOR_SCHEMA = f"{CATALOG}.indicator{_suffix}"
+INDICATOR_SCHEMA = f"{CATALOG}.indicator{_SUFFIX_BY_TARGET[_target]}"

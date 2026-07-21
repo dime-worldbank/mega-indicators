@@ -15,9 +15,7 @@ resources:
       - notebook:
           path: ../geo/admin_boundaries_dlt.py
       catalog: prd_mega
-      configuration:
-        schema_suffix: "${var.schema_suffix}"
       channel: CURRENT
       continuous: false
       photon: false
-      schema: "indicator${var.schema_suffix}"
+      schema: indicator
