@@ -11,18 +11,13 @@ from io import BytesIO
 # URL of the ZIP file
 zip_url = "https://databank.worldbank.org/data/download/Subnational-Population_EXCEL.zip"
 response = requests.get(zip_url)
+response.raise_for_status()
 
-# Check if the request was successful (status code 200)
-if response.status_code == 200:
-    with ZipFile(BytesIO(response.content), 'r') as zip_file:
-        files = zip_file.namelist()
-        assert len( zip_file.namelist())==1
-        excel_file_name = files[0]
-        
-        # Read the Excel file into a pandas DataFrame
-        df = pd.read_excel(zip_file.open(excel_file_name))
-else:
-    print(f"Failed to download the ZIP file. Status code: {response.status_code}")
+with ZipFile(BytesIO(response.content), 'r') as zip_file:
+    files = zip_file.namelist()
+    assert len(zip_file.namelist()) == 1
+    excel_file_name = files[0]
+    df = pd.read_excel(zip_file.open(excel_file_name))
 
 
 # COMMAND ----------

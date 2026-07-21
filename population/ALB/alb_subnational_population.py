@@ -34,18 +34,13 @@ def remove_accents(input_str: str) -> str:
 # Extract 2016 and earlier data from WB subnational Population
 # URL of the ZIP file
 response = requests.get(WB_SUBNATIONAL_POPULATION_URL)
+response.raise_for_status()
 
-# Check if the request was successful (status code 200)
-if response.status_code == 200:
-    with ZipFile(io.BytesIO(response.content), 'r') as zip_file:
-        files = zip_file.namelist()
-        assert len( zip_file.namelist())==1
-        excel_file_name = files[0]
-        
-        # Read the Excel file into a pandas DataFrame
-        df_wb = pd.read_excel(zip_file.open(excel_file_name))
-else:
-    print(f"Failed to download the ZIP file. Status code: {response.status_code}")
+with ZipFile(io.BytesIO(response.content), 'r') as zip_file:
+    files = zip_file.namelist()
+    assert len(zip_file.namelist()) == 1
+    excel_file_name = files[0]
+    df_wb = pd.read_excel(zip_file.open(excel_file_name))
 
 # Filter the rows corresponding to Albania
 df_wb = df_wb[(df_wb['Country Code'].map(lambda x: x[:3] == COUNTRY_CODE)) & (df_wb['Indicator Code'] == POPULATION_INDICATOR_CODE)]
