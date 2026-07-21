@@ -8,16 +8,13 @@
 # COMMAND ----------
 
 import requests
-from zipfile import ZipFile
 import pandas as pd
 import unicodedata
 import io
 
 COUNTRY_NAME = "Albania"
 COUNTRY_CODE = "ALB"
-POPULATION_INDICATOR_CODE = "SP.POP.TOTL"
 
-WB_SUBNATIONAL_POPULATION_URL = "https://databank.worldbank.org/data/download/Subnational-Population_EXCEL.zip"
 INSTAT_2018_2023_URL = "https://www.instat.gov.al/media/9831/tab2.xlsx"
 INSTAT_2024_LATER_URL = "https://www.instat.gov.al/media/qqofjboc/popullsia-m%C3%AB-1-janar-sipas-qarkut-dhe-gjinis%C3%AB.xlsx"
 
@@ -31,33 +28,16 @@ def remove_accents(input_str: str) -> str:
         if unicodedata.category(c) != 'Mn'
     )
 
-# Extract 2016 and earlier data from WB subnational Population
-# URL of the ZIP file
-response = requests.get(WB_SUBNATIONAL_POPULATION_URL)
-response.raise_for_status()
-
-with ZipFile(io.BytesIO(response.content), 'r') as zip_file:
-    files = zip_file.namelist()
-    assert len(zip_file.namelist()) == 1
-    excel_file_name = files[0]
-    df_wb = pd.read_excel(zip_file.open(excel_file_name))
-
-# Filter the rows corresponding to Albania
-df_wb = df_wb[(df_wb['Country Code'].map(lambda x: x[:3] == COUNTRY_CODE)) & (df_wb['Indicator Code'] == POPULATION_INDICATOR_CODE)]
-df_wb['adm1_name'] = df_wb['Country Name'].map(lambda x: x.split(',')[-1].strip())
-
-# Remove the row with adm1_name Albania -- this corresponds to the country population
-df_wb = df_wb[df_wb['adm1_name'] != COUNTRY_NAME]
-selected_columns = df_wb.columns[(df_wb.columns.str.isnumeric()) | (df_wb.columns == 'adm1_name')]
-df_wb = df_wb[selected_columns]
-df_wb_long = df_wb.melt(id_vars=['adm1_name'], var_name='year', value_name='population')
-
-# Append additional information
+# Extract 2016 and earlier data from WB subnational Population — shared download+parse
+# across countries (wb_subnational_population_extract.py).
+df_wb_long = (
+    spark.table(f'{INDICATOR_SCHEMA}.wb_subnational_population_silver')
+    .where(f"country_code = '{COUNTRY_CODE}'")
+    .drop('country_code')
+    .toPandas()
+)
 df_wb_long['country_name'] = COUNTRY_NAME
 df_wb_long['data_source'] = WB_SUBNATIONAL_POPULATION_SOURCE
-# correct data types
-df_wb_long['population'] = df_wb_long['population'].astype('int')
-df_wb_long['year'] = df_wb_long['year'].astype('int')
 
 assert df_wb_long.shape[0] >= 204, f'Expect at least 204 rows, got {df_wb_long.shape[0]}'
 assert all(df_wb_long.population.notnull()), f'Expect no missing values in population field, got {sum(df_wb_long.population.isnull())} null values'

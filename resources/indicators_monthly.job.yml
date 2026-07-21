@@ -21,6 +21,10 @@ resources:
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
           notebook_path: ../population/global_data_lab_subnational_population.r
+      - task_key: wb_subnational_population_extract
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/wb_subnational_population_extract.py
       - task_key: imf_govt_budget
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
@@ -38,10 +42,14 @@ resources:
         notebook_task:
           notebook_path: ../population/BGD/bgd_subnational_population.py
       - task_key: subnational_population_btn
+        depends_on:
+        - task_key: wb_subnational_population_extract
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
           notebook_path: ../population/BTN/btn_subnational_population.py
       - task_key: subnational_population_chl
+        depends_on:
+        - task_key: wb_subnational_population_extract
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
           notebook_path: ../population/CHL/chl_subnational_population.py
@@ -82,10 +90,14 @@ resources:
         notebook_task:
           notebook_path: ../population/PRY/pry_subnational_population.py
       - task_key: subnational_population_tun
+        depends_on:
+        - task_key: wb_subnational_population_extract
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
           notebook_path: ../population/TUN/tun_subnational_population.py
       - task_key: subnational_population_zaf
+        depends_on:
+        - task_key: wb_subnational_population_extract
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
           notebook_path: ../population/ZAF/zaf_subnational_population.py
