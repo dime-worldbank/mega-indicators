@@ -9,6 +9,11 @@ include:
 run_as:
   user_name: ${workspace.current_user.userName}
 
+# Everyone in the boostprocessed group can manage every deployed job and pipeline.
+permissions:
+  - group_name: ITSDA-LKHS-DAP-PROD-boostprocessed
+    level: CAN_MANAGE
+
 variables:
   shared_cluster_id:
     description: Existing all-purpose cluster the notebook tasks run on.
