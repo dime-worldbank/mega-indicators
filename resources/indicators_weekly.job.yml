@@ -50,7 +50,6 @@ resources:
       email_notifications:
         on_failure:
         - wlu4@worldbank.org
-        - sbhupatiraju@worldbank.org
         - ysuzuki2@worldbank.org
       performance_target: PERFORMANCE_OPTIMIZED
       schedule:
