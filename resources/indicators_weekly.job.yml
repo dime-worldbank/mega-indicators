@@ -47,4 +47,9 @@ resources:
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
           notebook_path: ../public_sector_employment/wwbi_extract.py
+      - task_key: public_sector_employment_TL
+        depends_on:
+        - task_key: public_sector_employment_E
+        pipeline_task:
+          pipeline_id: ${resources.pipelines.public_sector_employment_uc.id}
       performance_target: PERFORMANCE_OPTIMIZED
