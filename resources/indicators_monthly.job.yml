@@ -107,12 +107,4 @@ resources:
         - task_key: subnational_population_chl
         pipeline_task:
           pipeline_id: ${resources.pipelines.subnational_population_agg_uc.id}
-      email_notifications:
-        on_failure:
-        - wlu4@worldbank.org
-        - ysuzuki2@worldbank.org
       performance_target: PERFORMANCE_OPTIMIZED
-      schedule:
-        pause_status: UNPAUSED
-        quartz_cron_expression: 28 17 13 3 * ?
-        timezone_id: UTC

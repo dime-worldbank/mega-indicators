@@ -35,12 +35,53 @@ targets:
           schema: indicator_staging
         subnational_population_agg_uc:
           schema: indicator_staging
+      # Always paused, and offset a day from prod's cron even so, in case a schedule is
+      # ever unpaused for periodic validation.
+      jobs:
+        indicators_weekly:
+          schedule:
+            pause_status: PAUSED
+            quartz_cron_expression: 28 17 8 ? * Tue
+            timezone_id: UTC
+        indicators_monthly:
+          schedule:
+            pause_status: PAUSED
+            quartz_cron_expression: 28 17 13 4 * ?
+            timezone_id: UTC
     workspace:
       host: https://adb-6102124407836814.14.azuredatabricks.net
       root_path: /Workspace/Repos/boostprocessed/.bundle/${bundle.name}/${bundle.target}
 
   prod:
     mode: production
+    # All schedules live here, not in the job ymls, so every target's is in one place.
+    # on_demand has no schedule at all (triggered manually only), for either target.
+    # Failure emails are prod-only — a staging failure shouldn't page anyone.
+    resources:
+      jobs:
+        indicators_on_demand:
+          email_notifications:
+            on_failure:
+            - ysuzuki2@worldbank.org
+            - wlu4@worldbank.org
+        indicators_weekly:
+          schedule:
+            pause_status: UNPAUSED
+            quartz_cron_expression: 28 17 8 ? * Mon
+            timezone_id: UTC
+          email_notifications:
+            on_failure:
+            - wlu4@worldbank.org
+            - ysuzuki2@worldbank.org
+        indicators_monthly:
+          schedule:
+            pause_status: UNPAUSED
+            quartz_cron_expression: 28 17 13 3 * ?
+            timezone_id: UTC
+          email_notifications:
+            on_failure:
+            - wlu4@worldbank.org
+            - ysuzuki2@worldbank.org
     workspace:
       host: https://adb-6102124407836814.14.azuredatabricks.net
       # Team-accessible Git-folders container (not all-users-writable like /Workspace/Shared).

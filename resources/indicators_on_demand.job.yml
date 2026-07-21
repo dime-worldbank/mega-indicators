@@ -43,15 +43,7 @@ resources:
         - task_key: country
         pipeline_task:
           pipeline_id: ${resources.pipelines.subnational_poverty_index_uc.id}
-      email_notifications:
-        on_failure:
-        - ysuzuki2@worldbank.org
-        - wlu4@worldbank.org
       max_concurrent_runs: 20
       performance_target: PERFORMANCE_OPTIMIZED
       queue:
         enabled: true
-      schedule:
-        pause_status: PAUSED
-        quartz_cron_expression: 28 17 8 ? * Mon
-        timezone_id: UTC
