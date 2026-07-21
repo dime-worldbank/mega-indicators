@@ -2,6 +2,9 @@ resources:
   jobs:
     indicators_weekly:
       name: Indicators.Weekly
+      # Several tasks read country, produced only by indicators_on_demand — this job
+      # assumes it's already run at least once in the target schema (true in steady-
+      # state prod; use indicators_all to bootstrap a fresh schema in order).
       # Reaches every notebook task as a widget; config.py reads it to pick the schema.
       parameters:
         - name: bundle_target
