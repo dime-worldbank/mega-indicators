@@ -1,14 +1,5 @@
 # Databricks notebook source
 import os
-
-def get_volume_root_path():
-    return os.getenv(
-        'VOLUME_ROOT_PATH',
-        '/Volumes/prd_mega/sboost4/vboost4/Workspace'
-    )
-
-# COMMAND ----------
-
 import wbgapi as wb
 import pandas as pd
 from databricks.sdk.runtime import spark

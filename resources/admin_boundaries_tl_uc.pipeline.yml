@@ -15,6 +15,10 @@ resources:
       - notebook:
           path: ../geo/admin_boundaries_dlt.py
       catalog: prd_mega
+      # The notebook reads a volume file (not a table), so it needs the target
+      # explicitly — unlike the other pipelines' unqualified table reads.
+      configuration:
+        bundle_target: ${bundle.target}
       channel: CURRENT
       continuous: false
       photon: false
