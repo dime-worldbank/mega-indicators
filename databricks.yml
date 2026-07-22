@@ -9,9 +9,14 @@ include:
 run_as:
   user_name: ${workspace.current_user.userName}
 
-permissions:
-  - group_name: ITSDA-LKHS-DAP-PROD-boostprocessed
-    level: CAN_MANAGE
+# Disabled: applying this on prod tries to reassign ownership of pre-existing
+# pipelines (e.g. admin_boundaries_tl_uc, owned by their original creator) to the
+# deploying user, which only a Databricks admin can do.
+# TODO: restore this and switch run_as (above) to the service principal once one
+# exists — a stable non-human owner avoids the reassignment problem entirely.
+# permissions:
+#   - group_name: ITSDA-LKHS-DAP-PROD-boostprocessed
+#     level: CAN_MANAGE
 
 variables:
   shared_cluster_id:
