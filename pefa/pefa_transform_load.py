@@ -5,8 +5,8 @@
 
 # TODO: Add PEFA score extraction step. Currently the data is imported manually for prototyping
 # Data source: https://www.pefa.org/assessments/batch-downloads 
-# Download once for 2016 framework then uploaded to prd_mega.indicator_intermediate.pefa_2016_bronze, 
-#      and once for 2011 framework then uploaded to prd_mega.indicator_intermediate.pefa_2011_bronze
+# Download once for 2016 framework then uploaded to {INDICATOR_SCHEMA}.pefa_2016_bronze,
+#      and once for 2011 framework then uploaded to {INDICATOR_SCHEMA}.pefa_2011_bronze
 
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
