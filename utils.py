@@ -1,5 +1,8 @@
 # Databricks notebook source
 import os
+import json
+import hashlib
+from datetime import datetime, timezone
 import wbgapi as wb
 import pandas as pd
 from databricks.sdk.runtime import spark
@@ -104,4 +107,51 @@ def ddh_bytes(url):
     resp = requests.get(url)
     resp.raise_for_status()
     return resp.content
+
+# COMMAND ----------
+
+def _latest_version(volume_dir):
+    """Highest N among existing ``vN`` snapshot folders under volume_dir, or 0 if none."""
+    if not os.path.exists(volume_dir):
+        return 0
+    versions = [int(name[1:]) for name in os.listdir(volume_dir)
+                if name.startswith('v') and name[1:].isdigit()]
+    return max(versions, default=0)
+
+def versioned_csv(source_url, volume_dir, update_version, filename=None, **read_csv_kwargs):
+    """Read a CSV through an auto-versioned volume cache, fetching from source only when needed.
+
+    Snapshots live under volume_dir as numbered subfolders (v1, v2, ...), each holding the
+    downloaded file (filename defaults to the last path segment of source_url) plus a
+    metadata.json recording the source URL, filename, fetch time and size. When
+    update_version is True — or nothing is cached yet — the source is downloaded into the
+    next version folder; otherwise the latest existing snapshot is read. Callers never pick
+    a version number: a refresh is an explicit, opt-in run (driven by a bundle parameter)
+    that increments automatically, so downstream processing stays reproducible and
+    decoupled from source-site availability, while past snapshots are kept for audit.
+    """
+    if filename is None:
+        filename = os.path.basename(urlparse(source_url).path)
+    latest = _latest_version(volume_dir)
+
+    if update_version or latest == 0:
+        latest += 1
+        version_dir = f"{volume_dir.rstrip('/')}/v{latest}"
+        resp = requests.get(source_url, timeout=60)
+        resp.raise_for_status()
+        os.makedirs(version_dir, exist_ok=True)
+        with open(f"{version_dir}/{filename}", 'wb') as f:
+            f.write(resp.content)
+        metadata = {
+            'version': latest,
+            'source_url': source_url,
+            'filename': filename,
+            'fetched_at': datetime.now(timezone.utc).isoformat(),
+            'size_bytes': len(resp.content),
+            'sha256': hashlib.sha256(resp.content).hexdigest(),
+        }
+        with open(f"{version_dir}/metadata.json", 'w') as f:
+            json.dump(metadata, f, indent=2)
+
+    return pd.read_csv(f"{volume_dir.rstrip('/')}/v{latest}/{filename}", **read_csv_kwargs)
 

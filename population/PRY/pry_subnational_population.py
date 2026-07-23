@@ -3,12 +3,22 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../../utils
+
+# COMMAND ----------
+
 import pandas as pd
 
 # COMMAND ----------
 
 URL = 'https://www.ine.gov.py/microdatos/cuadro/b7dc2DEP01-Paraguay-Poblacion-total-por-anio-calendario-segun-sexo-y-departamento-2000-2025.csv'
-df_raw = pd.read_csv(URL, skip_blank_lines=True).rename(columns={'#': 'adm1_name'})
+
+POPULATION_DIR = f'{VOLUME_ROOT_PATH}/auxiliary_data/population/PRY'
+
+update_version = dbutils.widgets.getArgument('pry_population_update_version', 'false').strip().lower() == 'true'
+
+df_raw = versioned_csv(URL, POPULATION_DIR, update_version, skip_blank_lines=True)\
+    .rename(columns={'#': 'adm1_name'})
 df_raw
 
 # COMMAND ----------
