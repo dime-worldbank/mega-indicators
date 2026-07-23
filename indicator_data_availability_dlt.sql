@@ -9,7 +9,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(max(year) AS INT) AS latest_year,
       array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
-      prd_mega.indicator.global_data_lab_hd_index
+      global_data_lab_hd_index
     WHERE
       health_index IS NOT NULL
       AND education_index IS NOT NULL
@@ -24,7 +24,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(max(year) AS INT) AS latest_year,
       array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
-      prd_mega.indicator.learning_poverty_rate
+      learning_poverty_rate
     GROUP BY
       1
   ),
@@ -36,7 +36,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(max(year) AS INT) AS latest_year,
       array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
-      prd_mega.indicator.subnational_poverty_rate
+      subnational_poverty_rate
     WHERE
       poverty_rate IS NOT NULL
     GROUP BY
@@ -50,7 +50,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(max(year) AS INT) AS latest_year,
       array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
-      prd_mega.indicator.universal_health_coverage_index_gho
+      universal_health_coverage_index_gho
     WHERE
       universal_health_coverage_index IS NOT NULL
     GROUP BY
@@ -64,7 +64,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(max(year) AS INT) AS latest_year,
       array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
-      prd_mega.indicator.pefa_by_pillar
+      pefa_by_pillar
     GROUP BY
       1
   ),
@@ -76,7 +76,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(max(year) AS INT) AS latest_year,
       array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
-      prd_mega.indicator.health_expenditure
+      health_expenditure
     WHERE
       oop_per_capita_usd IS NOT NULL
     GROUP BY
@@ -90,7 +90,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(max(year) AS INT) AS latest_year,
       array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
-      prd_mega.indicator.poverty_rate
+      poverty_rate
     WHERE
       poverty_rate IS NOT NULL
     GROUP BY
@@ -104,7 +104,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(max(year) AS INT) AS latest_year,
       array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
-      prd_mega.indicator.global_data_lab_hd_index
+      global_data_lab_hd_index
     WHERE
       attendance_6to17yo IS NOT NULL
     GROUP BY
@@ -118,7 +118,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(max(year) AS INT) AS latest_year,
       array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
-      prd_mega.indicator.pupil_teacher_ratio
+      pupil_teacher_ratio
     WHERE
       COALESCE(pupil_teacher_ratio_pre_primary, pupil_teacher_ratio_primary, pupil_teacher_ratio_secondary, pupil_teacher_ratio_lower_secondary, pupil_teacher_ratio_upper_secondary, pupil_teacher_ratio_tertiary) IS NOT NULL
     GROUP BY
@@ -132,7 +132,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(max(year) AS INT) AS latest_year,
       array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
-      prd_mega.indicator.school_basic_services
+      school_basic_services
     WHERE
       COALESCE(
         schools_with_electricity_primary, schools_with_electricity_lower_secondary, schools_with_electricity_upper_secondary,
@@ -151,7 +151,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(max(year) AS INT) AS latest_year,
       array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
-      prd_mega.indicator.teacher_salaries
+      teacher_salaries
     WHERE
       COALESCE(
         teacher_salary_pre_primary, teacher_salary_primary,
@@ -168,7 +168,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(max(year) AS INT) AS latest_year,
       array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
-      prd_mega.indicator.completion_rates
+      completion_rates
     WHERE
       COALESCE(
         completion_rate_primary, completion_rate_lower_secondary, completion_rate_upper_secondary

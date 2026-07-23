@@ -42,6 +42,8 @@ targets:
           schema: indicator_staging
         public_sector_employment_uc:
           schema: indicator_staging
+        indicator_metadata:
+          schema: indicator_staging
       # Always paused, and offset a day from prod's cron even so, in case a schedule is
       # ever unpaused for periodic validation.
       jobs:
