@@ -1,1 +1,3 @@
 *__pycache__*
+# Databricks Asset Bundle local state
+.databricks/

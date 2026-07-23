@@ -31,6 +31,14 @@ INDICATORS <- c('healthindex', 'edindex', 'incindex')
 DATASET <- 'shdi'
 END_YEAR <- as.integer(format(Sys.Date(), "%Y"))
 
+# The bundle_target job parameter (dev/prod/staging) maps to a schema suffix; no default.
+suffix_by_target <- list(prod = "", staging = "_staging")
+target <- dbutils.widgets.get("bundle_target")
+if (is.null(suffix_by_target[[target]])) {
+  stop(paste0("Unknown bundle target '", target, "'; expected one of: ", paste(names(suffix_by_target), collapse = ", "), "."))
+}
+INDICATOR_SCHEMA <- paste0("prd_mega.indicator", suffix_by_target[[target]])
+
 # COMMAND ----------
 
 sess <- sess %>%
@@ -80,13 +88,13 @@ for (year in START_YEAR:END_YEAR) {
 # COMMAND ----------
 
 sdf <- createDataFrame(indicator_merged)
-table_name <- paste0("prd_mega.indicator_intermediate.global_data_lab_hd_index_bronze")
+table_name <- paste0(INDICATOR_SCHEMA, ".global_data_lab_hd_index_bronze")
 saveAsTable(sdf, tableName = table_name, mode = "overwrite")
 
 # COMMAND ----------
 
-# now read the bronze table 
-sdf <- SparkR::sql("SELECT * FROM prd_mega.indicator_intermediate.global_data_lab_hd_index_bronze")
+# now read the bronze table
+sdf <- SparkR::sql(paste0("SELECT * FROM ", INDICATOR_SCHEMA, ".global_data_lab_hd_index_bronze"))
 indicator_merged <-SparkR:: collect(sdf)
 
 # Rename columns in the R data.frame
@@ -110,7 +118,7 @@ indicator_merged <- indicator_merged %>%
 # for each of the specified indicator columns.
 
 collapsed_df <- indicator_merged %>%
-  dplyr::group_by(Country, Region, year) %>%
+  dplyr::group_by(Country, ISO_Code, Region, year) %>%
   dplyr::summarise(
     dplyr::across(
       c(
@@ -173,7 +181,7 @@ if (!all(grouped_counts$obs_count == 1)) {
 
 
 sdf <- createDataFrame(collapsed_df)
-table_name <- paste0("prd_mega.indicator_intermediate.global_data_lab_hd_index")
+table_name <- paste0(INDICATOR_SCHEMA, ".global_data_lab_hd_index_silver")
 saveAsTable(sdf, tableName = table_name, mode = "overwrite",  overwriteSchema = "true")
 
 print(paste(table_name, 'nrow:', nrow(collapsed_df)))

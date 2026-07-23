@@ -15,7 +15,16 @@ from pyspark.sql.functions import col, first, collect_list, StringType, udf, whe
 from functools import reduce
 from pyspark.sql.types import StructType, StructField, DoubleType, StringType
 from shapely.ops import unary_union
-ADMIN1_DATA_DIR = '/Volumes/prd_mega/sboost4/vboost4/Workspace/auxiliary_data/admin1geoboundaries'
+
+# Same suffix scheme as config.py (vboost4_staging mirrors vboost4); DLT can't %run
+# config, so map inline.
+_SUFFIX_BY_TARGET = {"prod": "", "staging": "_staging"}
+_target = spark.conf.get("bundle_target", None)
+if _target not in _SUFFIX_BY_TARGET:
+    raise RuntimeError(f"Unknown bundle target {_target!r}; expected one of {sorted(_SUFFIX_BY_TARGET)}.")
+VOLUME_ROOT_PATH = f"/Volumes/prd_mega/sboost4/vboost4{_SUFFIX_BY_TARGET[_target]}/Workspace"
+
+ADMIN1_DATA_DIR = f'{VOLUME_ROOT_PATH}/auxiliary_data/admin1geoboundaries'
 
 # admin1 name corrections
 correct_admin1_names = {
@@ -238,7 +247,7 @@ import json
 import pandas as pd
 import dlt
 
-ADMIN0_DATA_DIR = '/Volumes/prd_mega/sboost4/vboost4/Workspace/auxiliary_data/admin0geoboundaries'
+ADMIN0_DATA_DIR = f'{VOLUME_ROOT_PATH}/auxiliary_data/admin0geoboundaries'
 disputed_area_country_map = {
     'Ilemi Triangle': ['Kenya', 'South Sudan'],
     #TODO add more countries: refer to map department's notes

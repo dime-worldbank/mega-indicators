@@ -1,4 +1,8 @@
 # Databricks notebook source
+# MAGIC %run ../config
+
+# COMMAND ----------
+
 import pandas as pd
 import requests
 from requests.adapters import HTTPAdapter
@@ -98,7 +102,7 @@ SOURCES = [
 
 # COMMAND ----------
 
-country_df = (spark.table('prd_mega.indicator.country')
+country_df = (spark.table(f'{INDICATOR_SCHEMA}.country')
     .filter("is_aggregate = false OR is_aggregate IS NULL")
     .select('country_name', 'country_code', 'region')
     .toPandas())
@@ -121,4 +125,4 @@ merged_df.sample(5)
 # COMMAND ----------
 
 sdf = spark.createDataFrame(merged_df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.government_revenue_expenditure")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.government_revenue_expenditure")

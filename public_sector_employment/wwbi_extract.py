@@ -3,6 +3,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../config
+
+# COMMAND ----------
+
 import wbgapi as wb
 import pandas as pd
 
@@ -48,4 +52,4 @@ long_df
 # COMMAND ----------
 
 sdf = spark.createDataFrame(long_df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator_intermediate.public_sector_employment")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.public_sector_employment_silver")

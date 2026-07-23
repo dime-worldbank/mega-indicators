@@ -1,0 +1,58 @@
+resources:
+  jobs:
+    indicators_weekly:
+      name: Indicators.Weekly
+      # Several tasks read country, produced only by indicators_on_demand — this job
+      # assumes it's already run at least once in the target schema (true in steady-
+      # state prod; use indicators_all to bootstrap a fresh schema in order).
+      # Reaches every notebook task as a widget; config.py reads it to pick the schema.
+      parameters:
+        - name: bundle_target
+          default: ${bundle.target}
+      tasks:
+      - task_key: gdp
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../gdp.py
+      - task_key: consumer_price_index
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../consumer_price_index.py
+      - task_key: edu_learning_poverty
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../education/learning_poverty.py
+      - task_key: edu_priv_expenditure
+        depends_on:
+        - task_key: gdp
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../education/education_private_spending.py
+      - task_key: edu_sdg
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../education/education_sdg.py
+      - task_key: health_expenditure
+        depends_on:
+        - task_key: gdp
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../health/health_expenditure.py
+      - task_key: health_sdg
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../health/sdg_health.py
+      - task_key: poverty
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../poverty/poverty.py
+      - task_key: public_sector_employment_E
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../public_sector_employment/wwbi_extract.py
+      - task_key: public_sector_employment_TL
+        depends_on:
+        - task_key: public_sector_employment_E
+        pipeline_task:
+          pipeline_id: ${resources.pipelines.public_sector_employment_uc.id}
+      performance_target: PERFORMANCE_OPTIMIZED

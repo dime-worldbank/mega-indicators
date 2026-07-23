@@ -1,0 +1,125 @@
+resources:
+  jobs:
+    indicators_monthly:
+      name: Indicators.Monthly
+      # Several tasks read country, produced only by indicators_on_demand — this job
+      # assumes it's already run at least once in the target schema (true in steady-
+      # state prod; use indicators_all to bootstrap a fresh schema in order).
+      # Reaches every notebook task as a widget; config.py reads it to pick the schema.
+      parameters:
+        - name: bundle_target
+          default: ${bundle.target}
+      tasks:
+      - task_key: gdl_subnat_human_development_index_E
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../human_development/global_data_lab_hdi_extract.r
+      - task_key: gdl_subnat_hdi_TL
+        depends_on:
+        - task_key: gdl_subnat_human_development_index_E
+        pipeline_task:
+          full_refresh: true
+          pipeline_id: ${resources.pipelines.subnational_human_development_index_uc.id}
+      - task_key: gdl_subnational_population
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/global_data_lab_subnational_population.r
+      - task_key: wb_subnational_population_extract
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/wb_subnational_population_extract.py
+      - task_key: imf_govt_budget
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../public_finance/government_revenue_expenditure.py
+      - task_key: wb_national_population
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/national_population.py
+      - task_key: subnational_population_bfa
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/BFA/bfa_subnational_population.py
+      - task_key: subnational_population_bgd
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/BGD/bgd_subnational_population.py
+      - task_key: subnational_population_btn
+        depends_on:
+        - task_key: wb_subnational_population_extract
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/BTN/btn_subnational_population.py
+      - task_key: subnational_population_chl
+        depends_on:
+        - task_key: wb_subnational_population_extract
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/CHL/chl_subnational_population.py
+      - task_key: subnational_population_cod
+        depends_on:
+        - task_key: gdl_subnational_population
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/COD/cod_subnational_population.py
+      - task_key: subnational_population_col
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/COL/col_subnational_population.py
+      - task_key: subnational_population_ken
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/KEN/ken_subnational_population.py
+      - task_key: subnational_population_lbr
+        depends_on:
+        - task_key: gdl_subnational_population
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/LBR/lbr_subnational_population.py
+      - task_key: subnational_population_moz
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/MOZ/moz_subnational_population.py
+      - task_key: subnational_population_nga
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/NGA/nga_subnational_population.py
+      - task_key: subnational_population_pak
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/PAK/pak_subnational_population.py
+      - task_key: subnational_population_pry
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/PRY/pry_subnational_population.py
+      - task_key: subnational_population_tun
+        depends_on:
+        - task_key: wb_subnational_population_extract
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/TUN/tun_subnational_population.py
+      - task_key: subnational_population_zaf
+        depends_on:
+        - task_key: wb_subnational_population_extract
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/ZAF/zaf_subnational_population.py
+      - task_key: subnational_population
+        depends_on:
+        - task_key: subnational_population_bfa
+        - task_key: subnational_population_moz
+        - task_key: subnational_population_bgd
+        - task_key: subnational_population_lbr
+        - task_key: subnational_population_ken
+        - task_key: subnational_population_col
+        - task_key: subnational_population_tun
+        - task_key: subnational_population_pak
+        - task_key: subnational_population_btn
+        - task_key: subnational_population_zaf
+        - task_key: subnational_population_nga
+        - task_key: subnational_population_cod
+        - task_key: subnational_population_pry
+        - task_key: subnational_population_chl
+        pipeline_task:
+          pipeline_id: ${resources.pipelines.subnational_population_agg_uc.id}
+      performance_target: PERFORMANCE_OPTIMIZED

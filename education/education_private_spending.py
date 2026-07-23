@@ -1,4 +1,8 @@
 # Databricks notebook source
+# MAGIC %run ../config
+
+# COMMAND ----------
+
 import pandas as pd
 import requests
 from io import StringIO
@@ -33,7 +37,7 @@ df_edu_private_exp
 
 # COMMAND ----------
 
-gdp_df = spark.table("prd_mega.indicator.gdp").toPandas()
+gdp_df = spark.table(f"{INDICATOR_SCHEMA}.gdp").toPandas()
 gdp_df
 
 # COMMAND ----------
@@ -47,4 +51,4 @@ df_merged
 # COMMAND ----------
 
 sdf = spark.createDataFrame(df_merged)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.edu_private_spending")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.edu_private_spending")

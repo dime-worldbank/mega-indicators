@@ -1,4 +1,8 @@
 # Databricks notebook source
+# MAGIC %run ./config
+
+# COMMAND ----------
+
 import requests
 import zipfile
 import io
@@ -38,4 +42,4 @@ df
 # COMMAND ----------
 
 sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").saveAsTable("prd_mega.indicator.consumer_price_index")
+sdf.write.mode("overwrite").saveAsTable(f"{INDICATOR_SCHEMA}.consumer_price_index")

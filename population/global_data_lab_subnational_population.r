@@ -10,20 +10,25 @@ library(dplyr)
 
 # COMMAND ----------
 
-CATALOG <- 'prd_mega'
-INTERMEDIATE_SCHEMA  <- 'indicator_intermediate'
-SCHEMA <- 'indicator'
-BRONZE_TABLE <- paste0(CATALOG, '.', INTERMEDIATE_SCHEMA, '.global_data_lab_subnational_population_bronze')
-GOLD_TABLE <- paste0(CATALOG, '.', SCHEMA, '.global_data_lab_subnational_population')
+# The bundle_target job parameter (dev/prod/staging) maps to a schema suffix; no default.
+suffix_by_target <- list(prod = "", staging = "_staging")
+target <- dbutils.widgets.get("bundle_target")
+if (is.null(suffix_by_target[[target]])) {
+  stop(paste0("Unknown bundle target '", target, "'; expected one of: ", paste(names(suffix_by_target), collapse = ", "), "."))
+}
+INDICATOR_SCHEMA <- paste0("prd_mega.indicator", suffix_by_target[[target]])
+BRONZE_TABLE <- paste0(INDICATOR_SCHEMA, '.global_data_lab_subnational_population_bronze')
+GOLD_TABLE <- paste0(INDICATOR_SCHEMA, '.global_data_lab_subnational_population')
 
 # COMMAND ----------
 
-# general purpose alternative
-# api_token <- Sys.getenv("GDL_API_TOKEN")
-
-# Databricks specific
-dbutils.widgets.text("GDL_API_TOKEN", "", "GDL API Token")
-api_token <- dbutils.widgets.get("GDL_API_TOKEN")
+# On Databricks read the token from the shared secret scope; otherwise fall back
+# to the GDL_API_TOKEN environment variable for a general-purpose run.
+if (nzchar(Sys.getenv("DATABRICKS_RUNTIME_VERSION"))) {
+  api_token <- dbutils.secrets.get("DIMEBOOSTKEYVAULT", "GDL_API_TOKEN")
+} else {
+  api_token <- Sys.getenv("GDL_API_TOKEN")
+}
 
 sess <- gdl_session(api_token)
 
