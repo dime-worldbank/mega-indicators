@@ -109,6 +109,20 @@ resources:
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
           notebook_path: ../population/ZAF/zaf_subnational_population.py
+      - task_key: subnational_population_alb
+        depends_on:
+        - task_key: wb_subnational_population_extract
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/ALB/alb_subnational_population.py
+      - task_key: subnational_population_gha
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/GHA/gha_subnational_population.py
+      - task_key: subnational_population_tgo
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/TGO/tgo_subnational_population.py
       - task_key: subnational_population
         depends_on:
         - task_key: subnational_population_bfa
@@ -125,6 +139,9 @@ resources:
         - task_key: subnational_population_cod
         - task_key: subnational_population_pry
         - task_key: subnational_population_chl
+        - task_key: subnational_population_alb
+        - task_key: subnational_population_gha
+        - task_key: subnational_population_tgo
         pipeline_task:
           pipeline_id: ${resources.pipelines.subnational_population_agg_uc.id}
       performance_target: PERFORMANCE_OPTIMIZED
