@@ -41,8 +41,7 @@ COUNTRY_TOTAL_TOLERANCE = 0.001
 # adm1 names that do not follow the title cased spelling used by the
 # WB subnational population database
 ADM1_NAME_OVERRIDES = {
-    'CHISINAU': 'Chisinau Municipality',
-    'CALARASI': 'Calaras',
+    'Gagauzia': 'Unitate Teritoriala Autonoma Gagauzia',
 }
 # Prefixes denoting the type of the adm1 unit: municipality, raion, autonomous region
 ADM1_PREFIXES = ('MUN.', 'R-UL', 'UTA')
