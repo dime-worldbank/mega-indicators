@@ -7,6 +7,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../../config
+
+# COMMAND ----------
+
 import unicodedata
 
 import pandas as pd
@@ -116,13 +120,5 @@ for adm1_name, group in df_pop.groupby('adm1_name')['year']:
 
 # COMMAND ----------
 
-# Write to indicator_intermediate
-
-database_name = "prd_mega.indicator_intermediate"
-
-if not spark.catalog.databaseExists(database_name):
-    print(f"Database '{database_name}' does not exist. Creating the database.")
-    spark.sql(f"CREATE DATABASE {database_name}")
-
 sdf = spark.createDataFrame(df_pop)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{database_name}.mda_subnational_population")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.mda_subnational_population_silver")

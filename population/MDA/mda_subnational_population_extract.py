@@ -3,10 +3,13 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../../config
+
+# COMMAND ----------
+
 import os
 import requests
 
-VOLUME_ROOT_PATH = get_volume_root_path()
 VOLUME_PATH = f'{VOLUME_ROOT_PATH}/auxiliary_data/population/mda/'
 
 # Population with usual residence by locality (village/commune, town/municipality),
