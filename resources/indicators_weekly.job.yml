@@ -48,6 +48,10 @@ resources:
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
           notebook_path: ../education/completion_rates.py
+      - task_key: edu_spending_icp
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../education/education_spending_icp.py
       - task_key: health_expenditure
         depends_on:
         - task_key: gdp
