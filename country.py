@@ -4,6 +4,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ./config
+
+# COMMAND ----------
+
 import wbgapi as wb
 import pyspark.sql.functions as F
 from pyspark.sql.types import StructType, StructField, DoubleType, StringType
@@ -92,7 +96,7 @@ schema = StructType([
 
 centroid_udf = F.udf(compute_country_centroid, schema)
 
-admin1_boundaries = spark.table('prd_mega.indicator.admin1_boundaries_gold')
+admin1_boundaries = spark.table(f'{INDICATOR_SCHEMA}.admin1_boundaries_gold')
 grouped_df = admin1_boundaries.groupBy("country_name").agg(F.collect_list("boundary").alias("all_boundaries"), F.first("country_code_iso2").alias("country_code_iso2"))
 
 centroid_df = grouped_df.withColumn("centroid", centroid_udf(F.col("all_boundaries"))) \
@@ -134,8 +138,6 @@ joined_df = (
 # COMMAND ----------
 
 # --- Write to Catalog ---
-CATALOG = "prd_mega"
-SCHEMA = "indicator"
 TABLE = "country"
-spark.sql(f"USE {CATALOG}.{SCHEMA}")
+spark.sql(f"USE {INDICATOR_SCHEMA}")
 joined_df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(TABLE)

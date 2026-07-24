@@ -3,6 +3,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../config
+
+# COMMAND ----------
+
 # Pupil-teacher ratio by education level (World Bank / UNESCO Institute for Statistics)
 indicators = [
     'SE.PRE.ENRL.TC.ZS',
@@ -30,4 +34,4 @@ df
 # COMMAND ----------
 
 sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.pupil_teacher_ratio")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.pupil_teacher_ratio")

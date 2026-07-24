@@ -1,14 +1,5 @@
 # Databricks notebook source
 import os
-
-def get_volume_root_path():
-    return os.getenv(
-        'VOLUME_ROOT_PATH',
-        '/Volumes/prd_mega/sboost4/vboost4/Workspace'
-    )
-
-# COMMAND ----------
-
 import wbgapi as wb
 import pandas as pd
 from databricks.sdk.runtime import spark
@@ -33,7 +24,7 @@ def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_countr
 
     merged_df['data_source'] = data_source
 
-    country_df = spark.table('indicator.country').select('country_name', 'country_code', 'region', *extra_col_names_from_country_table).toPandas()
+    country_df = spark.table(f'{INDICATOR_SCHEMA}.country').select('country_name', 'country_code', 'region', *extra_col_names_from_country_table).toPandas()
     country_df
     df = pd.merge(merged_df, country_df, left_on='economy', right_on='country_code', how='left')[['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names, 'data_source']]
 
@@ -88,8 +79,29 @@ def uis_fetch(series_to_col_name, data_source, extra_col_names_from_country_tabl
     merged_df = merged_df.astype({'year': 'int'})
     merged_df['data_source'] = data_source
 
-    country_df = spark.table('indicator.country').select('country_name', 'country_code', 'region', *extra_col_names_from_country_table).toPandas()
+    country_df = spark.table(f'{INDICATOR_SCHEMA}.country').select('country_name', 'country_code', 'region', *extra_col_names_from_country_table).toPandas()
     df = pd.merge(merged_df, country_df, left_on='geoUnit', right_on='country_code', how='inner')[['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names, 'data_source']]
 
     return df
+
+# COMMAND ----------
+
+from urllib.parse import urlparse, unquote
+
+def ddh_volume_path(url):
+    """Volume path mirroring a DDH download URL
+    (.../ddh-published/{dataset}/{resource}/{filename})."""
+    parts = [unquote(p) for p in urlparse(url).path.split('/') if p]
+    i = parts.index('ddh-published')
+    return "/Volumes/prd_development_data/files/ddh/" + "/".join(parts[i + 1:])
+
+def ddh_bytes(url):
+    """Bytes of a DDH file: the mounted volume copy if present, else download the URL."""
+    vol = ddh_volume_path(url)
+    if os.path.exists(vol):
+        with open(vol, 'rb') as f:
+            return f.read()
+    resp = requests.get(url)
+    resp.raise_for_status()
+    return resp.content
 

@@ -3,6 +3,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../config
+
+# COMMAND ----------
+
 # Completion rate by education level (UIS CR.MOD modeled series). Pulled directly
 # from the UNESCO Institute for Statistics (UIS) API. Values are percentages (0-100).
 # Levels: .1 = primary, .2 = lower secondary, .3 = upper secondary.
@@ -21,4 +25,4 @@ df
 # COMMAND ----------
 
 sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("prd_mega.indicator.completion_rates")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.completion_rates")
