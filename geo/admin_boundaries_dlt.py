@@ -166,26 +166,58 @@ albania_region_to_county = {
     'Delvine': 'Vlore'
 }
 
+# Moldova: each SPID poverty sample is a group of present-day raions (a 1999-2003 judet).
+# Map every raion to its group so we can add a merged county boundary per group, keyed by
+# the exact SPID sample name. Transnistria has no group, so it is left out. 'Chisinau
+# Municipality' is the capital raion after correct_admin1_names renames it.
+moldova_district_to_county = {
+    district: county
+    for county, districts in {
+        'Balti & Edinet & Soroca': ['Balti', 'Falesti', 'Glodeni', 'Riscani', 'Singerei',
+                                     'Briceni', 'Donduseni', 'Edinet', 'Ocnita', 'Drochia',
+                                     'Floresti', 'Soroca'],
+        'Cahul & Gagauzia & Tighina': ['Cahul', 'Cantemir', 'Taraclia',
+                                       'Unitate Teritoriala Autonoma Gagauzia', 'Causeni',
+                                       'Stefan Voda', 'Bender'],
+        'Chisinau': ['Chisinau Municipality', 'Anenii Noi', 'Criuleni', 'Ialoveni',
+                     'Straseni', 'Dubasari'],
+        'Orhei & Ungheni & Lapusna': ['Orhei', 'Rezina', 'Soldanesti', 'Telenesti', 'Ungheni',
+                                      'Calarasi', 'Nisporeni', 'Hincesti', 'Leova', 'Cimislia',
+                                      'Basarabeasca'],
+    }.items()
+    for district in districts
+}
+
 def union_polygons(polygon_list):
     polygons = [shape(json.loads(p)) for p in polygon_list]
     union_polygon = unary_union(polygons)
     return json.dumps(union_polygon.__geo_interface__)
 
-def harmonize_admin1_regions(bronze_df, country_name, region_to_county_dict):
+def harmonize_admin1_regions(bronze_df, country_name, region_to_county_dict, keep_unmapped=True):
     """
     Harmonizes admin1 regions for a given country using a mapping dictionary.
     Groups by the harmonized region and unions polygons.
+
+    keep_unmapped=True (default): regions absent from the dict keep their own name, so the
+    result covers the country's whole region set — used to replace it (Albania, Ghana).
+    keep_unmapped=False: unmapped regions are dropped, so the result is only the merged
+    regions — add these alongside the originals to keep both granularities (Moldova).
     """
 
     # Filter for the specified country
     country_df = bronze_df.filter(col('country_name') == country_name)
     # Create the mapping as a Spark map
     region_map = create_map([lit(x) for x in chain(*region_to_county_dict.items())])
-    # Harmonize the region names
-    country_df = country_df.withColumn(
-        "admin1_region",
-        coalesce(region_map[col("admin1_region")], col("admin1_region"))
-    )
+    # Harmonize the region names, keeping or dropping regions the dict doesn't cover
+    if keep_unmapped:
+        country_df = country_df.withColumn(
+            "admin1_region",
+            coalesce(region_map[col("admin1_region")], col("admin1_region"))
+        )
+    else:
+        country_df = country_df.withColumn(
+            "admin1_region", region_map[col("admin1_region")]
+        ).filter(col("admin1_region").isNotNull())
     # UDF for unioning polygons
     union_udf = udf(union_polygons, StringType())
     # Group by harmonized region and union polygons
@@ -224,9 +256,12 @@ def admin1_boundaries_silver():
     print(f"Number of rows in the ALBANIA dataframe: {alb_bronze_mod.toPandas().shape[0]}")
     gha_bronze_mod = harmonize_admin1_regions(bronze, 'Ghana', ghana_regions_new_to_old_map)
     print(f"Number of rows in the Ghana dataframe: {gha_bronze_mod.toPandas().shape[0]}")
+    # Moldova keeps its raion rows and gains a merged county boundary per SPID group.
+    mda_counties = harmonize_admin1_regions(bronze, 'Moldova', moldova_district_to_county, keep_unmapped=False)
+    print(f"Number of rows in the Moldova county dataframe: {mda_counties.toPandas().shape[0]}")
     common_columns = list(set(bronze.columns).intersection(set(alb_bronze_mod.columns)))
     bronze_filtered = bronze.filter(~col('country_name').isin(['Albania', "Ghana"])).select(common_columns)
-    dfs = [bronze_filtered] + [alb_bronze_mod.select(common_columns), gha_bronze_mod.select(common_columns)]
+    dfs = [bronze_filtered] + [alb_bronze_mod.select(common_columns), gha_bronze_mod.select(common_columns), mda_counties.select(common_columns)]
     silver = reduce(lambda df1, df2: df1.unionByName(df2), dfs)
     return silver
 

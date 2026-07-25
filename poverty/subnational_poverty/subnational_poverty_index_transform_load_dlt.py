@@ -61,9 +61,6 @@ REGION_NAME_FIXES = [
     ('KEN', 'Elgeyo/Marakwet', 'Elgeyo Marakwet'),
     ('KEN', 'Taita/Taveta', 'Taita Taveta'),
     ('KEN', 'Nairobi', 'Nairobi City County'),
-    ('MDA', 'Gagauzia', 'Unitate Teritoriala Autonoma Gagauzia'),
-    ('MDA', 'Lapusna', 'Hincesti'),
-    ('MDA', 'Tighina', 'Bender'),
     ('MOZ', 'Maputo City', 'Cidade de Maputo'),
     ('MOZ', 'Maputo Cidade', 'Cidade de Maputo'),
     ('MOZ', 'Maputo Province', 'Maputo'),
@@ -81,24 +78,9 @@ REGION_NAME_FIXES = [
 ]
 
 
-# Split SPID samples that merge several admin1 regions into one row, so each region gets
-# its own row (with the merged poverty figures) to match a boundary downstream.
-REGION_NAME_SPLITS = [
-    ('MDA', 'Balti & Edinet & Soroca', ['Balti', 'Edinet', 'Soroca']),
-    ('MDA', 'Cahul & Gagauzia & Tighina', ['Cahul', 'Gagauzia', 'Tighina']),
-    ('MDA', 'Orhei & Ungheni & Lapusna', ['Orhei', 'Ungheni', 'Lapusna']),
-]
-
-
 @dlt.table(name='subnational_poverty_rate_silver')
 def subnational_poverty_rate_silver():
     countries = spark.table('country').select('country_name', 'country_code', 'income_level')
-    region_name_splits = spark.createDataFrame(
-        [(country_code, merged_name, part)
-         for country_code, merged_name, parts in REGION_NAME_SPLITS
-         for part in parts],
-        ['country_code', 'region_name', 'split_region_name']
-    )
     region_name_fixes = spark.createDataFrame(
         REGION_NAME_FIXES,
         ['country_code', 'region_name', 'country_fixed_region_name']
@@ -106,10 +88,6 @@ def subnational_poverty_rate_silver():
 
     return (
         spark.table('poverty_rate_SPID_GSAP_silver')
-        # Uncollapse merged samples into one row per region before the name fixes below.
-        .join(region_name_splits, ['country_code', 'region_name'], 'left')
-        .withColumn('region_name', F.coalesce(F.col('split_region_name'), F.col('region_name')))
-        .drop('split_region_name')
         .join(region_name_fixes, ['country_code', 'region_name'], 'left')
         .withColumn(
             'region_name',
