@@ -3,136 +3,101 @@ import dlt
 import pyspark.sql.functions as F
 from pyspark.sql import Window
 
+
+# Instead of chained when clauses, use a mapping table to improve readability and make it easier to add new cases.
+REGION_NAME_FIXES = [
+    ('ALB', 'Durrës', 'Durres'),
+    ('ALB', 'Durrës (AL012)', 'Durres'),
+    ('ALB', 'Kukës', 'Kukes'),
+    ('ALB', 'Kukës (AL013)', 'Kukes'),
+    ('ALB', 'Lezhë', 'Lezhe'),
+    ('ALB', 'Lezhë (AL014)', 'Lezhe'),
+    ('ALB', 'Shkodër', 'Shkoder'),
+    ('ALB', 'Shkodër (AL015)', 'Shkoder'),
+    ('ALB', 'Dibër', 'Diber'),
+    ('ALB', 'Dibër (AL011)', 'Diber'),
+    ('ALB', 'Tiranë', 'Tirane'),
+    ('ALB', 'Tiranë (AL022)', 'Tirane'),
+    ('ALB', 'Korcë', 'Korce'),
+    ('ALB', 'Korcë (AL034)', 'Korce'),
+    ('ALB', 'Vlorë', 'Vlore'),
+    ('ALB', 'Vlorë (AL035)', 'Vlore'),
+    ('ALB', 'Gjirokastër', 'Gjirokaster'),
+    ('ALB', 'Gjirokastër (AL033)', 'Gjirokaster'),
+    ('ALB', 'Berat (AL031)', 'Berat'),
+    ('ALB', 'Elbasan (AL021)', 'Elbasan'),
+    ('ALB', 'Fier (AL032)', 'Fier'),
+    ('BFA', 'Est', 'Est Region Burkina Faso'),
+    ('BFA', 'Centre Sud', 'Centre Sud Region Burkina Faso'),
+    ('BFA', 'Centre-sud', 'Centre Sud Region Burkina Faso'),
+    ('BFA', 'Centre-nord', 'Centre Nord'),
+    ('BFA', 'Centre-est', 'Centre Est'),
+    ('BFA', 'Centre-ouest', 'Centre Ouest'),
+    ('BFA', 'Sud-ouest', 'Sud Ouest'),
+    ('BFA', 'Hauts-bassins', 'Hauts Bassins'),
+    ('BFA', 'Boucle du Mouhoun', 'Boucle Du Mouhoun'),
+    ('BTN', 'Ha', 'Haa'),
+    ('BTN', 'Wangdi Phodrang', 'Wangduephodrang'),
+    ('BTN', 'Chukha', 'Chhukha'),
+    ('BTN', 'Lhuntshi', 'Lhuentse'),
+    ('BTN', 'Monggar', 'Mongar'),
+    ('BTN', 'Samdrupjongkhar', 'Samdrup Jongkhar'),
+    ('BTN', 'Tashi Yangtse', 'Trashiyangtse'),
+    # SPID_GSAP uses plain region names, not the Roman-numeral form; Antofagasta,
+    # Atacama, Coquimbo, Los Lagos, Maule and 'Arica y Painacota' already match gold.
+    # 'Ñuble' has no WB official admin1 boundary (region created 2018), so it stays unmapped.
+    ('CHL', 'Aisen del Gral. Carlos Ibañez del Campo', 'Aysén'),
+    ('CHL', 'Araucania', 'Araucanía'),
+    ('CHL', 'Biobio', 'Biobío'),
+    ('CHL', "Libertador Gral. Bernardo O'Higgins", "Libertador General Bernardo O'Higgins"),
+    ('CHL', 'Los Rios', 'Los Ríos'),
+    ('CHL', 'Magallanes y Antartica chilena', 'Magallanes y la Antártica Chilena'),
+    ('CHL', 'Metropolitana', 'Región Metropolitana de Santiago'),
+    ('CHL', 'Tarapaca', 'Tarapacá'),
+    ('CHL', 'Valparaiso', 'Valparaíso'),
+    ('COL', 'Guajira', 'La Guajira'),
+    ('COL', 'Norte De Santander', 'Norte de Santander'),  # initcap over-capitalizes 'de'
+    ('COL', 'Santafe De Bogota D.c.', 'Bogota'),
+    ('KEN', 'Elgeyo/Marakwet', 'Elgeyo Marakwet'),
+    ('KEN', 'Taita/Taveta', 'Taita Taveta'),
+    ('KEN', 'Nairobi', 'Nairobi City County'),
+    ('MOZ', 'Maputo City', 'Cidade de Maputo'),
+    ('MOZ', 'Maputo Cidade', 'Cidade de Maputo'),
+    ('MOZ', 'Maputo Province', 'Maputo'),
+    ('NGA', 'Abuja', 'Federal Capital Territory'),
+    ('NGA', 'Nassarawa', 'Nasarawa'),
+    ('TUN', 'CenterE', 'Centre Est'),
+    ('TUN', 'CenterW', 'Centre Ouest'),
+    ('TUN', 'NE', 'Nord Est'),
+    ('TUN', 'NW', 'Nord Ouest'),
+    ('TUN', 'SE', 'Sud Est'),
+    ('TUN', 'SW', 'Sud Ouest'),
+    ('ZAF', 'KwaZulu-Natal', 'Kwa-Zulu Natal'),
+    ('ZAF', 'North West', 'North-west'),
+    ('ZAF', 'Limpopo', 'Northern Province'),
+]
+
+
 @dlt.table(name='subnational_poverty_rate_silver')
 def subnational_poverty_rate_silver():
-    countries = spark.table('prd_mega.indicator.country').select('country_name', 'country_code', 'income_level')
+    countries = spark.table('country').select('country_name', 'country_code', 'income_level')
+    region_name_fixes = spark.createDataFrame(
+        REGION_NAME_FIXES,
+        ['country_code', 'region_name', 'country_fixed_region_name']
+    )
 
     return (
-        spark.table('prd_mega.indicator_intermediate.poverty_rate_spid_gsap')
+        spark.table('poverty_rate_SPID_GSAP_silver')
+        .join(region_name_fixes, ['country_code', 'region_name'], 'left')
         .withColumn(
             'region_name',
-            F.when(
-                F.col("region_name").isin(['Maputo City', 'Maputo Cidade']),
-                'Cidade de Maputo'
-            ).when(
-                F.col("region_name") == 'Maputo Province',
-                'Maputo'
-            ).when(
-                F.col("region_name") == "Murang'a",
-                "Murang'a County"
-            ).when(
-                F.col("region_name") == "Tana River",
-                "Tana River County"
-            ).when(
-                F.col("region_name") == 'Ha',
-                "Haa"
-            ).when(
-                F.col("region_name") == 'Wangdi Phodrang',
-                "Wangduephodrang"
-            ).when(
-                F.col("region_name") == 'Chukha',
-                "Chhukha"
-            ).when(
-                F.col("region_name") == 'Lhuntshi',
-                "Lhuentse"
-            ).when(
-                F.col("region_name") == 'Tashi Yangtse',
-                "Trashiyangtse"
-            ).when(
-                (F.col("region_name") == 'Est') & (F.col('country_code') == 'BFA'),
-                "Est Region Burkina Faso"
-            ).when(
-                (F.col("region_name") == 'Centre Sud') & (F.col('country_code') == 'BFA'),
-                "Centre Sud Region Burkina Faso"
-            ).when(
-                (F.col("region_name") == 'Boucle du Mouhoun') & (F.col('country_code') == 'BFA'),
-                "Boucle Du Mouhoun"
-            ).when(
-                F.col('country_code') == 'COL',
-                F.initcap(F.col('region_name'))
-            ).when(
-                (F.col("region_name") == 'FCT') & (F.col('country_code') == 'NGA'),
-                "Federal Capital Territory"
-            ).when(
-                (F.col("region_name") == 'CenterE') & (F.col('country_code') == 'TUN'),
-                "Centre Est"
-            ).when(
-                (F.col("region_name") == 'CenterW') & (F.col('country_code') == 'TUN'),
-                "Centre Ouest"
-            ).when(
-                (F.col("region_name") == 'NE') & (F.col('country_code') == 'TUN'),
-                "Nord Est"
-            ).when(
-                (F.col("region_name") == 'NW') & (F.col('country_code') == 'TUN'),
-                "Nord Ouest"
-            ).when(
-                (F.col("region_name") == 'SE') & (F.col('country_code') == 'TUN'),
-                "Sud Est"
-            ).when(
-                (F.col("region_name") == 'SW') & (F.col('country_code') == 'TUN'),
-                "Sud Ouest"
-            ).when(
-                (F.col("region_name") == 'Elgeyo/Marakwet') & (F.col('country_code') == 'KEN'),
-                "Elgeyo Marakwet"
-            ).when(
-                (F.col("region_name") == 'Taita/Taveta') & (F.col('country_code') == 'KEN'),
-                "Taita Taveta"
-            ).when(
-                (F.col("region_name") == 'Muranga') & (F.col('country_code') == 'KEN'),
-                "Murang'a County"
-            ).when(
-                (F.col("region_name") == 'Nairobi') & (F.col('country_code') == 'KEN'),
-                "Nairobi City"
-            ).when(
-                (F.col("region_name") == 'I Región de Tarapacá') & (F.col('country_code') == 'CHL'),
-                "Tarapacá"
-            ).when(
-                (F.col("region_name") == 'X Región de Los Lagos') & (F.col('country_code') == 'CHL'),
-                "Los Lagos"
-            ).when(
-                (F.col("region_name") == 'XI Región de Aysén del Gral Carlos Ibáñez') & (F.col('country_code') == 'CHL'),
-                "Aysén"
-            ).when(
-                (F.col("region_name") == 'XII Región de Magallanes y de la Antártica') & (F.col('country_code') == 'CHL'),
-                "Magallanes y la Antártica Chilena"
-            ).when(
-                (F.col("region_name") == 'XIII Región Metropolitana de Santiago') & (F.col('country_code') == 'CHL'),
-                "Región Metropolitana de Santiago"
-            ).when(
-                (F.col("region_name") == 'XIV Región de Los Ríos') & (F.col('country_code') == 'CHL'),
-                "Los Ríos"
-            ).when(
-                (F.col("region_name") == 'XV Región de Arica y Parinacota') & (F.col('country_code') == 'CHL'),
-                "Arica y Parinacota"
-            ).when(
-                (F.col("region_name") == 'XVI Región del Ñuble') & (F.col('country_code') == 'CHL'),
-                "Ñuble"
-            ).when(
-                (F.col("region_name") == 'II Región de Antofagasta') & (F.col('country_code') == 'CHL'),
-                "Antofagasta"
-            ).when(
-                (F.col("region_name") == 'III Región de Atacama') & (F.col('country_code') == 'CHL'),
-                "Atacama"
-            ).when(
-                (F.col("region_name") == 'IV Región de Coquimbo') & (F.col('country_code') == 'CHL'),
-                "Coquimbo"
-            ).when(
-                (F.col("region_name") == 'V Región de Valparaíso') & (F.col('country_code') == 'CHL'),
-                "Valparaíso"
-            ).when(
-                (F.col("region_name") == "VI Región del Libertador Gral B O'Higgins") & (F.col('country_code') == 'CHL'),
-                "Libertador General Bernardo O'Higgins"
-            ).when(
-                (F.col("region_name") == 'VII Región del Maule') & (F.col('country_code') == 'CHL'),
-                "Maule"
-            ).when(
-                (F.col("region_name") == 'VIII Región del BioBío') & (F.col('country_code') == 'CHL'),
-                "Biobío"
-            ).when(
-                (F.col("region_name") == 'IX Región de la Araucanía') & (F.col('country_code') == 'CHL'),
-                "Araucanía"
-            ).otherwise(F.col("region_name"))
+            F.coalesce(
+                F.col('country_fixed_region_name'),  # explicit fixes win over the COL initcap default below
+                F.when(F.col('country_code') == 'COL', F.initcap(F.col('region_name'))),
+                F.col('region_name')
+            )
         )
+        .drop('country_fixed_region_name')
         .join(countries, ["country_code"], "inner") # TODO: change to left & investigate dropped
         .withColumn(
             'poverty_rate',

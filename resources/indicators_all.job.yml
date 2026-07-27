@@ -1,0 +1,23 @@
+resources:
+  jobs:
+    indicators_all:
+      name: Indicators.All
+      # Runs on_demand, then weekly + monthly (which assume its outputs — country,
+      # boundaries — already exist). Manual trigger only: for a from-scratch
+      # environment (e.g. a new staging schema) or a full re-validation, not a
+      # replacement for weekly/monthly's own lighter, independent schedules.
+      tasks:
+      - task_key: run_on_demand
+        run_job_task:
+          job_id: ${resources.jobs.indicators_on_demand.id}
+      - task_key: run_weekly
+        depends_on:
+        - task_key: run_on_demand
+        run_job_task:
+          job_id: ${resources.jobs.indicators_weekly.id}
+      - task_key: run_monthly
+        depends_on:
+        - task_key: run_on_demand
+        run_job_task:
+          job_id: ${resources.jobs.indicators_monthly.id}
+      performance_target: PERFORMANCE_OPTIMIZED

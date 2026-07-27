@@ -1,4 +1,8 @@
 # Databricks notebook source
+# MAGIC %run ../../config
+
+# COMMAND ----------
+
 import unicodedata
 import pandas as pd
 
@@ -47,7 +51,7 @@ for region, group in df.groupby('adm1_name')['year']:
 
 # COMMAND ----------
 
-database_name = "prd_mega.indicator_intermediate"
+database_name = INDICATOR_SCHEMA
 
 if not spark.catalog.databaseExists(database_name):
     print(f"Database '{database_name}' does not exist. Creating the database.")
@@ -56,4 +60,4 @@ if not spark.catalog.databaseExists(database_name):
 # COMMAND ----------
 
 sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{database_name}.moz_subnational_population")
+sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{database_name}.moz_subnational_population_silver")
