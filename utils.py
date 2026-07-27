@@ -2,7 +2,7 @@
 import os
 import wbgapi as wb
 import pandas as pd
-from databricks.sdk.runtime import spark
+from databricks.sdk.runtime import spark, dbutils
 
 def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_country_table=None, how: str = 'inner'):
     if extra_col_names_from_country_table is None:
@@ -137,4 +137,7 @@ def versioned_dataframe(source_url, table_name, update_version, parse=pd.read_cs
     if update_version or not spark.catalog.tableExists(full_table_name):
         fetch_raw(source_url, table_name, parse=parse, **parse_kwargs)
     return spark.table(full_table_name).drop('fetched_at').toPandas()
+
+def update_version_flag(widget_name):
+    return dbutils.widgets.getArgument(widget_name, 'false').strip().lower() == 'true'
 

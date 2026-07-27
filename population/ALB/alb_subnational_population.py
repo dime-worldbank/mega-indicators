@@ -67,7 +67,7 @@ def _select_total_by_year(df, lo, hi):
     selected.columns = ['adm1_name'] + [year for year, _ in year_columns]
     return selected
 
-update_version = dbutils.widgets.getArgument('alb_population_update_version', 'false').strip().lower() == 'true'
+update_version = update_version_flag('alb_population_update_version')
 
 # Extract the data from 2018 to 2023
 df_instat = versioned_dataframe(INSTAT_2018_2023_URL, 'alb_instat_2018_2023_raw', update_version,

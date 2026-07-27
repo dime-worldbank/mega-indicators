@@ -3,6 +3,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../../utils
+
+# COMMAND ----------
+
 !pip install openpyxl
 
 # COMMAND ----------
@@ -24,11 +28,15 @@ def normalize_cell(cell_value):
 
 URL = 'https://www2.census.gov/programs-surveys/international-programs/tables/time-series/bha/Colombia.xlsx'
 
-def usecols(col):
-    return col in ('ADM1_NAME', 'ADM2_NAME', 'ADM_LEVEL', 'NSO_CODE') or col.startswith('BTOTL_')
+def _read_col_census_excel(buf):
+    def usecols(col):
+        return col in ('ADM1_NAME', 'ADM2_NAME', 'ADM_LEVEL', 'NSO_CODE') or col.startswith('BTOTL_')
+    df = pd.read_excel(buf, sheet_name=-1, skiprows=3, usecols=usecols)
+    df.columns = df.columns.str.lower()
+    return df
 
-df_raw = pd.read_excel(URL, sheet_name=-1, skiprows=3, usecols=usecols)
-df_raw.columns = df_raw.columns.str.lower()
+update_version = update_version_flag('census_population_update_version')
+df_raw = versioned_dataframe(URL, 'col_census_raw', update_version, parse=_read_col_census_excel)
 df_raw['adm1_name'] = df_raw.adm1_name.str.title().apply(normalize_cell)
 df_raw
 

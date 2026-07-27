@@ -15,7 +15,7 @@ URL = 'https://www.ine.gov.py/microdatos/cuadro/b7dc2DEP01-Paraguay-Poblacion-to
 
 RAW_TABLE_NAME = 'pry_population_raw'
 
-update_version = dbutils.widgets.getArgument('pry_population_update_version', 'false').strip().lower() == 'true'
+update_version = update_version_flag('pry_population_update_version')
 
 df_raw = versioned_dataframe(URL, RAW_TABLE_NAME, update_version, skip_blank_lines=True)\
     .rename(columns={'#': 'adm1_name'})

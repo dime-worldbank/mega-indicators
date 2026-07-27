@@ -7,7 +7,8 @@
 
 # COMMAND ----------
 
-df_pop = get_pop_from_census_gov('pakistan')
+update_version = update_version_flag('census_population_update_version')
+df_pop = get_pop_from_census_gov('pakistan', update_version=update_version)
 
 # COMMAND ----------
 
