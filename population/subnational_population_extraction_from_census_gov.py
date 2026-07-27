@@ -11,7 +11,12 @@ def _read_census_gov_excel(buf):
     df_raw = pd.read_excel(xls, sheet_name=target_sheet, skiprows=2, header=None)
     header = df_raw.iloc[1]
     df_raw.columns = header
-    return df_raw.drop([0, 1, 2])
+    df_raw = df_raw.drop([0, 1, 2])
+    # Some columns (e.g. ADM3_NAME/ADM4_NAME/NSO_CODE/NSO_NAME) are entirely blank for
+    # countries without that breakdown — an all-null column round-trips through Spark as
+    # NullType, which Delta can't persist. Keep only what get_pop_from_census_gov uses.
+    keep_cols = [c for c in df_raw.columns if c in ('COUNTRY', 'CNTRY_NAME', 'ADM1_NAME', 'ADM_LEVEL') or 'BTOTL' in c]
+    return df_raw[keep_cols]
 
 def get_pop_from_census_gov(country_filename, timeseries='pepfar', update_version=False):
     url = f'https://www2.census.gov/programs-surveys/international-programs/tables/time-series/{timeseries}/{country_filename}.xlsx'
