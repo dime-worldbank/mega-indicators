@@ -7,10 +7,12 @@
 
 # COMMAND ----------
 
-import requests
+# MAGIC %run ../../utils
+
+# COMMAND ----------
+
 import pandas as pd
 import unicodedata
-import io
 
 COUNTRY_NAME = "Albania"
 COUNTRY_CODE = "ALB"
@@ -45,31 +47,32 @@ assert df_wb_long.adm1_name.nunique() == EXPECTED_ADM1_COUNT, f'Expected {EXPECT
 
 # COMMAND ----------
 
+def _flatten_excel_headers(buf, **kwargs):
+    """pd.read_excel's MultiIndex header as single 'year::category' strings —
+    Delta can't store tuple column names."""
+    df = pd.read_excel(buf, sheet_name=0, header=[3, 4], **kwargs)
+    df.columns = ['::'.join(str(level) for level in col) for col in df.columns]
+    return df
+
+def _select_total_by_year(df, lo, hi):
+    """admin1 column + the 'total' column for each year in [lo, hi]."""
+    adm1_name_column = [c for c in df.columns if 'prefectures' in c.lower()][0]
+    year_columns = [
+        (int(c.split('::')[0]), c) for c in df.columns
+        if c.split('::')[0].isdigit()
+        and lo <= int(c.split('::')[0]) <= hi
+        and 'total' in c.lower()
+    ]
+    selected = df[[adm1_name_column] + [c for _, c in year_columns]].copy()
+    selected.columns = ['adm1_name'] + [year for year, _ in year_columns]
+    return selected
+
+update_version = dbutils.widgets.getArgument('alb_population_update_version', 'false').strip().lower() == 'true'
+
 # Extract the data from 2018 to 2023
-response = requests.get(INSTAT_2018_2023_URL)
-response.raise_for_status()
-df_instat = pd.read_excel(io.BytesIO(response.content), sheet_name=0, header=[3, 4])
-
-# Find the prefecture/admin1 column
-adm1_name_column = [
-    x for x in df_instat.columns
-    if 'prefectures' in str(x).lower()
-][0]
-
-# Select admin1 column + total population columns for 2018-2023
-selected_columns = [adm1_name_column] + [
-    x for x in df_instat.columns
-    if isinstance(x, tuple)
-    and isinstance(x[0], int)
-    and 2018 <= x[0] <= 2023
-    and 'total' in str(x[1]).lower()
-]
-
-# First select only the needed columns
-df_instat = df_instat.loc[:, selected_columns].copy()
-
-# Then rename columns to simple names
-df_instat.columns = ['adm1_name'] + [x[0] for x in selected_columns[1:]]
+df_instat = versioned_dataframe(INSTAT_2018_2023_URL, 'alb_instat_2018_2023_raw', update_version,
+                                 parse=_flatten_excel_headers)
+df_instat = _select_total_by_year(df_instat, 2018, 2023)
 
 df_instat = (
     df_instat
@@ -90,23 +93,9 @@ df_instat_long['data_source'] = INSTAT_SOURCE
 # COMMAND ----------
 
 # Extract the data from 2024 and later
-response = requests.get(INSTAT_2024_LATER_URL)
-response.raise_for_status()
-df_instat_2024 = pd.read_excel(io.BytesIO(response.content), sheet_name=0, header=[3, 4])
-
-# selecting the column containing the adm1_names as a variable in case the exact name changes in future iterations
-adm1_name_column = [x for x in df_instat_2024.columns if 'prefectures' in str(x).lower()][0]
-
-selected_columns = [adm1_name_column] + [
-    x for x in df_instat_2024.columns
-    if isinstance(x, tuple)
-    and isinstance(x[0], int)
-    and x[0] >= 2024
-    and 'total' in str(x[1]).lower()
-]
-
-df_instat_2024 = df_instat_2024[selected_columns].copy()
-df_instat_2024.columns = ['adm1_name'] + [x[0] for x in selected_columns[1:]]
+df_instat_2024 = versioned_dataframe(INSTAT_2024_LATER_URL, 'alb_instat_2024_later_raw', update_version,
+                                      parse=_flatten_excel_headers)
+df_instat_2024 = _select_total_by_year(df_instat_2024, 2024, 9999)
 
 df_instat_2024 = (
     df_instat_2024

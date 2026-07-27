@@ -14,6 +14,8 @@ resources:
         # different parameters" for a one-off refresh. Other tasks ignore it.
         - name: pry_population_update_version
           default: "false"
+        - name: alb_population_update_version
+          default: "false"
       tasks:
       - task_key: gdl_subnat_human_development_index_E
         existing_cluster_id: ${var.shared_cluster_id}
