@@ -3,6 +3,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../../config
+
+# COMMAND ----------
+
 import io
 from zipfile import ZipFile
 
@@ -96,10 +100,13 @@ assert not df_pop.duplicated(["adm1_name", "year"]).any()
 
 # COMMAND ----------
 
-spark.sql("CREATE SCHEMA IF NOT EXISTS prd_mega.indicator_intermediate")
-spark.createDataFrame(df_pop).write.mode("overwrite").saveAsTable(
-    "prd_mega.indicator_intermediate.bdi_subnational_population"
-)
-spark.createDataFrame(df_pop).write.mode("overwrite").saveAsTable(
-    "prd_mega.indicator_intermediate.bdi_subnational_population"
+database_name = INDICATOR_SCHEMA
+
+if not spark.catalog.databaseExists(database_name):
+    print(f"Database '{database_name}' does not exist. Creating the database.")
+    spark.sql(f"CREATE DATABASE {database_name}")
+
+sdf = spark.createDataFrame(df_pop)
+sdf.write.mode("overwrite").saveAsTable(
+    f"{database_name}.bdi_subnational_population_silver"
 )
