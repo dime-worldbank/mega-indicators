@@ -39,12 +39,34 @@ COUNTRY_TOTAL_LABEL = 'total pe tara'
 COUNTRY_TOTAL_TOLERANCE = 0.001
 
 # adm1 names that do not follow the title cased spelling used by the
-# WB subnational population database
+# WB subnational population database. Keyed on the upper cased name, which is what
+# clean_adm1_name has in hand at the point it consults this map.
 ADM1_NAME_OVERRIDES = {
-    'Gagauzia': 'Unitate Teritoriala Autonoma Gagauzia',
+    'GAGAUZIA': 'Unitate Teritoriala Autonoma Gagauzia',
 }
 # Prefixes denoting the type of the adm1 unit: municipality, raion, autonomous region
 ADM1_PREFIXES = ('MUN.', 'R-UL', 'UTA')
+
+# BOOST spending for Moldova is reported at the four statistical regions, not at raions, so
+# the raion totals are aggregated up to match. Same grouping as moldova_district_to_region
+# in geo/admin_boundaries_dlt.py, but keyed on the NBS spellings: the capital is 'Chisinau'
+# here because clean_adm1_name strips the 'MUN.' prefix, whereas the World Bank geojson
+# calls it 'Chisinau Municipality'. Gagauzia is folded into South, as it is there.
+ADM1_TO_REGION = {
+    raion: region
+    for region, raions in {
+        'North': ['Balti', 'Briceni', 'Donduseni', 'Drochia', 'Edinet', 'Falesti',
+                  'Floresti', 'Glodeni', 'Ocnita', 'Riscani', 'Singerei', 'Soroca'],
+        'Center': ['Anenii Noi', 'Calarasi', 'Criuleni', 'Dubasari', 'Hincesti', 'Ialoveni',
+                   'Nisporeni', 'Orhei', 'Rezina', 'Soldanesti', 'Straseni', 'Telenesti',
+                   'Ungheni'],
+        'South': ['Basarabeasca', 'Cahul', 'Cantemir', 'Causeni', 'Cimislia', 'Leova',
+                  'Stefan Voda', 'Taraclia', 'Unitate Teritoriala Autonoma Gagauzia'],
+        'Chisinau': ['Chisinau'],
+    }.items()
+    for raion in raions
+}
+EXPECTED_REGION_COUNT = 4
 
 
 def remove_accents(input_str: str) -> str:
@@ -94,6 +116,15 @@ for year in sheet_years:
     assert relative_diff <= COUNTRY_TOTAL_TOLERANCE, \
         f'{year}: aggregated population differs from the published country total by {relative_diff:.2%}'
 
+    # Roll the raions up to the four regions. Mapping every raion is required rather than
+    # best effort: an unmapped one would silently drop its population from the region total.
+    unmapped = sorted(set(df_year.adm1_name) - set(ADM1_TO_REGION))
+    assert not unmapped, f'{year}: raions missing from ADM1_TO_REGION: {unmapped}'
+    df_year['adm1_name'] = df_year.adm1_name.map(ADM1_TO_REGION)
+    df_year = df_year.groupby(['adm1_name', 'year'], as_index=False).population.sum()
+    assert df_year.adm1_name.nunique() == EXPECTED_REGION_COUNT, \
+        f'{year}: expected {EXPECTED_REGION_COUNT} regions, got {df_year.adm1_name.nunique()}'
+
     yearly_dfs.append(df_year)
 
 df_pop = pd.concat(yearly_dfs, ignore_index=True)
@@ -107,7 +138,7 @@ df_pop
 
 # COMMAND ----------
 
-expected_rows = EXPECTED_ADM1_COUNT * len(EXPECTED_YEARS)
+expected_rows = EXPECTED_REGION_COUNT * len(EXPECTED_YEARS)
 assert df_pop.shape[0] == expected_rows, f'Expect {expected_rows} rows, got {df_pop.shape[0]}'
 assert all(df_pop.population.notnull()), \
     f'Expect no missing values in population field, got {sum(df_pop.population.isnull())} null values'

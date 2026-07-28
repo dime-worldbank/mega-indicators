@@ -166,24 +166,26 @@ albania_region_to_county = {
     'Delvine': 'Vlore'
 }
 
-# Moldova: each SPID poverty sample is a group of present-day raions (a 1999-2003 judet).
-# Map every raion to its group so we can add a merged county boundary per group, keyed by
-# the exact SPID sample name. Transnistria has no group, so it is left out. 'Chisinau
-# Municipality' is the capital raion after correct_admin1_names renames it.
-moldova_district_to_county = {
-    district: county
-    for county, districts in {
-        'Balti & Edinet & Soroca': ['Balti', 'Falesti', 'Glodeni', 'Riscani', 'Singerei',
-                                     'Briceni', 'Donduseni', 'Edinet', 'Ocnita', 'Drochia',
-                                     'Floresti', 'Soroca'],
-        'Cahul & Gagauzia & Tighina': ['Cahul', 'Cantemir', 'Taraclia',
-                                       'Unitate Teritoriala Autonoma Gagauzia', 'Causeni',
-                                       'Stefan Voda', 'Bender'],
-        'Chisinau': ['Chisinau Municipality', 'Anenii Noi', 'Criuleni', 'Ialoveni',
-                     'Straseni', 'Dubasari'],
-        'Orhei & Ungheni & Lapusna': ['Orhei', 'Rezina', 'Soldanesti', 'Telenesti', 'Ungheni',
-                                      'Calarasi', 'Nisporeni', 'Hincesti', 'Leova', 'Cimislia',
-                                      'Basarabeasca'],
+# Moldova: map every raion to one of the four statistical regions, so we can add a merged
+# region boundary alongside the raion rows. These are the National Bureau of Statistics
+# development regions, except that Gagauzia — officially a region of its own — is folded
+# into South, the only geographic fit when the target is four regions. Bender and
+# Transnistria are left out: they are outside the development regions and are likewise
+# absent from the NBS population estimates (see population/MDA). The 35 raions mapped here
+# therefore match EXPECTED_ADM1_COUNT in mda_subnational_population.py exactly.
+# 'Chisinau Municipality' is the capital raion as the WB geojson spells it (Moldova has no
+# correct_admin1_names entries); the merged 'Chisinau' region covers that municipality alone.
+moldova_district_to_region = {
+    district: region
+    for region, districts in {
+        'North': ['Balti', 'Briceni', 'Donduseni', 'Drochia', 'Edinet', 'Falesti',
+                  'Floresti', 'Glodeni', 'Ocnita', 'Riscani', 'Singerei', 'Soroca'],
+        'Center': ['Anenii Noi', 'Calarasi', 'Criuleni', 'Dubasari', 'Hincesti', 'Ialoveni',
+                   'Nisporeni', 'Orhei', 'Rezina', 'Soldanesti', 'Straseni', 'Telenesti',
+                   'Ungheni'],
+        'South': ['Basarabeasca', 'Cahul', 'Cantemir', 'Causeni', 'Cimislia', 'Leova',
+                  'Stefan Voda', 'Taraclia', 'Unitate Teritoriala Autonoma Gagauzia'],
+        'Chisinau': ['Chisinau Municipality'],
     }.items()
     for district in districts
 }
@@ -256,12 +258,12 @@ def admin1_boundaries_silver():
     print(f"Number of rows in the ALBANIA dataframe: {alb_bronze_mod.toPandas().shape[0]}")
     gha_bronze_mod = harmonize_admin1_regions(bronze, 'Ghana', ghana_regions_new_to_old_map)
     print(f"Number of rows in the Ghana dataframe: {gha_bronze_mod.toPandas().shape[0]}")
-    # Moldova keeps its raion rows and gains a merged county boundary per SPID group.
-    mda_counties = harmonize_admin1_regions(bronze, 'Moldova', moldova_district_to_county, keep_unmapped=False)
-    print(f"Number of rows in the Moldova county dataframe: {mda_counties.toPandas().shape[0]}")
+    # Moldova keeps its raion rows and gains a merged boundary per statistical region.
+    mda_regions = harmonize_admin1_regions(bronze, 'Moldova', moldova_district_to_region, keep_unmapped=False)
+    print(f"Number of rows in the Moldova region dataframe: {mda_regions.toPandas().shape[0]}")
     common_columns = list(set(bronze.columns).intersection(set(alb_bronze_mod.columns)))
     bronze_filtered = bronze.filter(~col('country_name').isin(['Albania', "Ghana"])).select(common_columns)
-    dfs = [bronze_filtered] + [alb_bronze_mod.select(common_columns), gha_bronze_mod.select(common_columns), mda_counties.select(common_columns)]
+    dfs = [bronze_filtered] + [alb_bronze_mod.select(common_columns), gha_bronze_mod.select(common_columns), mda_regions.select(common_columns)]
     silver = reduce(lambda df1, df2: df1.unionByName(df2), dfs)
     return silver
 
