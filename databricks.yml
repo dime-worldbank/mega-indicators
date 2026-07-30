@@ -4,19 +4,15 @@ bundle:
 include:
   - resources/*.yml
 
-# Run everything as whoever deploys the bundle. A non-admin can only set run_as
-# to themselves, so this keeps deploys working until a service principal exists.
+# Run everything as the RPF service principal, a stable non-human owner, so the
+# CAN_MANAGE grant below doesn't require reassigning pre-existing resources away
+# from whoever's personal account deployed them.
 run_as:
-  user_name: ${workspace.current_user.userName}
+  service_principal_name: a8a8db79-8e75-4dcd-b321-de8ad6018e25
 
-# Disabled: applying this on prod tries to reassign ownership of pre-existing
-# pipelines (e.g. admin_boundaries_tl_uc, owned by their original creator) to the
-# deploying user, which only a Databricks admin can do.
-# TODO: restore this and switch run_as (above) to the service principal once one
-# exists — a stable non-human owner avoids the reassignment problem entirely.
-# permissions:
-#   - group_name: ITSDA-LKHS-DAP-PROD-boostprocessed
-#     level: CAN_MANAGE
+permissions:
+  - group_name: ITSDA-LKHS-DAP-PROD-boostprocessed
+    level: CAN_MANAGE
 
 variables:
   shared_cluster_id:
@@ -41,6 +37,8 @@ targets:
         subnational_population_agg_uc:
           schema: indicator_staging
         public_sector_employment_uc:
+          schema: indicator_staging
+        indicator_data_availability_uc:
           schema: indicator_staging
       # Always paused, and offset a day from prod's cron even so, in case a schedule is
       # ever unpaused for periodic validation.

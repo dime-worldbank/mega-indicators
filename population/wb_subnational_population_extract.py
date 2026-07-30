@@ -3,9 +3,11 @@
 
 # COMMAND ----------
 
-import requests
+# MAGIC %run ../utils
+
+# COMMAND ----------
+
 from zipfile import ZipFile
-from io import BytesIO
 import pandas as pd
 
 # One shared download for every country whose subnational population comes from this WB
@@ -15,13 +17,14 @@ ZIP_URL = "https://databank.worldbank.org/data/download/Subnational-Population_E
 POPULATION_INDICATOR_CODE = "SP.POP.TOTL"
 COUNTRY_CODES = ["BTN", "TUN", "CHL", "ZAF", "ALB"]
 
-response = requests.get(ZIP_URL)
-response.raise_for_status()
+def _read_wb_zip_excel(buf):
+    with ZipFile(buf) as zip_file:
+        files = zip_file.namelist()
+        assert len(files) == 1
+        return pd.read_excel(zip_file.open(files[0]))
 
-with ZipFile(BytesIO(response.content), 'r') as zip_file:
-    files = zip_file.namelist()
-    assert len(files) == 1
-    df = pd.read_excel(zip_file.open(files[0]))
+update_version = update_version_flag('wb_population_update_version')
+df = versioned_dataframe(ZIP_URL, 'wb_subnational_population_raw', update_version, parse=_read_wb_zip_excel)
 
 # COMMAND ----------
 
