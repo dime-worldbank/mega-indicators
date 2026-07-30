@@ -4,33 +4,50 @@ A collection of notebooks to fetch and store indicator datasets
 ## Deployment
 
 The jobs and DLT pipelines are defined as a [Databricks Asset Bundle](https://docs.databricks.com/dev-tools/bundles/)
-(`databricks.yml` + `resources/`) and deployed with the Databricks CLI. Use the
-`adb-6102124407836814` profile (`-p adb-6102124407836814`).
+(`databricks.yml` + `resources/`) and deployed with the Databricks CLI. All targets
+(dev, staging, prod) are deployed *and* run as the `RPF-ADBSvc-PROD` service principal,
+so deploys, resource ownership, and monitoring aren't tied to any one person's account.
+
+### One-time setup: service-principal profile
+
+Ask a workspace admin for an OAuth secret for the service principal, then add this
+profile to `~/.databrickscfg`:
+
+```ini
+[RPF-ADBSvc-PROD]
+host          = <workspace url>
+client_id     = <service principal application id>
+client_secret = <oauth secret from the admin>
+auth_type     = oauth-m2m
+```
+
+### Deploying
 
 ```bash
 # lint the bundle
-databricks bundle validate -t staging -p adb-6102124407836814
+databricks bundle validate -t staging -p RPF-ADBSvc-PROD
 
 # deploy your current working tree as [staging] copies (schedules paused) and run one
-databricks bundle deploy -t staging -p adb-6102124407836814
-databricks bundle run indicators_weekly -t staging -p adb-6102124407836814
+databricks bundle deploy -t staging -p RPF-ADBSvc-PROD
+databricks bundle run indicators_weekly -t staging -p RPF-ADBSvc-PROD
 ```
 
-Staging writes to `prd_mega.indicator_staging` and the `vboost4_staging` volume — fully
-isolated from prod's tables, so staging deploys and runs are safe to experiment with.
+The same commands work with `-t dev` and `-t prod`. Each target writes to its own
+schema, isolated from prod's tables:
 
-### Production (prod)
+| Target | Schema | Purpose |
+|---|---|---|
+| `dev` | `prd_mega.indicator_dev` | Testing work-in-progress branches |
+| `staging` | `prd_mega.indicator_staging` | Pre-prod validation (paused schedules) |
+| `prod` | `prd_mega.indicator` | The real thing (live schedules + failure emails) |
 
-```bash
-databricks bundle deploy -t prod -p adb-6102124407836814
-databricks bundle run indicators_weekly -t prod -p adb-6102124407836814
-```
+Dev and staging are shared, single-slot environments: the latest deploy replaces
+whatever was there, so coordinate before deploying a branch.
 
 Prod is bound to the existing jobs/pipelines (no duplicates) and deploys to the team's
-`/Workspace/Repos/boostprocessed` folder. Everything runs as the `RPF-ADBSvc-PROD` service
-principal, with `CAN_MANAGE` granted to the `ITSDA-LKHS-DAP-PROD-boostprocessed` group —
-deploys and monitoring aren't tied to any one person's account. The GDL token is read from
-the existing `DIMEBOOSTKEYVAULT` secret scope — no setup needed.
+`/Workspace/Repos/boostprocessed` folder, with `CAN_MANAGE` granted to the
+`ITSDA-LKHS-DAP-PROD-boostprocessed` group. The GDL token is read from the existing
+`DIMEBOOSTKEYVAULT` secret scope — no setup needed.
 
 ## Contributing
 
