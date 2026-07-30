@@ -1,8 +1,19 @@
 # Databricks notebook source
 import os
+import time
 import wbgapi as wb
 import pandas as pd
 from databricks.sdk.runtime import spark, dbutils
+
+def _wb_dataframe_with_retry(series, attempts=5, backoff=2.0):
+    # World Bank's API intermittently 502s mid-pagination; retry the whole fetch.
+    for i in range(attempts):
+        try:
+            return wb.data.DataFrame(series, skipBlanks=True)
+        except Exception:
+            if i == attempts - 1:
+                raise
+            time.sleep(backoff * (2 ** i))
 
 def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_country_table=None, how: str = 'inner'):
     if extra_col_names_from_country_table is None:
@@ -11,7 +22,7 @@ def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_countr
         raise ValueError(f"Unsupported merge how='{how}'")
     long_dfs = []
     for series, col_name in zip(indicators, col_names):
-        df = wb.data.DataFrame(series, skipBlanks=True).reset_index()
+        df = _wb_dataframe_with_retry(series).reset_index()
         long_df = df.melt(id_vars='economy', var_name='year', value_name=col_name)
         long_df = long_df.dropna(subset=col_name)
         long_df['year'] = long_df['year'].str.replace('YR', '')

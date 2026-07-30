@@ -8,7 +8,7 @@ include:
 # CAN_MANAGE grant below doesn't require reassigning pre-existing resources away
 # from whoever's personal account deployed them.
 run_as:
-  service_principal_name: 26be8e5e-01ef-40fb-9fe9-18dbb54c933a
+  service_principal_name: a8a8db79-8e75-4dcd-b321-de8ad6018e25
 
 permissions:
   - group_name: ITSDA-LKHS-DAP-PROD-boostprocessed
