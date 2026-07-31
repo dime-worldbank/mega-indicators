@@ -21,7 +21,6 @@ COUNTRY_CODE = "MDA"
 # Population with usual residence by locality (village/commune, town/municipality),
 # published by the National Bureau of Statistics of the Republic of Moldova.
 # Downloaded to the volume by mda_subnational_population_extract.py.
-VOLUME_ROOT_PATH = get_volume_root_path()
 NBS_POPULATION_PATH = f'{VOLUME_ROOT_PATH}/auxiliary_data/population/mda/Populatia_sate_comune_orase_2014-2023.xlsx'
 NBS_SOURCE = "National Bureau of Statistics of the Republic of Moldova"
 
