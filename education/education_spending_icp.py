@@ -69,7 +69,7 @@ long_df[long_df.economy.isin(countries)]
 
 # COMMAND ----------
 
-country_df = spark.table(f'indicator.country').select('country_name', 'country_code', 'region').toPandas()
+country_df = spark.table(f'{INDICATOR_SCHEMA}.country').select('country_name', 'country_code', 'region').toPandas()
 country_df
 
 # COMMAND ----------

@@ -19,8 +19,10 @@ def modify_name(name):
 
 # COMMAND ----------
 
+update_version = update_version_flag('census_population_update_version')
+
 # post 2015 population estimates from census.gov
-df_pop = get_pop_from_census_gov('burkina-faso')
+df_pop = get_pop_from_census_gov('burkina-faso', update_version=update_version)
 
 # Pre 2015 spopulation estimates from the World Bank subnational population database 
 wb.db = 50 # Database ID
