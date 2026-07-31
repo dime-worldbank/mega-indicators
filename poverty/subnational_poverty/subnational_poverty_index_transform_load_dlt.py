@@ -60,6 +60,7 @@ REGION_NAME_FIXES = [
     ('COL', 'Santafe De Bogota D.c.', 'Bogota'),
     ('KEN', 'Elgeyo/Marakwet', 'Elgeyo Marakwet'),
     ('KEN', 'Taita/Taveta', 'Taita Taveta'),
+    ('KEN', 'Nairobi', 'Nairobi City County'),
     # Moldova's SPID samples are groups of 1999-2003 judete (counties), whose borders do not
     # follow the four statistical regions every other Moldova table is keyed on. Mapping them
     # across is a deliberate approximation, accepted so poverty can join the rest: only
