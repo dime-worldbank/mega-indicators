@@ -3,12 +3,22 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../../utils
+
+# COMMAND ----------
+
 import pandas as pd
 
 # COMMAND ----------
 
 URL = 'https://www.ine.gov.py/microdatos/cuadro/b7dc2DEP01-Paraguay-Poblacion-total-por-anio-calendario-segun-sexo-y-departamento-2000-2025.csv'
-df_raw = pd.read_csv(URL, skip_blank_lines=True).rename(columns={'#': 'adm1_name'})
+
+RAW_TABLE_NAME = 'pry_population_raw'
+
+update_version = update_version_flag('pry_population_update_version')
+
+df_raw = versioned_dataframe(URL, RAW_TABLE_NAME, update_version, skip_blank_lines=True)\
+    .rename(columns={'#': 'adm1_name'})
 df_raw
 
 # COMMAND ----------

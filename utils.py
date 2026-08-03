@@ -1,8 +1,19 @@
 # Databricks notebook source
 import os
+import time
 import wbgapi as wb
 import pandas as pd
-from databricks.sdk.runtime import spark
+from databricks.sdk.runtime import spark, dbutils
+
+def _wb_dataframe_with_retry(series, attempts=5, backoff=2.0):
+    # World Bank's API intermittently 502s mid-pagination; retry the whole fetch.
+    for i in range(attempts):
+        try:
+            return wb.data.DataFrame(series, skipBlanks=True)
+        except Exception:
+            if i == attempts - 1:
+                raise
+            time.sleep(backoff * (2 ** i))
 
 def wbgapi_fetch(indicators, col_names, extra_col_names_from_country_table=None, how: str = 'inner'):
     if extra_col_names_from_country_table is None:
@@ -11,7 +22,7 @@ def wbgapi_fetch(indicators, col_names, extra_col_names_from_country_table=None,
         raise ValueError(f"Unsupported merge how='{how}'")
     long_dfs = []
     for series, col_name in zip(indicators, col_names):
-        df = wb.data.DataFrame(series, skipBlanks=True).reset_index()
+        df = _wb_dataframe_with_retry(series).reset_index()
         long_df = df.melt(id_vars='economy', var_name='year', value_name=col_name)
         long_df = long_df.dropna(subset=col_name)
         long_df['year'] = long_df['year'].str.replace('YR', '')
@@ -101,4 +112,40 @@ def ddh_bytes(url):
     resp = requests.get(url)
     resp.raise_for_status()
     return resp.content
+
+# COMMAND ----------
+
+import io
+from datetime import datetime, timezone
+
+def fetch_raw(source_url, table_name, parse=pd.read_csv, **parse_kwargs):
+    """Overwrite table_name with a freshly fetched, parsed snapshot (a bronze table).
+
+    Delta's transaction log is the audit trail (DESCRIBE HISTORY / VERSION AS OF).
+    """
+    resp = requests.get(source_url, timeout=60)
+    resp.raise_for_status()
+    df = parse(io.BytesIO(resp.content), **parse_kwargs)
+    df['fetched_at'] = datetime.now(timezone.utc)
+    (spark.createDataFrame(df)
+        .write.mode("overwrite")
+        .option("overwriteSchema", "true")
+        .option("delta.columnMapping.mode", "name")
+        # Defaults (7d/30d) let VACUUM drop a snapshot before the next monthly refresh.
+        .option("delta.deletedFileRetentionDuration", "interval 365 days")
+        .option("delta.logRetentionDuration", "interval 365 days")
+        .saveAsTable(f"{INDICATOR_SCHEMA}.{table_name}"))
+
+def versioned_dataframe(source_url, table_name, update_version, parse=pd.read_csv, **parse_kwargs):
+    """Read table_name's cached snapshot, refreshing first if update_version or unset.
+
+    A temporarily unreachable source yields stale data instead of a failure.
+    """
+    full_table_name = f"{INDICATOR_SCHEMA}.{table_name}"
+    if update_version or not spark.catalog.tableExists(full_table_name):
+        fetch_raw(source_url, table_name, parse=parse, **parse_kwargs)
+    return spark.table(full_table_name).drop('fetched_at').toPandas()
+
+def update_version_flag(widget_name):
+    return dbutils.widgets.getArgument(widget_name, 'false').strip().lower() == 'true'
 

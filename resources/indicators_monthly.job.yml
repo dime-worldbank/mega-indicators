@@ -9,6 +9,17 @@ resources:
       parameters:
         - name: bundle_target
           default: ${bundle.target}
+        # Reaches subnational_population_pry as a widget; "true" fetches a fresh INE snapshot
+        # into pry_population_raw, "false" reuses the cached copy. Flip via "Run now with
+        # different parameters" for a one-off refresh. Other tasks ignore it.
+        - name: pry_population_update_version
+          default: "false"
+        - name: alb_population_update_version
+          default: "false"
+        - name: census_population_update_version
+          default: "false"
+        - name: wb_population_update_version
+          default: "false"
       tasks:
       - task_key: gdl_subnat_human_development_index_E
         existing_cluster_id: ${var.shared_cluster_id}
@@ -104,6 +115,20 @@ resources:
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
           notebook_path: ../population/ZAF/zaf_subnational_population.py
+      - task_key: subnational_population_alb
+        depends_on:
+        - task_key: wb_subnational_population_extract
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/ALB/alb_subnational_population.py
+      - task_key: subnational_population_gha
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/GHA/gha_subnational_population.py
+      - task_key: subnational_population_tgo
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/TGO/tgo_subnational_population.py
       - task_key: subnational_population
         depends_on:
         - task_key: subnational_population_bfa
@@ -120,15 +145,9 @@ resources:
         - task_key: subnational_population_cod
         - task_key: subnational_population_pry
         - task_key: subnational_population_chl
+        - task_key: subnational_population_alb
+        - task_key: subnational_population_gha
+        - task_key: subnational_population_tgo
         pipeline_task:
           pipeline_id: ${resources.pipelines.subnational_population_agg_uc.id}
-      - task_key: refresh_indicator_metadata
-        depends_on:
-        - task_key: gdl_subnat_hdi_TL
-        - task_key: gdl_subnational_population
-        - task_key: imf_govt_budget
-        - task_key: wb_national_population
-        - task_key: subnational_population
-        pipeline_task:
-          pipeline_id: ${resources.pipelines.indicator_metadata.id}
       performance_target: PERFORMANCE_OPTIMIZED

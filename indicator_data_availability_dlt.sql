@@ -1,4 +1,9 @@
 -- Databricks notebook source
+-- Source tables are read unqualified so they resolve against the pipeline's own
+-- catalog/schema (prd_mega.indicator, or indicator_staging on the staging target)
+-- rather than pinning every read to prod. CTEs are prefixed edu_/hd_/etc. where a
+-- bare name would collide with the table it reads — an unqualified self-reference
+-- inside a WITH is not a valid non-recursive CTE.
 CREATE
 OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
   WITH hd_index AS (
@@ -110,7 +115,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     GROUP BY
       1
   ),
-  pupil_teacher_ratio AS (
+  edu_pupil_teacher_ratio AS (
     SELECT
       country_name,
       'pupil_teacher_ratio' AS indicator_key,
@@ -124,7 +129,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     GROUP BY
       1
   ),
-  school_basic_services AS (
+  edu_school_basic_services AS (
     SELECT
       country_name,
       'school_basic_services' AS indicator_key,
@@ -143,7 +148,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     GROUP BY
       1
   ),
-  teacher_salaries AS (
+  edu_teacher_salaries AS (
     SELECT
       country_name,
       'teacher_salaries' AS indicator_key,
@@ -160,7 +165,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     GROUP BY
       1
   ),
-  completion_rates AS (
+  edu_completion_rates AS (
     SELECT
       country_name,
       'completion_rates' AS indicator_key,
@@ -193,13 +198,13 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     UNION ALL
     SELECT * FROM edu_attendance
     UNION ALL
-    SELECT * FROM pupil_teacher_ratio
+    SELECT * FROM edu_pupil_teacher_ratio
     UNION ALL
-    SELECT * FROM school_basic_services
+    SELECT * FROM edu_school_basic_services
     UNION ALL
-    SELECT * FROM teacher_salaries
+    SELECT * FROM edu_teacher_salaries
     UNION ALL
-    SELECT * FROM completion_rates
+    SELECT * FROM edu_completion_rates
   ),
   source_urls AS (
     SELECT * FROM (
