@@ -33,16 +33,14 @@ databricks bundle run indicators_weekly -t staging -p RPF-ADBSvc-PROD
 ```
 
 The same commands work with `-t dev` and `-t prod`. Each target writes to its own
-schema, isolated from prod's tables:
+schema *and* its own volume, isolated from prod's:
 
-| Target | Schema | Purpose |
-|---|---|---|
-| `dev` | `prd_mega.indicator_dev` | Testing work-in-progress branches |
-| `staging` | `prd_mega.indicator_staging` | Pre-prod validation (paused schedules) |
-| `prod` | `prd_mega.indicator` | The real thing (live schedules + failure emails) |
+| Target | Schema | Volume | Purpose |
+|---|---|---|---|
+| `dev` | `prd_mega.indicator_dev` | `vboost4_dev` | Testing work-in-progress branches |
+| `staging` | `prd_mega.indicator_staging` | `vboost4_staging` | Pre-prod validation (paused schedules) |
+| `prod` | `prd_mega.indicator` | `vboost4` | The real thing (live schedules + failure emails) |
 
-Dev and staging are shared, single-slot environments: the latest deploy replaces
-whatever was there, so coordinate before deploying a branch.
 
 Prod is bound to the existing jobs/pipelines (no duplicates) and deploys to the team's
 `/Workspace/Repos/boostprocessed` folder, with `CAN_MANAGE` granted to the

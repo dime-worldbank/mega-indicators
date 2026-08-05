@@ -97,7 +97,7 @@ targets:
   prod:
     mode: production
     # All schedules live here, not in the job ymls, so every target's is in one place.
-    # on_demand has no schedule at all (triggered manually only), for either target.
+    # on_demand has no schedule at all (triggered manually only), on any target.
     # Failure emails are prod-only — a staging failure shouldn't page anyone.
     resources:
       jobs:

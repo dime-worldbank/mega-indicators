@@ -9,4 +9,4 @@ _suffix = _SUFFIX_BY_TARGET[_target]
 
 CATALOG = "prd_mega"
 INDICATOR_SCHEMA = f"{CATALOG}.indicator{_suffix}"
-VOLUME_ROOT_PATH = f"/Volumes/{CATALOG}/sboost4/vboost4{_SUFFIX_BY_TARGET[_target]}/Workspace"
+VOLUME_ROOT_PATH = f"/Volumes/{CATALOG}/sboost4/vboost4{_suffix}/Workspace"
