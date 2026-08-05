@@ -16,9 +16,7 @@ from functools import reduce
 from pyspark.sql.types import StructType, StructField, DoubleType, StringType
 from shapely.ops import unary_union
 
-# Same volume-suffix scheme as config.py (vboost4_staging mirrors vboost4; dev
-# shares the staging volume); DLT can't %run config, so map inline.
-_SUFFIX_BY_TARGET = {"prod": "", "staging": "_staging", "dev": "_staging"}
+_SUFFIX_BY_TARGET = {"prod": "", "staging": "_staging", "dev": "_dev"}
 _target = spark.conf.get("bundle_target", None)
 if _target not in _SUFFIX_BY_TARGET:
     raise RuntimeError(f"Unknown bundle target {_target!r}; expected one of {sorted(_SUFFIX_BY_TARGET)}.")
