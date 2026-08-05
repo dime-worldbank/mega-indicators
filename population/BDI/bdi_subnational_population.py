@@ -23,6 +23,10 @@ WB_SUBNATIONAL_POPULATION_URL = (
     "Subnational-Population_EXCEL.zip"
 )
 CENSUS_GOV_COUNTRY_FILENAME = "burundi"
+BOUNDARY_REGION_NAME_FIXES = {
+    "Bujumbura Mairie": "Mairie de Bujumbura",
+    "Bujumbura Rural": "Bujumbura",
+}
 
 # COMMAND ----------
 
@@ -81,6 +85,15 @@ df_census_long = (
     .sort_values(["adm1_name", "year"])
 )
 
+# Keep the historical 17-province population series, while aligning spelling
+# differences to the labels used by admin1_boundaries_gold.
+df_wb_long["adm1_name"] = df_wb_long["adm1_name"].replace(
+    BOUNDARY_REGION_NAME_FIXES
+)
+df_census_long["adm1_name"] = df_census_long["adm1_name"].replace(
+    BOUNDARY_REGION_NAME_FIXES
+)
+
 # COMMAND ----------
 
 assert set(df_wb_long["adm1_name"]) == set(df_census_long["adm1_name"])
@@ -97,6 +110,8 @@ assert df_pop.shape[0] == 442, f"Expected 442 rows, got {df_pop.shape[0]}"
 assert df_pop["population"].notnull().all()
 assert df_pop["adm1_name"].nunique() == EXPECTED_ADM1_COUNT
 assert not df_pop.duplicated(["adm1_name", "year"]).any()
+assert "Bujumbura Mairie" not in set(df_pop["adm1_name"])
+assert "Bujumbura Rural" not in set(df_pop["adm1_name"])
 
 # COMMAND ----------
 

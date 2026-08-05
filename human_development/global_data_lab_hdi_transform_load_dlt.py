@@ -39,6 +39,14 @@ def global_data_lab_hd_index():
                 ).otherwise(
                     F.col("Region")
                 )
+            ).when(F.col("country_name") == 'Burundi',
+                F.when(F.col("Region") == 'Bujumbura Mairie',
+                    F.lit("Mairie de Bujumbura")
+                ).when(F.col("Region") == 'Bujumbura Rural',
+                    F.lit("Bujumbura")
+                ).otherwise(
+                    F.col("Region")
+                )
             ).when(F.col("country_name") == 'Colombia',
                 F.when(F.col("Region").contains('Valle'),
                     F.lit("Valle Del Cauca")
