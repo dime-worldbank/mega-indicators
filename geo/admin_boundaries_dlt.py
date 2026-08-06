@@ -9,7 +9,7 @@ import pandas as pd
 import json
 from itertools import chain
 from shapely.geometry import shape
-from pyspark.sql.functions import col, first, collect_list, StringType, udf, lit, create_map, coalesce
+from pyspark.sql.functions import col, first, collect_list, udf, lit, create_map, coalesce
 from functools import reduce
 from pyspark.sql.types import StringType
 from shapely.ops import unary_union
