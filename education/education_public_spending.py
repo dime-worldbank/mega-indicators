@@ -14,7 +14,7 @@ from tempfile import gettempdir
 INDICATOR = 'SE.XPD.TOTL.GD.ZS'
 URL = f'https://api.worldbank.org/v2/en/indicator/{INDICATOR}?downloadformat=csv'
 
-response = requests.get(URL)
+response = requests.get(URL, timeout=60)
 
 if response.status_code != 200:
     print('Request returned non-200', response.status_code)
