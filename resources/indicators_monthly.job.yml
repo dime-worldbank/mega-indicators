@@ -129,6 +129,18 @@ resources:
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
           notebook_path: ../population/TGO/tgo_subnational_population.py
+      # Moldova has its own extract rather than sharing wb_subnational_population_extract:
+      # the figures come from the national statistics bureau, as one workbook per download.
+      - task_key: subnational_population_mda_extract
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/MDA/mda_subnational_population_extract.py
+      - task_key: subnational_population_mda
+        depends_on:
+        - task_key: subnational_population_mda_extract
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/MDA/mda_subnational_population.py
       - task_key: subnational_population
         depends_on:
         - task_key: subnational_population_bfa
@@ -148,6 +160,7 @@ resources:
         - task_key: subnational_population_alb
         - task_key: subnational_population_gha
         - task_key: subnational_population_tgo
+        - task_key: subnational_population_mda
         pipeline_task:
           pipeline_id: ${resources.pipelines.subnational_population_agg_uc.id}
       performance_target: PERFORMANCE_OPTIMIZED

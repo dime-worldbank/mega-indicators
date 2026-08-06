@@ -61,6 +61,17 @@ REGION_NAME_FIXES = [
     ('KEN', 'Elgeyo/Marakwet', 'Elgeyo Marakwet'),
     ('KEN', 'Taita/Taveta', 'Taita Taveta'),
     ('KEN', 'Nairobi', 'Nairobi City County'),
+    # Moldova's SPID samples are groups of 1999-2003 judete (counties), whose borders do not
+    # follow the four statistical regions every other Moldova table is keyed on. Mapping them
+    # across is a deliberate approximation, accepted so poverty can join the rest: only
+    # 'Balti & Edinet & Soroca' equals its region (North) exactly. The others misattribute
+    # rates for a handful of raions -- Leova, Cimislia and Basarabeasca are counted as Center
+    # though they sit in South; Anenii Noi, Criuleni, Dubasari, Ialoveni and Straseni are
+    # counted as Chisinau though they sit in Center; Bender is counted as South though it
+    # belongs to no region. 'Chisinau' needs no entry, the sample name already matches.
+    ('MDA', 'Balti & Edinet & Soroca', 'North'),
+    ('MDA', 'Orhei & Ungheni & Lapusna', 'Center'),
+    ('MDA', 'Cahul & Gagauzia & Tighina', 'South'),
     ('MOZ', 'Maputo City', 'Cidade de Maputo'),
     ('MOZ', 'Maputo Cidade', 'Cidade de Maputo'),
     ('MOZ', 'Maputo Province', 'Maputo'),

@@ -166,6 +166,50 @@ albania_region_to_county = {
     'Delvine': 'Vlore'
 }
 
+# Moldova raion (district) to statistical region. These are the National Bureau of
+# Statistics development regions, except that Gagauzia — officially a region of its own —
+# is folded into South, the only geographic fit when the target is four regions. The 35
+# raions mapped here match EXPECTED_ADM1_COUNT in mda_subnational_population.py, which rolls
+# the population up to the same four regions. Bender and Transnistria belong to no region
+# and are absent from the NBS estimates, so they are left unmapped and keep their own names.
+moldova_district_to_region = {
+    'Balti': 'North',
+    'Briceni': 'North',
+    'Donduseni': 'North',
+    'Drochia': 'North',
+    'Edinet': 'North',
+    'Falesti': 'North',
+    'Floresti': 'North',
+    'Glodeni': 'North',
+    'Ocnita': 'North',
+    'Riscani': 'North',
+    'Singerei': 'North',
+    'Soroca': 'North',
+    'Anenii Noi': 'Center',
+    'Calarasi': 'Center',
+    'Criuleni': 'Center',
+    'Dubasari': 'Center',
+    'Hincesti': 'Center',
+    'Ialoveni': 'Center',
+    'Nisporeni': 'Center',
+    'Orhei': 'Center',
+    'Rezina': 'Center',
+    'Soldanesti': 'Center',
+    'Straseni': 'Center',
+    'Telenesti': 'Center',
+    'Ungheni': 'Center',
+    'Basarabeasca': 'South',
+    'Cahul': 'South',
+    'Cantemir': 'South',
+    'Causeni': 'South',
+    'Cimislia': 'South',
+    'Leova': 'South',
+    'Stefan Voda': 'South',
+    'Taraclia': 'South',
+    'Unitate Teritoriala Autonoma Gagauzia': 'South',
+    'Chisinau Municipality': 'Chisinau',
+}
+
 def union_polygons(polygon_list):
     polygons = [shape(json.loads(p)) for p in polygon_list]
     union_polygon = unary_union(polygons)
@@ -224,9 +268,11 @@ def admin1_boundaries_silver():
     print(f"Number of rows in the ALBANIA dataframe: {alb_bronze_mod.toPandas().shape[0]}")
     gha_bronze_mod = harmonize_admin1_regions(bronze, 'Ghana', ghana_regions_new_to_old_map)
     print(f"Number of rows in the Ghana dataframe: {gha_bronze_mod.toPandas().shape[0]}")
+    mda_bronze_mod = harmonize_admin1_regions(bronze, 'Moldova', moldova_district_to_region)
+    print(f"Number of rows in the Moldova dataframe: {mda_bronze_mod.toPandas().shape[0]}")
     common_columns = list(set(bronze.columns).intersection(set(alb_bronze_mod.columns)))
-    bronze_filtered = bronze.filter(~col('country_name').isin(['Albania', "Ghana"])).select(common_columns)
-    dfs = [bronze_filtered] + [alb_bronze_mod.select(common_columns), gha_bronze_mod.select(common_columns)]
+    bronze_filtered = bronze.filter(~col('country_name').isin(['Albania', "Ghana", "Moldova"])).select(common_columns)
+    dfs = [bronze_filtered] + [alb_bronze_mod.select(common_columns), gha_bronze_mod.select(common_columns), mda_bronze_mod.select(common_columns)]
     silver = reduce(lambda df1, df2: df1.unionByName(df2), dfs)
     return silver
 
