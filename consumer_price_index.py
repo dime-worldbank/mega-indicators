@@ -6,14 +6,12 @@
 import requests
 import zipfile
 import io
-import os
 import pandas as pd
-from tempfile import gettempdir
 
 INDICATOR = 'FP.CPI.TOTL'
 URL = 'https://api.worldbank.org/v2/en/indicator/FP.CPI.TOTL?downloadformat=csv'
 
-response = requests.get(URL)
+response = requests.get(URL, timeout=60)
 
 if response.status_code != 200:
     print('Request returned non-200', response.status_code)

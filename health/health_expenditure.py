@@ -34,7 +34,8 @@ indicators = {
 df = pd.DataFrame()
 for indicator, value in indicators.items():
     url = f"https://ghoapi.azureedge.net/api/{indicator}"
-    resp = requests.get(url)
+    resp = requests.get(url, timeout=60)
+    resp.raise_for_status()
     ddf = pd.DataFrame(resp.json()['value'])
     ddf = ddf[ddf.SpatialDimType=='COUNTRY'][['SpatialDim', 'ParentLocationCode', 'TimeDim', 'NumericValue']]
     ddf.rename(columns={'NumericValue': value}, inplace=True)
