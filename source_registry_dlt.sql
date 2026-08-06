@@ -30,6 +30,7 @@ OR REFRESH LIVE TABLE source_registry USING DELTA AS (
       ('wb_subnational_population', 'Subnational Population database',                                    'World Bank',       'https://databank.worldbank.org/source/subnational-population'),
       ('alb_instat',                'Population by prefecture',                                           'INSTAT',           'https://www.instat.gov.al/'),
       ('moz_ine',                   'Population projections',                                             'INE Mozambique',   'https://mozambique.opendataforafrica.org/'),
-      ('pry_ine',                   'Population by department',                                           'INE Paraguay',     'https://www.ine.gov.py/')
+      ('pry_ine',                   'Population by department',                                           'INE Paraguay',     'https://www.ine.gov.py/'),
+      ('imputed',                   'Interpolated between adjacent years',                                 CAST(NULL AS STRING), CAST(NULL AS STRING))
   ) AS t(source_id, name, publisher, url)
 )

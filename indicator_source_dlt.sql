@@ -9,7 +9,9 @@
 --
 -- country_name scopes a row to one country; NULL means the source applies to every
 -- country. Only subnational_population needs this — each country draws its admin1
--- population from a different upstream source. country_name (not code) matches the
+-- population from one or more country-specific upstream sources (e.g. Albania
+-- blends wb_subnational_population, alb_instat and imputed; Burkina Faso blends
+-- census_gov and wb_subnational_population). country_name (not code) matches the
 -- key the dashboard popover already uses everywhere; values are the canonical names
 -- from the country table. Consumers resolve a source for (indicator_key, country)
 -- with: country_name IS NULL OR country_name = <country>.
@@ -49,7 +51,7 @@ OR REFRESH LIVE TABLE indicator_source USING DELTA AS (
       ('public_sector_employment',            'wwbi')
   ) AS t(indicator_key, source_id)
   UNION ALL
-  -- Subnational population: one source per country (see country folders).
+  -- Subnational population: one or more sources per country (see country folders).
   SELECT indicator_key, source_id, country_name FROM (
     VALUES
       ('subnational_population', 'census_gov',                'Togo'),
@@ -69,6 +71,7 @@ OR REFRESH LIVE TABLE indicator_source USING DELTA AS (
       ('subnational_population', 'global_data_lab',           'Congo, Dem. Rep.'),
       ('subnational_population', 'global_data_lab',           'Liberia'),
       ('subnational_population', 'alb_instat',                'Albania'),
+      ('subnational_population', 'imputed',                   'Albania'),
       ('subnational_population', 'moz_ine',                   'Mozambique'),
       ('subnational_population', 'pry_ine',                   'Paraguay')
   ) AS t(indicator_key, source_id, country_name)
