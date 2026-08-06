@@ -6,9 +6,7 @@
 import requests
 import zipfile
 import io
-import os
 import pandas as pd
-from tempfile import gettempdir
 
 INDICATOR = 'FP.CPI.TOTL'
 URL = 'https://api.worldbank.org/v2/en/indicator/FP.CPI.TOTL?downloadformat=csv'

@@ -10,7 +10,7 @@
 
 import wbgapi as wb
 import pyspark.sql.functions as F
-from pyspark.sql.types import StructType, StructField, DoubleType, StringType
+from pyspark.sql.types import StructType, StructField, DoubleType
 from pyspark.sql import Window
 from shapely.geometry import shape, MultiPolygon, Polygon
 import json

@@ -3,10 +3,6 @@
 
 # COMMAND ----------
 
-import pandas as pd
-
-# COMMAND ----------
-
 # helper name correction map
 adm1_name_map = {
     'kasai oriental':'kasai-oriental',

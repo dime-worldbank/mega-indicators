@@ -3,8 +3,6 @@
 
 # COMMAND ----------
 
-import pandas as pd
-
 # Shared download+parse across countries (wb_subnational_population_extract.py).
 ddf_pop = (
     spark.table(f'{INDICATOR_SCHEMA}.wb_subnational_population_silver')

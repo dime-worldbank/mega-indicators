@@ -4,16 +4,14 @@ dbutils.library.restartPython()
 
 # COMMAND ----------
 
-import requests
-import os
 import dlt
 import pandas as pd
 import json
 from itertools import chain
-from shapely.geometry import Polygon, shape, MultiPolygon
-from pyspark.sql.functions import col, first, collect_list, StringType, udf, when, lit, create_map, coalesce
+from shapely.geometry import shape
+from pyspark.sql.functions import col, first, collect_list, StringType, udf, lit, create_map, coalesce
 from functools import reduce
-from pyspark.sql.types import StructType, StructField, DoubleType, StringType
+from pyspark.sql.types import StringType
 from shapely.ops import unary_union
 
 # Same suffix scheme as config.py (vboost4_staging mirrors vboost4); DLT can't %run
@@ -242,10 +240,6 @@ def admin1_boundaries_gold():
     )
 
 # COMMAND ----------
-
-import json
-import pandas as pd
-import dlt
 
 ADMIN0_DATA_DIR = f'{VOLUME_ROOT_PATH}/auxiliary_data/admin0geoboundaries'
 disputed_area_country_map = {
