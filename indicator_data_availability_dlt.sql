@@ -1,6 +1,7 @@
 -- Databricks notebook source
 -- Source tables are read unqualified so they resolve against the pipeline's own
--- catalog/schema (prd_mega.indicator, or indicator_staging on the staging target)
+-- catalog/schema (prd_mega.indicator on prod, indicator_staging / indicator_dev on
+-- the staging and dev targets)
 -- rather than pinning every read to prod. CTEs are prefixed edu_/hd_/etc. where a
 -- bare name would collide with the table it reads — an unqualified self-reference
 -- inside a WITH is not a valid non-recursive CTE.

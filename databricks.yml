@@ -20,6 +20,43 @@ variables:
     default: "1111-165457-9ia3jd1w"
 
 targets:
+  # Shared dev environment: one team-visible copy (like staging), run as the SP,
+  # writing to the indicator_dev schema. Last deploy wins — coordinate branches.
+  dev:
+    mode: production
+    presets:
+      name_prefix: "[dev] "
+    resources:
+      pipelines:
+        admin_boundaries_tl_uc:
+          schema: indicator_dev
+        subnational_poverty_index_uc:
+          schema: indicator_dev
+        subnational_human_development_index_uc:
+          schema: indicator_dev
+        subnational_population_agg_uc:
+          schema: indicator_dev
+        public_sector_employment_uc:
+          schema: indicator_dev
+        indicator_data_availability_uc:
+          schema: indicator_dev
+      # Always paused (dev runs are manual); crons offset from staging's, which
+      # are offset from prod's, in case one is ever unpaused for validation.
+      jobs:
+        indicators_weekly:
+          schedule:
+            pause_status: PAUSED
+            quartz_cron_expression: 28 17 8 ? * Wed
+            timezone_id: UTC
+        indicators_monthly:
+          schedule:
+            pause_status: PAUSED
+            quartz_cron_expression: 28 17 13 5 * ?
+            timezone_id: UTC
+    workspace:
+      host: https://adb-6102124407836814.14.azuredatabricks.net
+      root_path: /Workspace/Repos/boostprocessed/.bundle/${bundle.name}/${bundle.target}
+
   staging:
     mode: production
     default: true
@@ -60,7 +97,7 @@ targets:
   prod:
     mode: production
     # All schedules live here, not in the job ymls, so every target's is in one place.
-    # on_demand has no schedule at all (triggered manually only), for either target.
+    # on_demand has no schedule at all (triggered manually only), on any target.
     # Failure emails are prod-only — a staging failure shouldn't page anyone.
     resources:
       jobs:
