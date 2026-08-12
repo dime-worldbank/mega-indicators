@@ -1,0 +1,21 @@
+resources:
+  pipelines:
+    indicator_data_availability_uc:
+      name: Indicator Data Availability UC
+      clusters:
+      - autoscale:
+          max_workers: 5
+          min_workers: 1
+          mode: ENHANCED
+        label: default
+        policy_id: 6063D2D4F500272A
+      - label: maintenance
+        policy_id: 6063D2D4F500272A
+      libraries:
+      - notebook:
+          path: ../indicator_data_availability_dlt.sql
+      catalog: prd_mega
+      channel: CURRENT
+      continuous: false
+      photon: false
+      schema: indicator

@@ -4,19 +4,15 @@ bundle:
 include:
   - resources/*.yml
 
-# Run everything as whoever deploys the bundle. A non-admin can only set run_as
-# to themselves, so this keeps deploys working until a service principal exists.
+# Run everything as the RPF service principal, a stable non-human owner, so the
+# CAN_MANAGE grant below doesn't require reassigning pre-existing resources away
+# from whoever's personal account deployed them.
 run_as:
-  user_name: ${workspace.current_user.userName}
+  service_principal_name: a8a8db79-8e75-4dcd-b321-de8ad6018e25
 
-# Disabled: applying this on prod tries to reassign ownership of pre-existing
-# pipelines (e.g. admin_boundaries_tl_uc, owned by their original creator) to the
-# deploying user, which only a Databricks admin can do.
-# TODO: restore this and switch run_as (above) to the service principal once one
-# exists — a stable non-human owner avoids the reassignment problem entirely.
-# permissions:
-#   - group_name: ITSDA-LKHS-DAP-PROD-boostprocessed
-#     level: CAN_MANAGE
+permissions:
+  - group_name: ITSDA-LKHS-DAP-PROD-boostprocessed
+    level: CAN_MANAGE
 
 variables:
   shared_cluster_id:
@@ -24,6 +20,43 @@ variables:
     default: "1111-165457-9ia3jd1w"
 
 targets:
+  # Shared dev environment: one team-visible copy (like staging), run as the SP,
+  # writing to the indicator_dev schema. Last deploy wins — coordinate branches.
+  dev:
+    mode: production
+    presets:
+      name_prefix: "[dev] "
+    resources:
+      pipelines:
+        admin_boundaries_tl_uc:
+          schema: indicator_dev
+        subnational_poverty_index_uc:
+          schema: indicator_dev
+        subnational_human_development_index_uc:
+          schema: indicator_dev
+        subnational_population_agg_uc:
+          schema: indicator_dev
+        public_sector_employment_uc:
+          schema: indicator_dev
+        indicator_data_availability_uc:
+          schema: indicator_dev
+      # Always paused (dev runs are manual); crons offset from staging's, which
+      # are offset from prod's, in case one is ever unpaused for validation.
+      jobs:
+        indicators_weekly:
+          schedule:
+            pause_status: PAUSED
+            quartz_cron_expression: 28 17 8 ? * Wed
+            timezone_id: UTC
+        indicators_monthly:
+          schedule:
+            pause_status: PAUSED
+            quartz_cron_expression: 28 17 13 5 * ?
+            timezone_id: UTC
+    workspace:
+      host: https://adb-6102124407836814.14.azuredatabricks.net
+      root_path: /Workspace/Repos/boostprocessed/.bundle/${bundle.name}/${bundle.target}
+
   staging:
     mode: production
     default: true
@@ -41,6 +74,8 @@ targets:
         subnational_population_agg_uc:
           schema: indicator_staging
         public_sector_employment_uc:
+          schema: indicator_staging
+        indicator_data_availability_uc:
           schema: indicator_staging
       # Always paused, and offset a day from prod's cron even so, in case a schedule is
       # ever unpaused for periodic validation.
@@ -62,7 +97,7 @@ targets:
   prod:
     mode: production
     # All schedules live here, not in the job ymls, so every target's is in one place.
-    # on_demand has no schedule at all (triggered manually only), for either target.
+    # on_demand has no schedule at all (triggered manually only), on any target.
     # Failure emails are prod-only — a staging failure shouldn't page anyone.
     resources:
       jobs:

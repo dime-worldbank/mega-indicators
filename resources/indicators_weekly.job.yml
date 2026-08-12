@@ -32,6 +32,26 @@ resources:
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
           notebook_path: ../education/education_sdg.py
+      - task_key: edu_pupil_teacher_ratio
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../education/pupil_teacher_ratio.py
+      - task_key: edu_school_basic_services
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../education/school_basic_services.py
+      - task_key: edu_teacher_salaries
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../education/teacher_salaries.py
+      - task_key: edu_completion_rates
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../education/completion_rates.py
+      - task_key: edu_spending_icp
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../education/education_spending_icp.py
       - task_key: health_expenditure
         depends_on:
         - task_key: gdp
@@ -55,4 +75,29 @@ resources:
         - task_key: public_sector_employment_E
         pipeline_task:
           pipeline_id: ${resources.pipelines.public_sector_employment_uc.id}
+      # Aggregates 12 indicator tables into indicator_data_availability. Eight are
+      # produced here; the rest come from monthly (global_data_lab_hd_index) and
+      # on_demand (pefa_by_pillar, subnational_poverty_rate), whose year ranges move
+      # rarely enough that picking them up on the next weekly run is close enough.
+      # On a from-scratch schema this can fail with a missing-table error, because
+      # indicators_all runs weekly and monthly in parallel and monthly may not have
+      # built global_data_lab_hd_index yet — that's ordering, not a bug; rerun once
+      # monthly has finished. The depends_on list is the only thing sequencing this
+      # after its sources (the SQL reads them as plain tables, not DLT sources), so
+      # a new indicator added to the SQL needs its producer added here too.
+      - task_key: indicator_data_availability
+        depends_on:
+        - task_key: edu_learning_poverty
+        - task_key: edu_pupil_teacher_ratio
+        - task_key: edu_school_basic_services
+        - task_key: edu_teacher_salaries
+        - task_key: edu_completion_rates
+        - task_key: health_sdg
+        - task_key: health_expenditure
+        - task_key: poverty
+        pipeline_task:
+          # The upstream notebooks overwrite their tables wholesale, which an
+          # incremental materialized-view refresh doesn't account for.
+          full_refresh: true
+          pipeline_id: ${resources.pipelines.indicator_data_availability_uc.id}
       performance_target: PERFORMANCE_OPTIMIZED

@@ -1,4 +1,10 @@
 -- Databricks notebook source
+-- Source tables are read unqualified so they resolve against the pipeline's own
+-- catalog/schema (prd_mega.indicator on prod, indicator_staging / indicator_dev on
+-- the staging and dev targets)
+-- rather than pinning every read to prod. CTEs are prefixed edu_/hd_/etc. where a
+-- bare name would collide with the table it reads — an unqualified self-reference
+-- inside a WITH is not a valid non-recursive CTE.
 CREATE
 OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
   WITH hd_index AS (
@@ -8,7 +14,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(min(year) AS INT) AS earliest_year,
       CAST(max(year) AS INT) AS latest_year
     FROM
-      prd_mega.indicator.global_data_lab_hd_index
+      global_data_lab_hd_index
     WHERE
       health_index IS NOT NULL
       AND education_index IS NOT NULL
@@ -22,7 +28,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(min(year) AS INT) AS earliest_year,
       CAST(max(year) AS INT) AS latest_year
     FROM
-      prd_mega.indicator.learning_poverty_rate
+      learning_poverty_rate
     GROUP BY
       1
   ),
@@ -33,7 +39,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(min(year) AS INT) AS earliest_year,
       CAST(max(year) AS INT) AS latest_year
     FROM
-      prd_mega.indicator.subnational_poverty_rate
+      subnational_poverty_rate
     WHERE
       poverty_rate IS NOT NULL
     GROUP BY
@@ -46,7 +52,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(min(year) AS INT) AS earliest_year,
       CAST(max(year) AS INT) AS latest_year
     FROM
-      prd_mega.indicator.universal_health_coverage_index_gho
+      universal_health_coverage_index_gho
     WHERE
       universal_health_coverage_index IS NOT NULL
     GROUP BY
@@ -59,7 +65,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(min(year) AS INT) AS earliest_year,
       CAST(max(year) AS INT) AS latest_year
     FROM
-      prd_mega.indicator.pefa_by_pillar
+      pefa_by_pillar
     GROUP BY
       1
   ),
@@ -70,7 +76,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(min(year) AS INT) AS earliest_year,
       CAST(max(year) AS INT) AS latest_year
     FROM
-      prd_mega.indicator.health_expenditure
+      health_expenditure
     WHERE
       oop_per_capita_usd IS NOT NULL
     GROUP BY
@@ -83,7 +89,7 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(min(year) AS INT) AS earliest_year,
       CAST(max(year) AS INT) AS latest_year
     FROM
-      prd_mega.indicator.poverty_rate
+      poverty_rate
     WHERE
       poverty_rate IS NOT NULL
     GROUP BY
@@ -96,33 +102,33 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       CAST(min(year) AS INT) AS earliest_year,
       CAST(max(year) AS INT) AS latest_year
     FROM
-      prd_mega.indicator.global_data_lab_hd_index
+      global_data_lab_hd_index
     WHERE
       attendance_6to17yo IS NOT NULL
     GROUP BY
       1
   ),
-  pupil_teacher_ratio AS (
+  edu_pupil_teacher_ratio AS (
     SELECT
       country_name,
       'pupil_teacher_ratio' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
       CAST(max(year) AS INT) AS latest_year
     FROM
-      prd_mega.indicator.pupil_teacher_ratio
+      pupil_teacher_ratio
     WHERE
       COALESCE(pupil_teacher_ratio_pre_primary, pupil_teacher_ratio_primary, pupil_teacher_ratio_secondary, pupil_teacher_ratio_lower_secondary, pupil_teacher_ratio_upper_secondary, pupil_teacher_ratio_tertiary) IS NOT NULL
     GROUP BY
       1
   ),
-  school_basic_services AS (
+  edu_school_basic_services AS (
     SELECT
       country_name,
       'school_basic_services' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
       CAST(max(year) AS INT) AS latest_year
     FROM
-      prd_mega.indicator.school_basic_services
+      school_basic_services
     WHERE
       COALESCE(
         schools_with_electricity_primary, schools_with_electricity_lower_secondary, schools_with_electricity_upper_secondary,
@@ -133,14 +139,14 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     GROUP BY
       1
   ),
-  teacher_salaries AS (
+  edu_teacher_salaries AS (
     SELECT
       country_name,
       'teacher_salaries' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
       CAST(max(year) AS INT) AS latest_year
     FROM
-      prd_mega.indicator.teacher_salaries
+      teacher_salaries
     WHERE
       COALESCE(
         teacher_salary_pre_primary, teacher_salary_primary,
@@ -149,14 +155,14 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     GROUP BY
       1
   ),
-  completion_rates AS (
+  edu_completion_rates AS (
     SELECT
       country_name,
       'completion_rates' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
       CAST(max(year) AS INT) AS latest_year
     FROM
-      prd_mega.indicator.completion_rates
+      completion_rates
     WHERE
       COALESCE(
         completion_rate_primary, completion_rate_lower_secondary, completion_rate_upper_secondary
@@ -181,13 +187,13 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     UNION ALL
     SELECT * FROM edu_attendance
     UNION ALL
-    SELECT * FROM pupil_teacher_ratio
+    SELECT * FROM edu_pupil_teacher_ratio
     UNION ALL
-    SELECT * FROM school_basic_services
+    SELECT * FROM edu_school_basic_services
     UNION ALL
-    SELECT * FROM teacher_salaries
+    SELECT * FROM edu_teacher_salaries
     UNION ALL
-    SELECT * FROM completion_rates
+    SELECT * FROM edu_completion_rates
   ),
   source_urls AS (
     SELECT * FROM (
