@@ -14,6 +14,10 @@ resources:
       libraries:
       - notebook:
           path: ../indicator_data_availability_dlt.sql
+      - notebook:
+          path: ../source_registry_dlt.sql
+      - notebook:
+          path: ../indicator_source_dlt.sql
       catalog: prd_mega
       channel: CURRENT
       continuous: false

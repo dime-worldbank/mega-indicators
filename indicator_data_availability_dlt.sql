@@ -12,7 +12,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'global_data_lab_hd_index' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       global_data_lab_hd_index
     WHERE
@@ -26,7 +27,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'learning_poverty_rate' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       learning_poverty_rate
     GROUP BY
@@ -37,7 +39,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'subnational_poverty_rate' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       subnational_poverty_rate
     WHERE
@@ -50,7 +53,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'universal_health_coverage_index_gho' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       universal_health_coverage_index_gho
     WHERE
@@ -63,7 +67,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'pefa_by_pillar' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       pefa_by_pillar
     GROUP BY
@@ -74,7 +79,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'health_private_expenditure' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       health_expenditure
     WHERE
@@ -87,7 +93,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'poverty_rate' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       poverty_rate
     WHERE
@@ -100,7 +107,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'global_data_lab_attendance' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       global_data_lab_hd_index
     WHERE
@@ -113,7 +121,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'pupil_teacher_ratio' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       pupil_teacher_ratio
     WHERE
@@ -126,7 +135,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'school_basic_services' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       school_basic_services
     WHERE
@@ -144,7 +154,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'teacher_salaries' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       teacher_salaries
     WHERE
@@ -160,7 +171,8 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
       country_name,
       'completion_rates' AS indicator_key,
       CAST(min(year) AS INT) AS earliest_year,
-      CAST(max(year) AS INT) AS latest_year
+      CAST(max(year) AS INT) AS latest_year,
+      array_sort(collect_set(CAST(year AS INT))) AS years
     FROM
       completion_rates
     WHERE
@@ -194,32 +206,13 @@ OR REFRESH LIVE TABLE indicator_data_availability USING DELTA AS (
     SELECT * FROM edu_teacher_salaries
     UNION ALL
     SELECT * FROM edu_completion_rates
-  ),
-  source_urls AS (
-    SELECT * FROM (
-      VALUES
-        ('global_data_lab_hd_index', 'https://globaldatalab.org/shdi/about/'),
-        ('learning_poverty_rate', 'https://data360.worldbank.org/en/indicator/WB_LPGD_SE_LPV_PRIM_SD'),
-        ('subnational_poverty_rate', 'https://pipmaps.worldbank.org/en/data/datatopics/poverty-portal/home'),
-        ('universal_health_coverage_index_gho', 'https://www.who.int/data/gho/data/indicators/indicator-details/GHO/uhc-index-of-service-coverage'),
-        ('pefa_by_pillar', 'https://www.pefa.org/assessments/batch-downloads'),
-        ('health_private_expenditure', 'https://www.who.int/data/gho/data/indicators/indicator-details/GHO/out-of-pocket-expenditure-(oop)-per-capita-in-us'),
-        ('poverty_rate', 'https://data360.worldbank.org/en/dataset/WB_PIP'),
-        ('global_data_lab_attendance', 'https://globaldatalab.org/education/about/'),
-        ('pupil_teacher_ratio', 'https://databrowser.uis.unesco.org/resources/glossary/3189'),
-        ('school_basic_services', 'https://databrowser.uis.unesco.org/resources/glossary/3145'),
-        ('teacher_salaries', 'https://databrowser.uis.unesco.org/resources/glossary/3218'),
-        ('completion_rates', 'https://databrowser.uis.unesco.org/resources/glossary/3201')
-    ) AS t(indicator_key, source_url)
   )
   SELECT
-    a.country_name,
-    a.indicator_key,
-    a.earliest_year,
-    a.latest_year,
-    s.source_url
+    country_name,
+    indicator_key,
+    earliest_year,
+    latest_year,
+    years
   FROM
-    all_indicators a
-    LEFT JOIN source_urls s
-      ON a.indicator_key = s.indicator_key
+    all_indicators
 )

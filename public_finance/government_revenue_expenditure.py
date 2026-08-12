@@ -32,7 +32,7 @@ session.mount('https://', HTTPAdapter(max_retries=Retry(
 
 # COMMAND ----------
 
-def fetch_sdmx(country_codes, flow, key_template, indicators, data_source, post_process=None):
+def fetch_sdmx(country_codes, flow, key_template, indicators, post_process=None):
     """Generic SDMX flow fetcher.
 
     Chunks countries, fetches each chunk, parses, and pivots indicators into columns.
@@ -79,7 +79,6 @@ def fetch_sdmx(country_codes, flow, key_template, indicators, data_source, post_
             .reset_index()
             .rename_axis(columns=None)
             .rename(columns=indicators))
-    df['data_source'] = data_source
     return df
 
 # COMMAND ----------
@@ -89,14 +88,14 @@ SOURCES = [
         'flow': 'IMF.RES/WEO/9.0.0',
         'key_template': '{countries}.{indicators}.A',#A = Annual
         'indicators': {'GGR': 'revenue_current_lcu', 'GGX': 'expenditure_current_lcu'},
-        'data_source': 'WEO (World Economic Outlook), IMF — General Government',
+        'table': 'government_revenue_expenditure_weo',
         'post_process': _weo_annotate_forecast,
     },
     {
         'flow': 'IMF.STA/GFS_SOO/12.0.0',
         'key_template': '{countries}.S1311B.*.{indicators}.XDC.*', #S1311B = Budgetary Central Government, XDC = Current LCU
         'indicators': {'G1_T': 'revenue_current_lcu', 'G2M_T': 'expenditure_current_lcu'},
-        'data_source': 'GFS_SOO (Statement of Operations), IMF — Budgetary Central Government',
+        'table': 'government_revenue_expenditure_gfs',
     },
 ]
 
@@ -108,21 +107,38 @@ country_df = (spark.table(f'{INDICATOR_SCHEMA}.country')
     .toPandas())
 country_codes = country_df['country_code'].dropna().unique().tolist()
 
-combined_df = pd.concat([fetch_sdmx(country_codes, **source) for source in SOURCES], ignore_index=True)
-combined_df['is_forecast'] = combined_df['is_forecast'].fillna(False)
+BASE_COLUMNS = ['country_name', 'country_code', 'region', 'year',
+                'revenue_current_lcu', 'expenditure_current_lcu']
 
 # COMMAND ----------
 
-merged_df = (pd.merge(combined_df, country_df, on='country_code', how='inner')
-    [['country_name', 'country_code', 'region', 'year', 'is_forecast',
-      'revenue_current_lcu', 'expenditure_current_lcu', 'data_source']]
-    .sort_values(['country_name', 'year', 'data_source']))
+# Write each single-source split table (no source column — the source is the
+# table's identity, via indicator_source). is_forecast is kept only for WEO.
+for source in SOURCES:
+    df = fetch_sdmx(country_codes, source['flow'], source['key_template'],
+                    source['indicators'], source.get('post_process'))
+    columns = list(BASE_COLUMNS)
+    if 'is_forecast' in df.columns:
+        df['is_forecast'] = df['is_forecast'].fillna(False)
+        columns.append('is_forecast')
+    merged = (pd.merge(df, country_df, on='country_code', how='inner')[columns]
+        .sort_values(['country_name', 'year']))
+    (spark.createDataFrame(merged)
+        .write.mode("overwrite").option("overwriteSchema", "true")
+        .saveAsTable(f"{INDICATOR_SCHEMA}.{source['table']}"))
 
 # COMMAND ----------
 
-merged_df.sample(5)
-
-# COMMAND ----------
-
-sdf = spark.createDataFrame(merged_df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.government_revenue_expenditure")
+# Combined view built from the split tables, adding a clean source_id FK (replaces
+# the free-text data_source). GFS has no is_forecast, so it defaults to False.
+combined_df = spark.sql(f"""
+    SELECT country_name, country_code, region, year, is_forecast,
+           revenue_current_lcu, expenditure_current_lcu, 'imf_weo' AS source_id
+    FROM {INDICATOR_SCHEMA}.government_revenue_expenditure_weo
+    UNION ALL
+    SELECT country_name, country_code, region, year, FALSE AS is_forecast,
+           revenue_current_lcu, expenditure_current_lcu, 'imf_gfs' AS source_id
+    FROM {INDICATOR_SCHEMA}.government_revenue_expenditure_gfs
+""")
+(combined_df.write.mode("overwrite").option("overwriteSchema", "true")
+    .saveAsTable(f"{INDICATOR_SCHEMA}.government_revenue_expenditure"))

@@ -35,11 +35,10 @@ df_pop = df_pop_wide.melt(var_name='year', value_name='population', ignore_index
     .sort_values(['adm1_name', 'year'], ignore_index=True)
 
 df_pop['country_name'] = 'Paraguay'
-df_pop['data_source'] = URL
 
 df_pop = df_pop.astype({'year': 'int', 'population': 'int'})
 
-COL_NAMES_ORDERED = ['country_name', 'adm1_name', 'year', 'population', 'data_source']
+COL_NAMES_ORDERED = ['country_name', 'adm1_name', 'year', 'population']
 df_pop = df_pop.reindex(columns=COL_NAMES_ORDERED)
 
 df_pop

@@ -78,8 +78,8 @@ REGION_NAME_FIXES = [
 ]
 
 
-@dlt.table(name='subnational_poverty_rate_silver')
-def subnational_poverty_rate_silver():
+def _poverty_rate(intermediate):
+    # Transform one source's already single-source intermediate (no data_source).
     countries = spark.table('country').select('country_name', 'country_code', 'income_level')
     region_name_fixes = spark.createDataFrame(
         REGION_NAME_FIXES,
@@ -87,7 +87,7 @@ def subnational_poverty_rate_silver():
     )
 
     return (
-        spark.table('poverty_rate_SPID_GSAP_silver')
+        spark.table(intermediate)
         .join(region_name_fixes, ['country_code', 'region_name'], 'left')
         .withColumn(
             'region_name',
@@ -111,15 +111,34 @@ def subnational_poverty_rate_silver():
         )
     )
 
+
 @dlt.expect_or_fail(
     'poverty rates for country income level should be present',
     'poverty_rate IS NOT NULL'
 )
+@dlt.table(name='subnational_poverty_rate_spid')
+def subnational_poverty_rate_spid():
+    return _poverty_rate('poverty_rate_spid_silver')
+
+
+@dlt.expect_or_fail(
+    'poverty rates for country income level should be present',
+    'poverty_rate IS NOT NULL'
+)
+@dlt.table(name='subnational_poverty_rate_gsap')
+def subnational_poverty_rate_gsap():
+    return _poverty_rate('poverty_rate_gsap_silver')
+
+
 @dlt.table(name='subnational_poverty_rate')
 def subnational_poverty_rate():
+    # Combined view over the split tables, adding a clean source_id FK (replaces the
+    # free-text data_source). Year span is per (country, region) across both sources.
     w = Window.partitionBy('country_name', 'region_name')
+    spid = dlt.read('subnational_poverty_rate_spid').withColumn('source_id', F.lit('pip_spid'))
+    gsap = dlt.read('subnational_poverty_rate_gsap').withColumn('source_id', F.lit('pip_gsap'))
     return (
-        dlt.read('subnational_poverty_rate_silver')
+        spid.unionByName(gsap)
         .withColumn('earliest_year', F.min('year').over(w))
         .withColumn('latest_year', F.max('year').over(w))
     )

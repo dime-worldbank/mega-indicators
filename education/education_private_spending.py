@@ -45,7 +45,6 @@ gdp_df
 df_merged = pd.merge(df_edu_private_exp, gdp_df, on=['country_code', 'year'])[['country_name', 'country_code', 'year', 'edu_private_spending_share_gdp', 'gdp_current_lcu']]
 df_merged['edu_private_spending_current_lcu'] = df_merged.edu_private_spending_share_gdp * df_merged.gdp_current_lcu
 df_merged.drop(columns=['gdp_current_lcu'], inplace=True)
-df_merged['data_source'] = 'WB & OECD National Accounts, OECD Education at a Glance'
 df_merged
 
 # COMMAND ----------

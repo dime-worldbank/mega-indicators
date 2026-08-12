@@ -37,8 +37,8 @@ country_df
 wb.db = 16 # Health Nutrition and Population Statistics
 
 outcome_series_to_col_name = {
-    'SH.STA.MMRT': ['maternal_mortality_ratio', 'WHO', 'maternal_mortality_ratio_WHO'], # SDG 3.1.1
-    'SH.UHC.SRVS.CV.XD':['universal_health_coverage_index', 'Global Health Observatory', 'universal_health_coverage_index_GHO'] # SDG 3.8.1
+    'SH.STA.MMRT': ['maternal_mortality_ratio', 'maternal_mortality_ratio_WHO'], # SDG 3.1.1
+    'SH.UHC.SRVS.CV.XD':['universal_health_coverage_index', 'universal_health_coverage_index_GHO'] # SDG 3.8.1
 }
 
 for key, val in outcome_series_to_col_name.items():
@@ -47,14 +47,13 @@ for key, val in outcome_series_to_col_name.items():
     countries = ['COL', 'PRY', 'KEN', 'MOZ', 'BFA', 'PAK', 'COD']
     print(outcome_df[outcome_df.economy.isin(countries)])
 
-    indicator_name, data_source, db_name = val
+    indicator_name, db_name = val
     long_df = outcome_df.melt(id_vars='economy', var_name='year', value_name=indicator_name)
     long_df['year'] = long_df['year'].str.replace('YR', '')
     long_df = long_df.astype({'year': 'int'})
-    long_df['data_source'] = data_source
     long_df = long_df.dropna(subset=[indicator_name]).sort_values(by=['economy', 'year'])
 
-    df_indicator = pd.merge(long_df, country_df, left_on='economy', right_on='country_code', how='left')[['country_name', 'country_code', 'region', 'year', indicator_name, 'data_source']]
+    df_indicator = pd.merge(long_df, country_df, left_on='economy', right_on='country_code', how='left')[['country_name', 'country_code', 'region', 'year', indicator_name]]
     sdf = spark.createDataFrame(df_indicator)
     sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f'{INDICATOR_SCHEMA}.{db_name}')
 
