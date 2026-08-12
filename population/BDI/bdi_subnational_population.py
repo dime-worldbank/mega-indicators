@@ -7,22 +7,11 @@
 
 # COMMAND ----------
 
-import io
-from zipfile import ZipFile
-
-import pandas as pd
-import requests
-
 COUNTRY_NAME = "Burundi"
 COUNTRY_CODE = "BDI"
-POPULATION_INDICATOR_CODE = "SP.POP.TOTL"
 EXPECTED_ADM1_COUNT = 18
 EXPECTED_ROW_COUNT = EXPECTED_ADM1_COUNT * 26
 
-WB_SUBNATIONAL_POPULATION_URL = (
-    "https://databankfiles.worldbank.org/public/ddpext_download/"
-    "Subnational-Population_EXCEL.zip"
-)
 CENSUS_GOV_COUNTRY_FILENAME = "burundi"
 BOUNDARY_REGION_NAME_FIXES = {
     "Bujumbura Mairie": "Mairie de Bujumbura",
@@ -31,36 +20,14 @@ BOUNDARY_REGION_NAME_FIXES = {
 
 # COMMAND ----------
 
-# World Bank subnational population data through 2016.
-response = requests.get(WB_SUBNATIONAL_POPULATION_URL, timeout=300)
-response.raise_for_status()
-
-with ZipFile(io.BytesIO(response.content)) as wb_zip:
-    wb_excel_files = [
-        name for name in wb_zip.namelist() if name.lower().endswith((".xls", ".xlsx"))
-    ]
-    assert len(wb_excel_files) == 1, wb_excel_files
-    with wb_zip.open(wb_excel_files[0]) as wb_excel:
-        df_wb = pd.read_excel(wb_excel)
-
-df_wb_bdi = df_wb[
-    (df_wb["Country Code"].map(lambda value: str(value)[:3] == COUNTRY_CODE))
-    & (df_wb["Indicator Code"] == POPULATION_INDICATOR_CODE)
-].copy()
-df_wb_bdi["adm1_name"] = df_wb_bdi["Country Name"].map(
-    lambda value: value.split(",")[-1].strip()
-)
-df_wb_bdi = df_wb_bdi[df_wb_bdi["adm1_name"] != COUNTRY_NAME]
-
-wb_year_cols = [
-    col for col in df_wb_bdi.columns if str(col).isdigit() and 2000 <= int(col) <= 2016
-]
-
-df_wb_long = df_wb_bdi.melt(
-    id_vars=["adm1_name"],
-    value_vars=wb_year_cols,
-    var_name="year",
-    value_name="population",
+# The shared wb_subnational_population_extract task downloads and versions the
+# World Bank workbook once for all dependent countries. Reusing its silver table
+# prevents every country notebook from making the same network request.
+df_wb_long = (
+    spark.table(f"{INDICATOR_SCHEMA}.wb_subnational_population_silver")
+    .filter(f"country_code = '{COUNTRY_CODE}' AND year BETWEEN 2000 AND 2016")
+    .select("adm1_name", "year", "population")
+    .toPandas()
 )
 df_wb_long["country_name"] = COUNTRY_NAME
 df_wb_long["data_source"] = "World Bank Subnational Population Database"
@@ -70,7 +37,11 @@ df_wb_long["year"] = df_wb_long["year"].astype(int)
 
 # Census.gov population estimates use the current 18-province geography for
 # the full 2000-2025 series.
-df_census_long = get_pop_from_census_gov(CENSUS_GOV_COUNTRY_FILENAME)
+update_version = update_version_flag("census_population_update_version")
+df_census_long = get_pop_from_census_gov(
+    CENSUS_GOV_COUNTRY_FILENAME,
+    update_version=update_version,
+)
 
 # Align spelling differences to the labels used by admin1_boundaries_gold.
 df_wb_long["adm1_name"] = df_wb_long["adm1_name"].replace(
