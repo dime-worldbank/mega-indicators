@@ -55,6 +55,12 @@ resources:
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
           notebook_path: ../population/BGD/bgd_subnational_population.py
+      - task_key: subnational_population_bdi
+        depends_on:
+        - task_key: wb_subnational_population_extract
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/BDI/bdi_subnational_population.py
       - task_key: subnational_population_btn
         depends_on:
         - task_key: wb_subnational_population_extract
@@ -134,6 +140,7 @@ resources:
         - task_key: subnational_population_bfa
         - task_key: subnational_population_moz
         - task_key: subnational_population_bgd
+        - task_key: subnational_population_bdi
         - task_key: subnational_population_lbr
         - task_key: subnational_population_ken
         - task_key: subnational_population_col

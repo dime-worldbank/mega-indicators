@@ -43,6 +43,9 @@ REGION_NAME_FIXES = [
     ('BTN', 'Monggar', 'Mongar'),
     ('BTN', 'Samdrupjongkhar', 'Samdrup Jongkhar'),
     ('BTN', 'Tashi Yangtse', 'Trashiyangtse'),
+    ('BDI', 'Bujumbura Mairie', 'Mairie de Bujumbura'),
+    ('BDI', 'Bujumbura Rural', 'Bujumbura'),
+    ('BDI', 'Buyengero & Burambi & Rumonge & Bugarama & Muhuta', 'Rumonge'),
     # SPID_GSAP uses plain region names, not the Roman-numeral form; Antofagasta,
     # Atacama, Coquimbo, Los Lagos, Maule and 'Arica y Painacota' already match gold.
     # 'Ñuble' has no WB official admin1 boundary (region created 2018), so it stays unmapped.
