@@ -25,10 +25,8 @@ col_names = [
     'pupil_teacher_ratio_tertiary',
 ]
 
-data_source = 'UNESCO Institute for Statistics (UIS)'
-
 # outer join so a country-year is kept even if it reports only some education levels
-df = wbgapi_fetch(indicators, col_names, data_source, how='outer')
+df = wbgapi_fetch(indicators, col_names, how='outer')
 df
 
 # COMMAND ----------

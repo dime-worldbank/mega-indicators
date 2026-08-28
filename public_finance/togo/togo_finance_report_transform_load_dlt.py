@@ -65,7 +65,6 @@ df = pd.DataFrame([
         'revenue_current_lcu': d['revenue_current_lcu'],
         'expenditure_current_lcu': d['expenditure_current_lcu'],
         'tax_expenditure': d['tax_expenditure'],
-        'data_source': 'Togo DGB Budget Execution Report',
         'source_url': d['source_url'],
     }
     for year, d in sorted(BUDGET_DATA.items())

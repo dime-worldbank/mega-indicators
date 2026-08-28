@@ -42,7 +42,6 @@ df = df.astype({'year': int})
 df = df.dropna()
 
 df.columns = df.columns.str.lower().str.replace('\W', '_', regex=True)
-df['data_source'] = 'UNESCO Institute for Statistics (UIS)'
 
 df
 

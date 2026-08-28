@@ -13,7 +13,6 @@ ddf_pop = (
     .toPandas()
 )
 ddf_pop['country_name'] = 'Chile'
-ddf_pop['data_source'] = 'WB subnational population database'
 
 # COMMAND ----------
 

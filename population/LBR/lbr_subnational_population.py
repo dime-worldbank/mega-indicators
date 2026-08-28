@@ -22,7 +22,6 @@ def build_subnational_population(country_name:str, country_code:str, adm1_drop:l
 
     pop = ddf.sort_values(['year', 'adm1_name'])
     pop.country_name = country_name
-    pop['data_source'] = 'Global Data Lab'
 
     return pop
 

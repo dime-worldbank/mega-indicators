@@ -75,6 +75,8 @@ resources:
         - task_key: public_sector_employment_E
         pipeline_task:
           pipeline_id: ${resources.pipelines.public_sector_employment_uc.id}
+      # Also refreshes source_registry + indicator_source, bundled into the same
+      # pipeline since both are static (VALUES-only, no upstream table dependency).
       # Aggregates 12 indicator tables into indicator_data_availability. Eight are
       # produced here; the rest come from monthly (global_data_lab_hd_index) and
       # on_demand (pefa_by_pillar, subnational_poverty_rate), whose year ranges move

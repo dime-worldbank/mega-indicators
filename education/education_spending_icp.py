@@ -58,7 +58,6 @@ lcu_df = create_long_df(outcome_df, *long_df_conversion_args[0])
 gdp_share_df = create_long_df(outcome_df, *long_df_conversion_args[1])
 
 long_df = pd.merge(lcu_df, gdp_share_df, on=['economy', 'year'])
-long_df['data_source'] = 'International Comparison Program (ICP)'
 long_df
 
 # COMMAND ----------

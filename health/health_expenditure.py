@@ -45,9 +45,6 @@ for indicator, value in indicators.items():
 
 # rename columns
 df.rename(columns={'SpatialDim': 'country_code', 'ParentLocationCode':'region_WHO', 'TimeDim':'year' }, inplace=True)
-# append datasource name
-df['data_source'] = 'https://ghoapi.azureedge.net/api/'
-
 num_countries = df.country_code.nunique()
 assert num_countries >= 192, f'Expected data from at least 192 countries, got {num_countries}'
 
@@ -62,7 +59,7 @@ merged_df = pd.merge(df, df_gdp, on=['country_code', 'year'], how='left')
 che = merged_df.apply(lambda x: 0.01 * x['che_percent_gdp'] * x['gdp_current_lcu'] if pd.notnull(x['che_percent_gdp']) and pd.notnull(x['gdp_current_lcu']) else None, axis=1)
 merged_df['che'] = che
 merged_df.sort_values(['country_name', 'year'], inplace=True)
-cols = ['country_code', 'country_name', 'region_WHO', 'region', 'year',	'che', 'oop_percent_che', 'oop_per_capita_usd',  'che_percent_gdp', 'che_per_capita_usd','gdp_current_lcu', 'data_source']
+cols = ['country_code', 'country_name', 'region_WHO', 'region', 'year',	'che', 'oop_percent_che', 'oop_per_capita_usd',  'che_percent_gdp', 'che_per_capita_usd','gdp_current_lcu']
 merged_df = merged_df[cols]
 
 # COMMAND ----------
