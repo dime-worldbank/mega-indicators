@@ -54,6 +54,7 @@ zoom = {
     "Bangladesh": 5,
     "Bhutan": 6,
     "Burkina Faso": 4.7,
+    "Burundi": 5.7,
     "Colombia": 3.6,
     "Kenya": 4.35,
     "Mozambique": 3.35,

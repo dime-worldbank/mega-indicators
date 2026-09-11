@@ -32,7 +32,7 @@ DATASET <- 'shdi'
 END_YEAR <- as.integer(format(Sys.Date(), "%Y"))
 
 # The bundle_target job parameter (dev/prod/staging) maps to a schema suffix; no default.
-suffix_by_target <- list(prod = "", staging = "_staging")
+suffix_by_target <- list(prod = "", staging = "_staging", dev = "_dev")
 target <- dbutils.widgets.get("bundle_target")
 if (is.null(suffix_by_target[[target]])) {
   stop(paste0("Unknown bundle target '", target, "'; expected one of: ", paste(names(suffix_by_target), collapse = ", "), "."))

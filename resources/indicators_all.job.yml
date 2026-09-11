@@ -4,8 +4,9 @@ resources:
       name: Indicators.All
       # Runs on_demand, then weekly + monthly (which assume its outputs — country,
       # boundaries — already exist). Manual trigger only: for a from-scratch
-      # environment (e.g. a new staging schema) or a full re-validation, not a
-      # replacement for weekly/monthly's own lighter, independent schedules.
+      # environment (e.g. a freshly created dev/staging schema) or a full
+      # re-validation, not a replacement for weekly/monthly's own lighter,
+      # independent schedules.
       tasks:
       - task_key: run_on_demand
         run_job_task:

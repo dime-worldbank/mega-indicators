@@ -1,6 +1,6 @@
 # Databricks notebook source
 
-_SUFFIX_BY_TARGET = {"prod": "", "staging": "_staging"}
+_SUFFIX_BY_TARGET = {"prod": "", "staging": "_staging", "dev": "_dev"}
 
 _target = dbutils.widgets.get("bundle_target")
 if _target not in _SUFFIX_BY_TARGET:
