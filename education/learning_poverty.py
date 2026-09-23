@@ -3,11 +3,14 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../utils
+
+# COMMAND ----------
+
 # MAGIC %run ../config
 
 # COMMAND ----------
 
-import wbgapi as wb
 import pandas as pd
 
 wb.db = 12 # Education Stats

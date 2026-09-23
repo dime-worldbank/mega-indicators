@@ -7,10 +7,6 @@
 
 # COMMAND ----------
 
-import pandas as pd
-
-# COMMAND ----------
-
 URL = 'https://www.ine.gov.py/microdatos/cuadro/b7dc2DEP01-Paraguay-Poblacion-total-por-anio-calendario-segun-sexo-y-departamento-2000-2025.csv'
 
 RAW_TABLE_NAME = 'pry_population_raw'

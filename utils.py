@@ -5,6 +5,11 @@ import wbgapi as wb
 import pandas as pd
 from databricks.sdk.runtime import spark, dbutils
 
+DEFAULT_TIMEOUT_SECONDS = 60
+
+# wbgapi has no timeout by default, set it so a stalled connection doesn't hang forever
+wb.get_options = {'timeout': DEFAULT_TIMEOUT_SECONDS}
+
 def _wb_dataframe_with_retry(series, attempts=5, backoff=2.0):
     # World Bank's API intermittently 502s mid-pagination; retry the whole fetch.
     for i in range(attempts):
@@ -69,7 +74,7 @@ def uis_fetch(series_to_col_name, data_source, extra_col_names_from_country_tabl
         params.append(('start', start))
     if stop is not None:
         params.append(('stop', stop))
-    resp = requests.get(UIS_API_URL, params=params, timeout=60)
+    resp = requests.get(UIS_API_URL, params=params, timeout=DEFAULT_TIMEOUT_SECONDS)
     resp.raise_for_status()
     payload = resp.json()
     raw_df = pd.DataFrame.from_records(payload.get('records', []))
@@ -112,7 +117,7 @@ def ddh_bytes(url):
     if os.path.exists(vol):
         with open(vol, 'rb') as f:
             return f.read()
-    resp = requests.get(url)
+    resp = requests.get(url, timeout=DEFAULT_TIMEOUT_SECONDS)
     resp.raise_for_status()
     return resp.content
 
@@ -126,7 +131,7 @@ def fetch_raw(source_url, table_name, parse=pd.read_csv, **parse_kwargs):
 
     Delta's transaction log is the audit trail (DESCRIBE HISTORY / VERSION AS OF).
     """
-    resp = requests.get(source_url, timeout=60)
+    resp = requests.get(source_url, timeout=DEFAULT_TIMEOUT_SECONDS)
     resp.raise_for_status()
     df = parse(io.BytesIO(resp.content), **parse_kwargs)
     df['fetched_at'] = datetime.now(timezone.utc)

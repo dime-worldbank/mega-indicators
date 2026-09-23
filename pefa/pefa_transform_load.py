@@ -9,7 +9,6 @@
 #      and once for 2011 framework then uploaded to {INDICATOR_SCHEMA}.pefa_2011_bronze
 
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
 import re
 
 SCORE_MAPPING = {

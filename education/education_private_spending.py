@@ -13,7 +13,7 @@ HEADERS = {
 }
 
 # OECD API returns 403: Forbidden if no headers
-response = requests.get(URL, headers=HEADERS)
+response = requests.get(URL, headers=HEADERS, timeout=60)
 response.raise_for_status()
 
 # COMMAND ----------

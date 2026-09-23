@@ -20,7 +20,7 @@ import re
 # COMMAND ----------
 
 spid_resource_url = 'https://ddh-openapi.worldbank.org/resources/DR0092191'
-response = requests.get(spid_resource_url)
+response = requests.get(spid_resource_url, timeout=DEFAULT_TIMEOUT_SECONDS)
 response.raise_for_status()
 spid_url = response.json()['distribution']['url']
 # Prefer the mounted DDH volume; fall back to the URL (see ddh_bytes in utils).
@@ -32,7 +32,7 @@ df_SPID
 # COMMAND ----------
 
 gsap_resource_url = 'https://ddh-openapi.worldbank.org/resources/DR0052555'
-response = requests.get(gsap_resource_url)
+response = requests.get(gsap_resource_url, timeout=DEFAULT_TIMEOUT_SECONDS)
 response.raise_for_status()
 gsap_url = response.json()['distribution']['url']
 # expect the first sheet to be metadata, followed by the latest lineup data sheet
