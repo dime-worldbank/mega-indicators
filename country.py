@@ -4,11 +4,14 @@
 
 # COMMAND ----------
 
+# MAGIC %run ./utils
+
+# COMMAND ----------
+
 # MAGIC %run ./config
 
 # COMMAND ----------
 
-import wbgapi as wb
 import pyspark.sql.functions as F
 from pyspark.sql.types import StructType, StructField, DoubleType
 from pyspark.sql import Window
