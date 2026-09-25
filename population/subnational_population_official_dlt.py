@@ -2,7 +2,7 @@
 import dlt
 
 # Adding a new country requires adding the country here
-country_codes = ['moz', 'pry', 'ken', 'pak', 'bfa', 'col', 'cod', 'tun', 'btn', 'chl', 'nga', 'bgd', 'alb', "zaf", 'gha', 'lbr', 'tgo', 'bdi']
+country_codes = ['moz', 'pry', 'ken', 'pak', 'bfa', 'col', 'cod', 'tun', 'btn', 'chl', 'nga', 'bgd', 'alb', "zaf", 'gha', 'lbr', 'tgo', 'bdi', 'mda']
 
 @dlt.table(name=f'subnational_population')
 def subnational_population():
