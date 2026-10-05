@@ -45,6 +45,7 @@ COUNTRY_NAME_MAPPING = {
     'Macedonia': 'North Macedonia',
     'Democratic Republic of Congo': 'Congo, Dem. Rep.',
     'The Bahamas': 'Bahamas, The',
+    'Yemen': 'Yemen, Rep.',
 }
 
 # pefa's bronze/silver tables keep their medallion names.
