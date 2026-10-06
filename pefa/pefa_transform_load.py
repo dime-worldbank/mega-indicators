@@ -59,10 +59,10 @@ def process_pefa_silver(year):
 
     # Only apply the clean_score to top level PI columns
     pi_columns = [col for col in pefa_data.columns if re.fullmatch(r'PI-\d{2}', col)]
-    pefa_data[pi_columns] = pefa_data[pi_columns].applymap(clean_score)
+    pefa_data[pi_columns] = pefa_data[pi_columns].apply(lambda col: col.map(clean_score))
 
     # Map scores & country
-    pefa_data[pi_columns] = pefa_data[pi_columns].applymap(SCORE_MAPPING.get)
+    pefa_data[pi_columns] = pefa_data[pi_columns].apply(lambda col: col.map(SCORE_MAPPING.get))
     pefa_data['country_name'] = pefa_data['Country'].map(COUNTRY_NAME_MAPPING).fillna(pefa_data['Country'])
 
     # Select relevant columns

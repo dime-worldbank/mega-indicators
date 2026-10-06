@@ -74,7 +74,8 @@ pip install pandas requests wbgapi openpyxl
 export DATA_ROOT=./data        # tables land under ./data/prd_mega/indicator/
 # export BUNDLE_TARGET=dev     # optional: mirror the indicator_dev schema instead
 
-python local_runner.py gdp.py consumer_price_index.py population/national_population.py
+python local_runner.py           # the notebooks in NOTEBOOKS, in order
+python local_runner.py gdp.py    # one notebook
 ```
 
 The notebooks are plain Python files; the `# MAGIC %run ./config` / `./utils` cells
@@ -83,6 +84,10 @@ imports `config` and `utils` itself and runs the notebook with their names in sc
 Any other `%run` is a comment too, so a notebook that needs another helper imports it
 under a guard, as `government_revenue_expenditure.py` does for `imf_sdmx`. The pieces
 that make this work:
+
+With no argument the runner refreshes the notebooks listed in its `NOTEBOOKS`, which
+are the ones behind the tables the Togo BOOST aggregate and the dashboard read, each
+in its own process. Any other notebook runs one at a time.
 
 - [config.py](config.py) detects the runtime. On Databricks it resolves the schema
   from the `bundle_target` widget as before; otherwise it reads `DATA_ROOT` (required)
@@ -98,13 +103,23 @@ that make this work:
 - Files a notebook would write to the Unity Catalog volume go under
   `$DATA_ROOT/Volumes/...`, mirroring the Databricks path.
 
-Tables a notebook reads but that are not produced locally (see below) are exported from
-Databricks as CSV into the matching path, e.g. `prd_mega.indicator.country` to
-`$DATA_ROOT/prd_mega/indicator/country.csv`. Nulls may be blank or `null`. Most
-notebooks read `country`, so export it first; `gdp.py` must run before
-`education/education_private_spending.py` and `health/health_expenditure.py`.
+`gdp.py` must run before `education/education_private_spending.py` and
+`health/health_expenditure.py`.
 
 Tests for the local runtime live in [tests/](tests/) and run offline: `pytest -v`.
+
+### Required inputs
+
+Two tables cannot be fetched from an API. Before running, put them in the table store
+as CSV files named after the table, at `$DATA_ROOT/prd_mega/indicator/<table>.csv`;
+with `DATA_ROOT=./data` that is `./data/prd_mega/indicator/country.csv`. Nulls may be
+blank or `null`.
+
+| Table | Where it comes from | Columns |
+|---|---|---|
+| `country` | One row per country. World Bank API country metadata, e.g. `https://api.worldbank.org/v2/country/TGO?format=json`, gives the codes, name, capital, coordinates, region, income and lending groups as codes (`SSF`, `LMC`, `IDX`), not labels. Currency code and name follow ISO 4217. `display_lon`, `display_lat` and `zoom` are the map's initial view, chosen by hand. With Databricks access, `SELECT * FROM prd_mega.indicator.country WHERE country_code = 'TGO'` exported as CSV is the same row. | `country_name`, `country_code`, `longitude`, `latitude`, `region`, `lending_type`, `income_level`, `capital_city`, `is_aggregate`, `country_code_iso2`, `display_lon`, `display_lat`, `zoom`, `currency_name`, `currency_code`, `country_code_iso3` |
+| `pefa_2016_bronze` | [pefa.org](https://www.pefa.org/assessments/batch-downloads), Assessments, Batch downloads: Framework "2016 Framework", Country Togo, Type National, Status Final, Download. Save as CSV with the header as downloaded. | `Country`, `Year`, `Framework`, `PI-01` to `PI-31`; other columns are ignored |
+| `pefa_2011_bronze` | Same, with Framework "2011 Framework". | `Country`, `Year`, `Framework`, `PI-01` to `PI-28` |
 
 ### What runs locally
 
@@ -128,17 +143,16 @@ Tests for the local runtime live in [tests/](tests/) and run offline: `pytest -v
 | `energy/energy_generation_consumption.py` | `energy_generation` (needs `EMBER_ENERGY_KEY`) |
 | `public_sector_employment/wwbi_extract.py` | `public_sector_employment_silver` (the gold table is DLT, below) |
 
-### Databricks only
+### Not supported locally yet
 
-These tables are not produced by the local runtime; export them from Databricks if a
-local consumer needs them.
+These tables are not supported by the local runtime for the time being.
 
-| Table | Why it needs special handling |
-|---|---|
-| `country` | [country.py](country.py) uses pyspark UDFs over `admin1_boundaries_gold` for map centroids and joins `prd_corpdata.dm_reference_gold.v_dim_country_currency_exchange_rate`. Planned as a hand-written per-country module. |
-| `admin1_boundaries_gold`, `admin0_disputed_boundaries_gold` | DLT pipeline ([geo/admin_boundaries_dlt.py](geo/admin_boundaries_dlt.py)) over GeoJSON in the volume. Subnational. |
-| `subnational_population` | DLT union of the 18 `population/<ISO3>/` silver notebooks, which also depend on the Global Data Lab R extract and `wb_subnational_population_extract.py`. Subnational. |
-| `subnational_poverty_rate` | DLT ([poverty/subnational_poverty/](poverty/subnational_poverty/)) over `poverty_rate_SPID_GSAP_silver`. Subnational. |
-| `global_data_lab_hd_index` | R extract ([human_development/global_data_lab_hdi_extract.r](human_development/global_data_lab_hdi_extract.r), needs the `gdldata` R package and `GDL_API_TOKEN`) plus a DLT transform. Subnational. |
-| `public_sector_employment` | DLT gold ([public_sector_employment/wwbi_transform_load_dlt.py](public_sector_employment/wwbi_transform_load_dlt.py)) over the silver table above. |
-| `indicator_data_availability` | DLT SQL materialized view ([indicator_data_availability_dlt.sql](indicator_data_availability_dlt.sql)) across 12 indicator tables. |
+| Table | What builds it on Databricks | Where the data is published |
+|---|---|---|
+| `country` (all countries) | [country.py](country.py): pyspark UDFs over `admin1_boundaries_gold` for map centroids, plus the corporate currency table. | The World Bank API country endpoint (`https://api.worldbank.org/v2/country?format=json&per_page=400`), ISO 4217 for currencies, and a hand-chosen map view per country, as for the single row under Required inputs. |
+| `admin1_boundaries_gold`, `admin0_disputed_boundaries_gold` | DLT pipeline [geo/admin_boundaries_dlt.py](geo/admin_boundaries_dlt.py), with region-name harmonisation and polygon unions. Subnational. | World Bank Official Boundaries (GeoJSON), Data Catalog dataset `0038272`, Admin 1 and Admin 0 layers; [geo/admin_boundaries_extract.py](geo/admin_boundaries_extract.py) has the Admin 1 file URL. |
+| `subnational_population` | DLT union of the 18 `population/<ISO3>/` notebooks. Subnational. | For Togo, the US Census Bureau international population estimates: `https://www2.census.gov/programs-surveys/international-programs/tables/time-series/pepfar/togo.xlsx`, parsed by [population/TGO/](population/TGO/). Other countries use the World Bank Subnational Population database (`https://databank.worldbank.org/data/download/Subnational-Population_EXCEL.zip`) or Global Data Lab. |
+| `subnational_poverty_rate` | DLT in [poverty/subnational_poverty/](poverty/subnational_poverty/), with region-name fixes. Subnational. | World Bank Data Catalog: SPID (resource `DR0092191`) and GSAP (resource `DR0052555`) Excel files, whose current URLs come from `https://ddh-openapi.worldbank.org/resources/<resource id>`. |
+| `global_data_lab_hd_index` | R extract [human_development/global_data_lab_hdi_extract.r](human_development/global_data_lab_hdi_extract.r) plus a DLT transform. Subnational. | Global Data Lab (`https://globaldatalab.org`), `shdi` and `education` datasets, through the `gdldata` R package with a free API token (`https://docs.globaldatalab.org/gdldata/`). |
+| `public_sector_employment` | DLT gold ([public_sector_employment/wwbi_transform_load_dlt.py](public_sector_employment/wwbi_transform_load_dlt.py)) adding regional means over the silver table. | Worldwide Bureaucracy Indicators, World Bank API source 64; `wwbi_extract.py` already fetches it and runs locally, so only the regional-means step is missing. |
+| `indicator_data_availability` | DLT SQL view [indicator_data_availability_dlt.sql](indicator_data_availability_dlt.sql) across 12 indicator tables. | No external source: it is the earliest and latest year per country of each indicator table, so it is a pandas port of the SQL. |
