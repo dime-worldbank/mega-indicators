@@ -32,6 +32,10 @@ NOTEBOOKS = [
     'pefa/pefa_transform_load.py',  # reads the hand-uploaded pefa_2011_bronze / pefa_2016_bronze
     'public_finance/government_revenue_expenditure.py',
     'public_finance/togo/togo_finance_report_transform_load_dlt.py',
+    'geo/admin_boundaries_extract.py',  # downloads the 254 MB World Bank Admin 1 GeoJSON
+    'geo/admin_boundaries_gold.py',
+    'population/TGO/tgo_subnational_population.py',
+    'population/subnational_population_gold.py',
 ]
 
 if __name__ == '__main__':

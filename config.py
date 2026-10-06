@@ -15,6 +15,7 @@ _SUFFIX_BY_TARGET = {"prod": "", "staging": "_staging", "dev": "_dev"}
 if IS_DATABRICKS:
     _target = dbutils.widgets.get("bundle_target")
     DATA_ROOT = None
+    COUNTRY_NAME = None
 else:
     _target = os.environ.get("BUNDLE_TARGET", "prod")
     DATA_ROOT = os.environ.get("DATA_ROOT")
@@ -25,6 +26,7 @@ else:
             "./data/prd_mega/indicator/gdp.csv."
         )
     DATA_ROOT = os.path.abspath(DATA_ROOT)
+    COUNTRY_NAME = os.environ.get("COUNTRY_NAME")  # optional: write_table keeps only this country's rows
 
 if _target not in _SUFFIX_BY_TARGET:
     raise RuntimeError(f"Unknown bundle target {_target!r}; expected one of {sorted(_SUFFIX_BY_TARGET)}.")
@@ -32,7 +34,7 @@ _suffix = _SUFFIX_BY_TARGET[_target]
 
 CATALOG = "prd_mega"
 INDICATOR_SCHEMA = f"{CATALOG}.indicator{_suffix}"
-# Files the notebooks keep outside tables (PDFs, GeoJSON). Mirrored under DATA_ROOT locally.
+# Files the notebooks keep outside tables (PDFs, GeoJSON); DATA_ROOT/raw_data locally.
 VOLUME_ROOT_PATH = f"/Volumes/{CATALOG}/sboost4/vboost4{_suffix}/Workspace"
 if not IS_DATABRICKS:
-    VOLUME_ROOT_PATH = DATA_ROOT + VOLUME_ROOT_PATH
+    VOLUME_ROOT_PATH = f"{DATA_ROOT}/raw_data"

@@ -72,6 +72,7 @@ counterpart without a Databricks workspace (e.g. Togo) refreshes the indicator t
 pip install pandas requests wbgapi openpyxl
 
 export DATA_ROOT=./data        # tables land under ./data/prd_mega/indicator/
+export COUNTRY_NAME=Togo       # optional: keep only this country's rows in every table written
 # export BUNDLE_TARGET=dev     # optional: mirror the indicator_dev schema instead
 
 python local_runner.py           # the notebooks in NOTEBOOKS, in order
@@ -90,8 +91,9 @@ are the ones behind the tables the Togo BOOST aggregate and the dashboard read, 
 in its own process. Any other notebook runs one at a time.
 
 - [config.py](config.py) detects the runtime. On Databricks it resolves the schema
-  from the `bundle_target` widget as before; otherwise it reads `DATA_ROOT` (required)
-  and `BUNDLE_TARGET` (default `prod`).
+  from the `bundle_target` widget as before; otherwise it reads `DATA_ROOT` (required),
+  `BUNDLE_TARGET` (default `prod`) and `COUNTRY_NAME` (optional: `write_table` then keeps
+  only that country's rows of any table with a `country_name` column).
 - [utils.py](utils.py) provides `read_table`, `write_table`, `table_exists` and
   `versioned_dataframe`, which use Delta tables on Databricks and CSVs locally. A table
   name is either bare (`gdp`, qualified with `INDICATOR_SCHEMA`) or `catalog.schema.table`.
@@ -100,8 +102,8 @@ in its own process. Any other notebook runs one at a time.
 - Job widgets such as `census_population_update_version` are read from the upper-cased
   environment variable of the same name (`CENSUS_POPULATION_UPDATE_VERSION=true`), and
   so are secrets (`get_secret("DIMEBOOSTKEYVAULT", "ember_energy_key")` reads `EMBER_ENERGY_KEY`).
-- Files a notebook would write to the Unity Catalog volume go under
-  `$DATA_ROOT/Volumes/...`, mirroring the Databricks path.
+- Files a notebook would write to the Unity Catalog volume (downloaded GeoJSON, PDFs)
+  go under `$DATA_ROOT/raw_data/`.
 
 `gdp.py` must run before `education/education_private_spending.py` and
 `health/health_expenditure.py`.
@@ -142,6 +144,8 @@ blank or `null`.
 | `pefa/pefa_transform_load.py` | `pefa_by_pillar` (reads the hand-uploaded `pefa_2011_bronze`, `pefa_2016_bronze`) |
 | `energy/energy_generation_consumption.py` | `energy_generation` (needs `EMBER_ENERGY_KEY`) |
 | `public_sector_employment/wwbi_extract.py` | `public_sector_employment_silver` (the gold table is DLT, below) |
+| `population/TGO/tgo_subnational_population.py` then `population/subnational_population_gold.py` | `tgo_subnational_population_silver`, then `subnational_population` (the union of whichever country silver tables exist locally) |
+| `geo/admin_boundaries_extract.py` then `geo/admin_boundaries_gold.py` | `admin1_boundaries_gold`, `admin0_disputed_boundaries_gold` (empty for Togo); the extract downloads a 254 MB GeoJSON |
 
 ### Not supported locally yet
 
@@ -150,8 +154,6 @@ These tables are not supported by the local runtime for the time being.
 | Table | What builds it on Databricks | Where the data is published |
 |---|---|---|
 | `country` (all countries) | [country.py](country.py): pyspark UDFs over `admin1_boundaries_gold` for map centroids, plus the corporate currency table. | The World Bank API country endpoint (`https://api.worldbank.org/v2/country?format=json&per_page=400`), ISO 4217 for currencies, and a hand-chosen map view per country, as for the single row under Required inputs. |
-| `admin1_boundaries_gold`, `admin0_disputed_boundaries_gold` | DLT pipeline [geo/admin_boundaries_dlt.py](geo/admin_boundaries_dlt.py), with region-name harmonisation and polygon unions. Subnational. | World Bank Official Boundaries (GeoJSON), Data Catalog dataset `0038272`, Admin 1 and Admin 0 layers; [geo/admin_boundaries_extract.py](geo/admin_boundaries_extract.py) has the Admin 1 file URL. |
-| `subnational_population` | DLT union of the 18 `population/<ISO3>/` notebooks. Subnational. | For Togo, the US Census Bureau international population estimates: `https://www2.census.gov/programs-surveys/international-programs/tables/time-series/pepfar/togo.xlsx`, parsed by [population/TGO/](population/TGO/). Other countries use the World Bank Subnational Population database (`https://databank.worldbank.org/data/download/Subnational-Population_EXCEL.zip`) or Global Data Lab. |
 | `subnational_poverty_rate` | DLT in [poverty/subnational_poverty/](poverty/subnational_poverty/), with region-name fixes. Subnational. | World Bank Data Catalog: SPID (resource `DR0092191`) and GSAP (resource `DR0052555`) Excel files, whose current URLs come from `https://ddh-openapi.worldbank.org/resources/<resource id>`. |
 | `global_data_lab_hd_index` | R extract [human_development/global_data_lab_hdi_extract.r](human_development/global_data_lab_hdi_extract.r) plus a DLT transform. Subnational. | Global Data Lab (`https://globaldatalab.org`), `shdi` and `education` datasets, through the `gdldata` R package with a free API token (`https://docs.globaldatalab.org/gdldata/`). |
 | `public_sector_employment` | DLT gold ([public_sector_employment/wwbi_transform_load_dlt.py](public_sector_employment/wwbi_transform_load_dlt.py)) adding regional means over the silver table. | Worldwide Bureaucracy Indicators, World Bank API source 64; `wwbi_extract.py` already fetches it and runs locally, so only the regional-means step is missing. |
