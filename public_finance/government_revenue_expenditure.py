@@ -1,25 +1,15 @@
-# Databricks notebook source
-# MAGIC %run ../config
-
-# COMMAND ----------
+from utils import *
 
 import pandas as pd
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-# COMMAND ----------
+from public_finance.imf_sdmx import _parse_payload, _weo_annotate_forecast
 
-# MAGIC %run ./imf_sdmx
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Sources (IMF SDMX v3, national currency / XDC)
-# MAGIC - **WEO** (General Government): `GGR` revenue, `GGX` expenditure
-# MAGIC - **GFS_SOO** (Budgetary Central Government): `G1_T` revenue, `G2M_T` expense
-
-# COMMAND ----------
+# ## Sources (IMF SDMX v3, national currency / XDC)
+# - **WEO** (General Government): `GGR` revenue, `GGX` expenditure
+# - **GFS_SOO** (Budgetary Central Government): `G1_T` revenue, `G2M_T` expense
 
 SDMX_DATA_API = 'https://api.imf.org/external/sdmx/3.0/data/dataflow'
 CHUNK_SIZE = 50
@@ -29,8 +19,6 @@ session.mount('https://', HTTPAdapter(max_retries=Retry(
     total=5, backoff_factor=1, status_forcelist=(429, 500, 502, 503, 504),
     allowed_methods=frozenset(['GET']),
 )))
-
-# COMMAND ----------
 
 def fetch_sdmx(country_codes, flow, key_template, indicators, data_source, post_process=None):
     """Generic SDMX flow fetcher.
@@ -82,8 +70,6 @@ def fetch_sdmx(country_codes, flow, key_template, indicators, data_source, post_
     df['data_source'] = data_source
     return df
 
-# COMMAND ----------
-
 SOURCES = [
     {
         'flow': 'IMF.RES/WEO/9.0.0',
@@ -100,29 +86,19 @@ SOURCES = [
     },
 ]
 
-# COMMAND ----------
-
-country_df = (spark.table(f'{INDICATOR_SCHEMA}.country')
-    .filter("is_aggregate = false OR is_aggregate IS NULL")
-    .select('country_name', 'country_code', 'region')
-    .toPandas())
+country_df = read_table('country', columns=['country_name', 'country_code', 'region', 'is_aggregate'])
+# Drop regional/income aggregates (WLD, SSF, ...); a null flag counts as a country.
+country_df = country_df[country_df['is_aggregate'].ne(True)].drop(columns='is_aggregate')
 country_codes = country_df['country_code'].dropna().unique().tolist()
 
 combined_df = pd.concat([fetch_sdmx(country_codes, **source) for source in SOURCES], ignore_index=True)
 combined_df['is_forecast'] = combined_df['is_forecast'].fillna(False)
-
-# COMMAND ----------
 
 merged_df = (pd.merge(combined_df, country_df, on='country_code', how='inner')
     [['country_name', 'country_code', 'region', 'year', 'is_forecast',
       'revenue_current_lcu', 'expenditure_current_lcu', 'data_source']]
     .sort_values(['country_name', 'year', 'data_source']))
 
-# COMMAND ----------
-
 merged_df.sample(5)
 
-# COMMAND ----------
-
-sdf = spark.createDataFrame(merged_df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.government_revenue_expenditure")
+write_table(merged_df, 'government_revenue_expenditure')

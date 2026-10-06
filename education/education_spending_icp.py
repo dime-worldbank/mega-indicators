@@ -1,19 +1,6 @@
-# Databricks notebook source
-# MAGIC %pip install wbgapi
-
-# COMMAND ----------
-
-# MAGIC %run ../utils
-
-# COMMAND ----------
-
-# MAGIC %run ../config
-
-# COMMAND ----------
+from utils import *
 
 import pandas as pd
-
-# COMMAND ----------
 
 # wb.source.info()
 # wb.db = 71 # ICP 2005: only 2005, 9120000:EDUCATION (Analytical Category)
@@ -21,8 +8,6 @@ import pandas as pd
 # wb.db = 78 # ICP 2017: 2011 & 2017
 # wb.db = 90 # ICP 2021: 2017 & 2021
 # wb.series.info()
-
-# COMMAND ----------
 
 db_values = [71, 62, 90]
 edu_exp_key = '9120000'
@@ -39,8 +24,6 @@ for df in dataframes[1:]:
 
 outcome_df
 
-# COMMAND ----------
-
 def create_long_df(outcome_df, classification, col_name, multi_factor):
     outcome_sub_df = outcome_df[outcome_df.classification == classification].drop(columns=['classification'])
     long_df = outcome_sub_df.melt(id_vars='economy', var_name='year', value_name=col_name)
@@ -49,8 +32,6 @@ def create_long_df(outcome_df, classification, col_name, multi_factor):
     long_df = long_df.dropna(subset=[col_name]).sort_values(by=['economy', 'year'])
     long_df[col_name] = long_df[col_name]*multi_factor
     return long_df
-
-# COMMAND ----------
 
 long_df_conversion_args = [
     ('CN', 'edu_spending_current_lcu_icp', 1e9), # original data in billion, so convert to unit term 
@@ -64,25 +45,16 @@ long_df = pd.merge(lcu_df, gdp_share_df, on=['economy', 'year'])
 long_df['data_source'] = 'International Comparison Program (ICP)'
 long_df
 
-# COMMAND ----------
-
 # quick check of data availability
 countries = ['BTN', 'COL', 'PRY', 'KEN', 'MOZ', 'BFA', 'PAK', 'COD', 'TUN', 'NGA']
 long_df[long_df.economy.isin(countries)]
 
-# COMMAND ----------
-
-country_df = spark.table(f'{INDICATOR_SCHEMA}.country').select('country_name', 'country_code', 'region').toPandas()
+country_df = read_table('country', columns=['country_name', 'country_code', 'region'])
 country_df
-
-# COMMAND ----------
 
 long_cols_without_economy = list(c for c in long_df.columns.to_list() if c != 'economy')
 col_names = ['country_name', 'country_code', 'region'] + long_cols_without_economy
 result_df = pd.merge(long_df, country_df, left_on='economy', right_on='country_code', how='inner')[col_names]
 result_df
 
-# COMMAND ----------
-
-sdf = spark.createDataFrame(result_df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.edu_spending")
+write_table(result_df, 'edu_spending')

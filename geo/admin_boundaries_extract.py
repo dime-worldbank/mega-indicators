@@ -1,11 +1,4 @@
-# Databricks notebook source
-# MAGIC %run ../config
-
-# COMMAND ----------
-
-# MAGIC %run ../utils
-
-# COMMAND ----------
+from utils import *
 
 URL = 'https://datacatalogfiles.worldbank.org/ddh-published/0038272/DR0095369/World%20Bank%20Official%20Boundaries%20(GeoJSON)/World%20Bank%20Official%20Boundaries%20-%20Admin%201.geojson'
 DATA_DIR = f'{VOLUME_ROOT_PATH}/auxiliary_data/admin1geoboundaries'

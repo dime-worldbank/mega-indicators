@@ -1,28 +1,20 @@
-# Databricks notebook source
-# MAGIC %run ../config
-
-# COMMAND ----------
+from utils import *
 
 import pandas as pd
 import requests
 
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ###### GHED_OOPSCHE_SHA2011: Out-of-pocket expenditure as percentage of current health expenditure (CHE) (%)
-# MAGIC The share of revenues from out-of-pocket payments as percentage of current health expenditure indicates how much is funded directly by households out-of-pocket expenditure on health. High out-of-pocket payments are associated with catastrophic and impoverishing household spending. Out of pocket payments are not pooled and there is no sharing of risk among wider group of people other than the household. This indicator describes the role of household out-of-pocket payments in funding healthcare relative to government, external or other private domestic sources.
-# MAGIC
-# MAGIC ###### GHED_CHEGDP_SHA2011: Current health expenditure (CHE) as percentage of gross domestic product (GDP) (%)
-# MAGIC Current health expenditure as a share of GDP provides an indication on the level of resources channelled to health relative to other uses. It shows the importance of the health sector in the whole economy and indicates the societal priority which health is given measured in monetary terms.
-# MAGIC
-# MAGIC ###### GHED_CHE_pc_US_SHA2011:Current health expenditure (CHE) per capita in US$
-# MAGIC This indicator calculates the current health expenditure spent per person in USD currency. It contributes to understand the current health expenditure relative to the population size facilitating international comparison.
-# MAGIC
-# MAGIC ###### GHED_OOP_pc_US_SHA2011: Out-of-Pocket expenditure (OOP) per capita in US$
-# MAGIC This indicator calculates the current health expenditure from out-of-pocket payments per person in USD currency. It indicates how much every person pays out-of-pocket on average in USD at the point of use. High out-of-pocket payments are associated with catastrophic and impoverishing household spending. Out of pocket payments are not pooled and there is no sharing of risk among wider group of people other than the household. This indicator describes the OOP expenditure in relation to the population size facilitating international comparison.
-# MAGIC
-
-# COMMAND ----------
+# ###### GHED_OOPSCHE_SHA2011: Out-of-pocket expenditure as percentage of current health expenditure (CHE) (%)
+# The share of revenues from out-of-pocket payments as percentage of current health expenditure indicates how much is funded directly by households out-of-pocket expenditure on health. High out-of-pocket payments are associated with catastrophic and impoverishing household spending. Out of pocket payments are not pooled and there is no sharing of risk among wider group of people other than the household. This indicator describes the role of household out-of-pocket payments in funding healthcare relative to government, external or other private domestic sources.
+#
+# ###### GHED_CHEGDP_SHA2011: Current health expenditure (CHE) as percentage of gross domestic product (GDP) (%)
+# Current health expenditure as a share of GDP provides an indication on the level of resources channelled to health relative to other uses. It shows the importance of the health sector in the whole economy and indicates the societal priority which health is given measured in monetary terms.
+#
+# ###### GHED_CHE_pc_US_SHA2011:Current health expenditure (CHE) per capita in US$
+# This indicator calculates the current health expenditure spent per person in USD currency. It contributes to understand the current health expenditure relative to the population size facilitating international comparison.
+#
+# ###### GHED_OOP_pc_US_SHA2011: Out-of-Pocket expenditure (OOP) per capita in US$
+# This indicator calculates the current health expenditure from out-of-pocket payments per person in USD currency. It indicates how much every person pays out-of-pocket on average in USD at the point of use. High out-of-pocket payments are associated with catastrophic and impoverishing household spending. Out of pocket payments are not pooled and there is no sharing of risk among wider group of people other than the household. This indicator describes the OOP expenditure in relation to the population size facilitating international comparison.
+#
 
 indicators = {
     'GHED_OOPSCHE_SHA2011' : 'oop_percent_che',
@@ -52,11 +44,8 @@ df['data_source'] = 'https://ghoapi.azureedge.net/api/'
 num_countries = df.country_code.nunique()
 assert num_countries >= 192, f'Expected data from at least 192 countries, got {num_countries}'
 
-
-# COMMAND ----------
-
 # read data from the gdp table in indicator
-df_gdp = spark.sql(f"SELECT * FROM {INDICATOR_SCHEMA}.gdp").toPandas()[['country_name', 'country_code', 'region',  'year', 'gdp_current_lcu']]
+df_gdp = read_table('gdp', columns=['country_name', 'country_code', 'region', 'year', 'gdp_current_lcu'])
 # merge to the previous dataframe
 merged_df = pd.merge(df, df_gdp, on=['country_code', 'year'], how='left')
 # to get CHE get the 'che_percent_gdp' percentage of the value in gdp_current_lcu
@@ -66,17 +55,6 @@ merged_df.sort_values(['country_name', 'year'], inplace=True)
 cols = ['country_code', 'country_name', 'region_WHO', 'region', 'year',	'che', 'oop_percent_che', 'oop_per_capita_usd',  'che_percent_gdp', 'che_per_capita_usd','gdp_current_lcu', 'data_source']
 merged_df = merged_df[cols]
 
-# COMMAND ----------
-
 merged_df.sample(3)
 
-# COMMAND ----------
-
-# Write to indicator
-database_name = INDICATOR_SCHEMA
-
-if not spark.catalog.databaseExists(database_name):
-    print(f"Database '{database_name}' does not exist. Creating the database.")
-    spark.sql(f"CREATE DATABASE {database_name}")
-sdf = spark.createDataFrame(merged_df)
-sdf.write.format("delta").mode("overwrite").option("mergeSchema", "true").saveAsTable(f"{database_name}.health_expenditure")
+write_table(merged_df, 'health_expenditure')

@@ -1,7 +1,4 @@
-# Databricks notebook source
-# MAGIC %run ../utils
-
-# COMMAND ----------
+from utils import *
 
 import pandas as pd
 

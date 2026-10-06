@@ -1,12 +1,15 @@
-# Databricks notebook source
+"""Where the data lives. Everything is under DATA_ROOT (default: ./data next to this file)."""
+import os
 
-_SUFFIX_BY_TARGET = {"prod": "", "staging": "_staging", "dev": "_dev"}
+_HERE = os.path.dirname(os.path.abspath(__file__))
+DATA_ROOT = os.path.abspath(os.environ.get("DATA_ROOT") or os.path.join(_HERE, "data"))
 
-_target = dbutils.widgets.get("bundle_target")
-if _target not in _SUFFIX_BY_TARGET:
-    raise RuntimeError(f"Unknown bundle target {_target!r}; expected one of {sorted(_SUFFIX_BY_TARGET)}.")
-_suffix = _SUFFIX_BY_TARGET[_target]
+# Tables are CSVs at DATA_ROOT/prd_mega/indicator/<table>.csv, mirroring the Databricks
+# schema the dashboard reads, so table names mean the same thing in both places.
+INDICATOR_SCHEMA = "prd_mega.indicator"
 
-CATALOG = "prd_mega"
-INDICATOR_SCHEMA = f"{CATALOG}.indicator{_suffix}"
-VOLUME_ROOT_PATH = f"/Volumes/{CATALOG}/sboost4/vboost4{_suffix}/Workspace"
+# Files kept outside tables: the downloaded boundaries GeoJSON, the source PDFs.
+VOLUME_ROOT_PATH = f"{DATA_ROOT}/raw_data"
+
+# write_table keeps only this country's rows. Set COUNTRY_NAME to an empty string to keep all.
+COUNTRY_NAME = os.environ.get("COUNTRY_NAME", "Togo")

@@ -1,7 +1,4 @@
-# Databricks notebook source
-# MAGIC %run ../config
-
-# COMMAND ----------
+from utils import *
 
 # TODO: Add PEFA score extraction step. Currently the data is imported manually for prototyping
 # Data source: https://www.pefa.org/assessments/batch-downloads 
@@ -51,14 +48,14 @@ COUNTRY_NAME_MAPPING = {
 # pefa's bronze/silver tables keep their medallion names.
 
 def process_pefa_silver(year):
-    pefa_data = spark.table(f'{INDICATOR_SCHEMA}.pefa_{year}_bronze').toPandas()
+    pefa_data = read_table(f'pefa_{year}_bronze')
 
     # Only apply the clean_score to top level PI columns
     pi_columns = [col for col in pefa_data.columns if re.fullmatch(r'PI-\d{2}', col)]
-    pefa_data[pi_columns] = pefa_data[pi_columns].applymap(clean_score)
+    pefa_data[pi_columns] = pefa_data[pi_columns].apply(lambda col: col.map(clean_score))
 
     # Map scores & country
-    pefa_data[pi_columns] = pefa_data[pi_columns].applymap(SCORE_MAPPING.get)
+    pefa_data[pi_columns] = pefa_data[pi_columns].apply(lambda col: col.map(SCORE_MAPPING.get))
     pefa_data['country_name'] = pefa_data['Country'].map(COUNTRY_NAME_MAPPING).fillna(pefa_data['Country'])
 
     # Select relevant columns
@@ -84,35 +81,18 @@ def clean_score(score):
     # Coerce A*, B*, etc.
     return re.sub(r'[^A-Za-z+]', '', str(score))
 
-# COMMAND ----------
-
 def write_pefa_silver_table(df, year):
-    sdf = spark.createDataFrame(df)
-    sdf.write.mode("overwrite")\
-        .option("overwriteSchema", "true")\
-        .saveAsTable(f"{INDICATOR_SCHEMA}.pefa_{year}_silver")
-    return sdf
-
-# COMMAND ----------
+    write_table(df, f'pefa_{year}_silver')
 
 pefa_silver_2011 = process_pefa_silver(2011)
 write_pefa_silver_table(pefa_silver_2011, 2011)
 
-# COMMAND ----------
-
 pefa_silver_2016 = process_pefa_silver(2016)
 write_pefa_silver_table(pefa_silver_2016, 2016)
-
-# COMMAND ----------
 
 columns_to_keep = ['country_name', 'Year', 'Framework'] + list(PILLAR_MAPPING_2016.keys())
 pefa_gold = pd.concat([pefa_silver_2011[columns_to_keep], pefa_silver_2016[columns_to_keep]], axis=0, ignore_index=True)
 pefa_gold = pefa_gold.rename(columns={'Year': 'year', 'Framework': 'framework'})
 pefa_gold
 
-# COMMAND ----------
-
-sdf = spark.createDataFrame(pefa_gold)
-sdf.write.mode("overwrite")\
-    .option("overwriteSchema", "true")\
-    .saveAsTable(f"{INDICATOR_SCHEMA}.pefa_by_pillar")
+write_table(pefa_gold, 'pefa_by_pillar')

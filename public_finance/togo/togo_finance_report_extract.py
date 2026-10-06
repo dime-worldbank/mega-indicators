@@ -1,7 +1,4 @@
-# Databricks notebook source
-# MAGIC %run ../../config
-
-# COMMAND ----------
+from utils import *
 
 import os
 import requests

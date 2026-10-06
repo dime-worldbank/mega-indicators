@@ -1,14 +1,59 @@
-# Databricks notebook source
+"""Shared helpers for the indicator scripts: table IO on CSV files under DATA_ROOT, and
+fetchers for the World Bank, UNESCO UIS and single-file sources. Copied from
+mega-indicators' utils.py with the Databricks branches removed; keep the fetchers
+identical so fixes can be ported in either direction."""
+import io
 import os
 import time
-import wbgapi as wb
+from datetime import datetime, timezone
+
 import pandas as pd
-from databricks.sdk.runtime import spark, dbutils
+import requests
+import wbgapi as wb
+
+from config import *
 
 DEFAULT_TIMEOUT_SECONDS = 60
 
 # wbgapi has no timeout by default, set it so a stalled connection doesn't hang forever
 wb.get_options = {'timeout': DEFAULT_TIMEOUT_SECONDS}
+
+
+# --- Table IO: DATA_ROOT/<catalog>/<schema>/<table>.csv ---------------------------------
+# A table name is either bare (`gdp`, qualified with INDICATOR_SCHEMA) or `catalog.schema.table`.
+
+def _qualified_name(table_name):
+    return table_name if '.' in table_name else f"{INDICATOR_SCHEMA}.{table_name}"
+
+def _table_path(table_name):
+    return os.path.join(DATA_ROOT, *_qualified_name(table_name).split('.')) + '.csv'
+
+def table_exists(table_name):
+    return os.path.exists(_table_path(table_name))
+
+def read_table(table_name, columns=None):
+    """The table as a pandas DataFrame, optionally restricted to `columns`."""
+    # Only blanks (what write_table emits for nulls) and "null" (what a Databricks CSV
+    # export emits) are nulls; pandas' default list would also swallow real values such
+    # as Namibia's ISO2 code "NA".
+    df = pd.read_csv(_table_path(table_name), keep_default_na=False, na_values=['', 'null'])
+    return df if columns is None else df[list(columns)]
+
+def write_table(df, table_name):
+    """Overwrite the table with `df`; COUNTRY_NAME (config.py) restricts rows to that country."""
+    if COUNTRY_NAME and 'country_name' in df.columns:
+        df = df[df['country_name'] == COUNTRY_NAME]
+    path = _table_path(table_name)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    df.to_csv(path, index=False)
+    print(f"wrote {len(df)} rows to {path}")
+
+def update_version_flag(name):
+    """True when the upper-cased environment variable of that name is "true" (a job widget on Databricks)."""
+    return os.environ.get(name.upper(), 'false').strip().lower() == 'true'
+
+
+# --- World Bank API ---------------------------------------------------------------------
 
 def _wb_dataframe_with_retry(series, attempts=5, backoff=2.0):
     # World Bank's API intermittently 502s mid-pagination; retry the whole fetch.
@@ -40,15 +85,13 @@ def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_countr
 
     merged_df['data_source'] = data_source
 
-    country_df = spark.table(f'{INDICATOR_SCHEMA}.country').select('country_name', 'country_code', 'region', *extra_col_names_from_country_table).toPandas()
-    country_df
+    country_df = read_table('country', columns=['country_name', 'country_code', 'region', *extra_col_names_from_country_table])
     df = pd.merge(merged_df, country_df, left_on='economy', right_on='country_code', how='left')[['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names, 'data_source']]
 
     return df
 
-# COMMAND ----------
 
-import requests
+# --- UNESCO UIS API ---------------------------------------------------------------------
 
 UIS_API_URL = 'https://api.uis.unesco.org/api/public/data/indicators'
 
@@ -95,65 +138,33 @@ def uis_fetch(series_to_col_name, data_source, extra_col_names_from_country_tabl
     merged_df = merged_df.astype({'year': 'int'})
     merged_df['data_source'] = data_source
 
-    country_df = spark.table(f'{INDICATOR_SCHEMA}.country').select('country_name', 'country_code', 'region', *extra_col_names_from_country_table).toPandas()
+    country_df = read_table('country', columns=['country_name', 'country_code', 'region', *extra_col_names_from_country_table])
     df = pd.merge(merged_df, country_df, left_on='geoUnit', right_on='country_code', how='inner')[['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names, 'data_source']]
 
     return df
 
-# COMMAND ----------
 
-from urllib.parse import urlparse, unquote
-
-def ddh_volume_path(url):
-    """Volume path mirroring a DDH download URL
-    (.../ddh-published/{dataset}/{resource}/{filename})."""
-    parts = [unquote(p) for p in urlparse(url).path.split('/') if p]
-    i = parts.index('ddh-published')
-    return "/Volumes/prd_development_data/files/ddh/" + "/".join(parts[i + 1:])
+# --- Single-file sources -----------------------------------------------------------------
 
 def ddh_bytes(url):
-    """Bytes of a DDH file: the mounted volume copy if present, else download the URL."""
-    vol = ddh_volume_path(url)
-    if os.path.exists(vol):
-        with open(vol, 'rb') as f:
-            return f.read()
+    """Bytes of a World Bank Data Catalog (DDH) file."""
     resp = requests.get(url, timeout=DEFAULT_TIMEOUT_SECONDS)
     resp.raise_for_status()
     return resp.content
 
-# COMMAND ----------
-
-import io
-from datetime import datetime, timezone
-
 def fetch_raw(source_url, table_name, parse=pd.read_csv, **parse_kwargs):
-    """Overwrite table_name with a freshly fetched, parsed snapshot (a bronze table).
-
-    Delta's transaction log is the audit trail (DESCRIBE HISTORY / VERSION AS OF).
-    """
+    """Overwrite table_name with a freshly fetched, parsed snapshot (a bronze table)."""
     resp = requests.get(source_url, timeout=DEFAULT_TIMEOUT_SECONDS)
     resp.raise_for_status()
     df = parse(io.BytesIO(resp.content), **parse_kwargs)
     df['fetched_at'] = datetime.now(timezone.utc)
-    (spark.createDataFrame(df)
-        .write.mode("overwrite")
-        .option("overwriteSchema", "true")
-        .option("delta.columnMapping.mode", "name")
-        # Defaults (7d/30d) let VACUUM drop a snapshot before the next monthly refresh.
-        .option("delta.deletedFileRetentionDuration", "interval 365 days")
-        .option("delta.logRetentionDuration", "interval 365 days")
-        .saveAsTable(f"{INDICATOR_SCHEMA}.{table_name}"))
+    write_table(df, table_name)
 
 def versioned_dataframe(source_url, table_name, update_version, parse=pd.read_csv, **parse_kwargs):
     """Read table_name's cached snapshot, refreshing first if update_version or unset.
 
     A temporarily unreachable source yields stale data instead of a failure.
     """
-    full_table_name = f"{INDICATOR_SCHEMA}.{table_name}"
-    if update_version or not spark.catalog.tableExists(full_table_name):
+    if update_version or not table_exists(table_name):
         fetch_raw(source_url, table_name, parse=parse, **parse_kwargs)
-    return spark.table(full_table_name).drop('fetched_at').toPandas()
-
-def update_version_flag(widget_name):
-    return dbutils.widgets.getArgument(widget_name, 'false').strip().lower() == 'true'
-
+    return read_table(table_name).drop(columns='fetched_at')

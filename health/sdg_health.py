@@ -1,41 +1,21 @@
-# Databricks notebook source
-# MAGIC %pip install wbgapi
-
-# COMMAND ----------
-
-# MAGIC %run ../utils
-
-# COMMAND ----------
-
-# MAGIC %run ../config
-
-# COMMAND ----------
+from utils import *
 
 import pandas as pd
 
-# COMMAND ----------
-
 wb.source.info()
 
-# COMMAND ----------
+# #### Maternal Mortality Ratio
+#
+# Maternal mortality ratio is the number of women who die from pregnancy-related causes while pregnant or within 42 days of pregnancy termination per 100,000 live births. The data are estimated with a regression model using information on the proportion of maternal deaths among non-AIDS deaths in women ages 15-49, fertility, birth attendants, and GDP measured using purchasing power parities (PPPs).
+#
+# Source: WHO, UNICEF, UNFPA, World Bank Group, and UNDESA/Population Division. Trends in Maternal Mortality 2000 to 2020. Geneva, World Health Organization, 2023
+#
+# #### Universal Health Coverage (composite index)
+#
+# Coverage index for essential health services (based on tracer interventions that include reproductive, maternal, newborn and child health, infectious diseases, noncommunicable diseases and service capacity and access). It is presented on a scale of 0 to 100.
 
-# MAGIC %md
-# MAGIC #### Maternal Mortality Ratio
-# MAGIC
-# MAGIC Maternal mortality ratio is the number of women who die from pregnancy-related causes while pregnant or within 42 days of pregnancy termination per 100,000 live births. The data are estimated with a regression model using information on the proportion of maternal deaths among non-AIDS deaths in women ages 15-49, fertility, birth attendants, and GDP measured using purchasing power parities (PPPs).
-# MAGIC
-# MAGIC Source: WHO, UNICEF, UNFPA, World Bank Group, and UNDESA/Population Division. Trends in Maternal Mortality 2000 to 2020. Geneva, World Health Organization, 2023
-# MAGIC
-# MAGIC #### Universal Health Coverage (composite index)
-# MAGIC
-# MAGIC Coverage index for essential health services (based on tracer interventions that include reproductive, maternal, newborn and child health, infectious diseases, noncommunicable diseases and service capacity and access). It is presented on a scale of 0 to 100.
-
-# COMMAND ----------
-
-country_df = spark.table(f'{INDICATOR_SCHEMA}.country').select('country_name', 'country_code', 'region').toPandas()
+country_df = read_table('country', columns=['country_name', 'country_code', 'region'])
 country_df
-
-# COMMAND ----------
 
 wb.db = 16 # Health Nutrition and Population Statistics
 
@@ -58,6 +38,4 @@ for key, val in outcome_series_to_col_name.items():
     long_df = long_df.dropna(subset=[indicator_name]).sort_values(by=['economy', 'year'])
 
     df_indicator = pd.merge(long_df, country_df, left_on='economy', right_on='country_code', how='left')[['country_name', 'country_code', 'region', 'year', indicator_name, 'data_source']]
-    sdf = spark.createDataFrame(df_indicator)
-    sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f'{INDICATOR_SCHEMA}.{db_name}')
-
+    write_table(df_indicator, db_name)

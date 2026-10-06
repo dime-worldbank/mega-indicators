@@ -8,18 +8,16 @@ on:
 jobs:
   pytest:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # The dashboard's Databricks side runs pandas 1.5; local runs use current pandas.
+        pandas: ["1.5.3", ""]
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      # Only the deps unit tests actually need — not the full notebook stack
-      # (no pyspark, no openai, etc.). Keep this list minimal so adding a
-      # heavy dependency to a notebook doesn't slow CI down.
-      - name: Install test dependencies
-        run: pip install pytest pandas
-
+      - name: Install dependencies
+        run: pip install pytest pandas${{ matrix.pandas && format('=={0}', matrix.pandas) }} "numpy<2" requests wbgapi openpyxl
       - name: Run tests
-        run: pytest public_finance/tests/ -v
+        run: pytest -v

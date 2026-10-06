@@ -1,24 +1,9 @@
-# Databricks notebook source
-# MAGIC %pip install wbgapi
-
-# COMMAND ----------
-
-# MAGIC %run ../utils
-
-# COMMAND ----------
-
-# MAGIC %run ../config
-
-# COMMAND ----------
+from utils import *
 
 import pandas as pd
 
-# COMMAND ----------
-
 indicators = ['SP.POP.TOTL', 'SP.POP.TOTL.FE.IN']
 col_names = ['population', 'population_female']
-
-# COMMAND ----------
 
 long_dfs = []
 for series, col_name in zip(indicators, col_names):
@@ -36,17 +21,10 @@ for df in long_dfs[1:]:
 merged_df['data_source'] = 'UN & WB & Eurostat'
 merged_df
 
-# COMMAND ----------
-
-country_df = spark.table(f'{INDICATOR_SCHEMA}.country').select('country_name', 'country_code', 'region').toPandas()
+country_df = read_table('country', columns=['country_name', 'country_code', 'region'])
 country_df
-
-# COMMAND ----------
 
 pop_df = pd.merge(merged_df, country_df, left_on='economy', right_on='country_code', how='left')[['country_name', 'country_code', 'region', 'year', *col_names, 'data_source']]
 pop_df
 
-# COMMAND ----------
-
-sdf = spark.createDataFrame(pop_df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.population")
+write_table(pop_df, 'population')

@@ -1,3 +1,5 @@
 *__pycache__*
 # Databricks Asset Bundle local state
 .databricks/
+# Local table store (DATA_ROOT default)
+/data/
