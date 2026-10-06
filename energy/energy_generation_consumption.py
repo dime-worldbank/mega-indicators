@@ -3,13 +3,17 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../utils
+
+# COMMAND ----------
+
 import pandas as pd
 import requests
 
 # COMMAND ----------
 
 # Load dataset from the API
-my_api_key = dbutils.secrets.get(scope="DIMEBOOSTKEYVAULT", key="ember_energy_key")
+my_api_key = get_secret("DIMEBOOSTKEYVAULT", "ember_energy_key")
 base_url = "https://api.ember-energy.org"
 query_url = (
     f"{base_url}/v1/electricity-generation/yearly"
@@ -27,11 +31,7 @@ raw_df = pd.DataFrame(data["data"])
 # COMMAND ----------
 
 # These areas were excluded by the merge. But none of them were recognized country
-country_df = (
-    spark.table(f"{INDICATOR_SCHEMA}.country")
-    .select("country_name", "country_code", "region")
-    .toPandas()
-)
+country_df = read_table("country", columns=["country_name", "country_code", "region"])
 energy_df = raw_df.merge(country_df, left_on="entity_code", right_on="country_code")
 
 emmited_areas = [
@@ -120,7 +120,4 @@ energy_df.rename(
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(energy_df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
-    f"{INDICATOR_SCHEMA}.energy_generation"
-)
+write_table(energy_df, "energy_generation")

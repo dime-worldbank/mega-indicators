@@ -72,7 +72,7 @@ long_df[long_df.economy.isin(countries)]
 
 # COMMAND ----------
 
-country_df = spark.table(f'{INDICATOR_SCHEMA}.country').select('country_name', 'country_code', 'region').toPandas()
+country_df = read_table('country', columns=['country_name', 'country_code', 'region'])
 country_df
 
 # COMMAND ----------
@@ -84,5 +84,4 @@ result_df
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(result_df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.edu_spending")
+write_table(result_df, 'edu_spending')

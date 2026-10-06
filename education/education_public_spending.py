@@ -3,6 +3,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../utils
+
+# COMMAND ----------
+
 import requests
 import zipfile
 import io
@@ -48,5 +52,4 @@ df
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.edu_gov_spending")
+write_table(df, 'edu_gov_spending')

@@ -33,5 +33,4 @@ df
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.pupil_teacher_ratio")
+write_table(df, 'pupil_teacher_ratio')
