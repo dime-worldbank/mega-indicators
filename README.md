@@ -22,12 +22,13 @@ pip install pandas requests wbgapi openpyxl
 
 ## Configuration
 
-Two optional environment variables:
+Environment variables:
 
 | Variable | Default | Meaning |
 |---|---|---|
 | `DATA_ROOT` | `./data` next to this README | Where everything is read and written |
 | `COUNTRY_NAME` | `Togo` | Every table written keeps only this country's rows. Set it to an empty string to keep all countries. |
+| `GDL_API_TOKEN` | none | Required by the Global Data Lab script only. A free token from [globaldatalab.org](https://globaldatalab.org) (create an account, then an API token). |
 
 Tables are CSV files at `$DATA_ROOT/indicator/<table>.csv`, the folder the BOOST
 aggregate reads as `INDICATOR_DIR`. Files that are not tables (the downloaded
@@ -73,17 +74,12 @@ Scripts in sub-folders import `utils.py` from this folder, so run them through `
 | `public_finance/togo/togo_revenue_budget.py` | `togo_revenue_budget` (figures from the DGB reports, see `public_finance/togo/README.md`; `togo_finance_report_extract.py` downloads the PDFs) |
 | `geo/admin_boundaries_extract.py`, then `geo/admin_boundaries_gold.py` | `admin1_boundaries_gold`, `admin0_disputed_boundaries_gold` (empty: Togo has none) |
 | `population/tgo_subnational_population.py`, then `population/subnational_population_gold.py` | `tgo_subnational_population_silver`, then `subnational_population` |
+| `human_development/global_data_lab_hd_index_extract.py`, then `human_development/global_data_lab_hd_index_gold.py` | `global_data_lab_hd_index_bronze`, `global_data_lab_hd_index_silver`, then `global_data_lab_hd_index` (subnational human development indices and 6-17 school attendance; one API call per dataset and year, about 70 in all) |
+| `indicator_data_availability.py` (last) | `indicator_data_availability`: earliest and latest year per indicator, for the dashboard's source notes |
+| `poverty/subnational_poverty_extract.py`, then `poverty/subnational_poverty_gold.py` | `poverty_rate_SPID_GSAP_silver`, then `subnational_poverty_rate`. SPID lists Golfe (the Lomé area) as a sixth region that has no polygon in the boundaries, so it is absent from the map. |
 
 Sources that are downloaded once and cached (`togo_census_raw`) are refreshed with the
 matching environment variable, e.g. `CENSUS_POPULATION_UPDATE_VERSION=true`.
-
-## Not included yet
-
-| Table | Source |
-|---|---|
-| `subnational_poverty_rate` | World Bank Data Catalog: SPID (resource `DR0092191`) and GSAP (resource `DR0052555`), via `https://ddh-openapi.worldbank.org/resources/<resource id>` |
-| `global_data_lab_hd_index` | Global Data Lab (`https://globaldatalab.org`), `shdi` and `education` datasets; the `gdldata` R package with a free API token |
-| `indicator_data_availability` | Derived: earliest and latest year per indicator table |
 
 ## Tests
 

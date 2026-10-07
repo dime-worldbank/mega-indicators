@@ -165,6 +165,9 @@ def test_scripts_exist_and_are_in_dependency_order():
     assert names.index("gdp.py") < names.index("health/health_expenditure.py")
     assert names.index("geo/admin_boundaries_extract.py") < names.index("geo/admin_boundaries_gold.py")
     assert names.index("population/tgo_subnational_population.py") < names.index("population/subnational_population_gold.py")
+    assert names.index("poverty/subnational_poverty_extract.py") < names.index("poverty/subnational_poverty_gold.py")
+    assert names.index("human_development/global_data_lab_hd_index_extract.py") < names.index("human_development/global_data_lab_hd_index_gold.py")
+    assert names[-1] == "indicator_data_availability.py"
 
 
 # --- scripts, end to end, offline ---------------------------------------------
@@ -272,6 +275,104 @@ def test_admin_boundaries_gold(data_root):
     assert json.loads(gold.boundary[0]) == square
     disputed = ns["read_table"]("admin0_disputed_boundaries_gold")
     assert disputed.empty and list(disputed.columns) == ["country_name", "region_name", "boundary", "country_code_iso2"]
+
+
+def _excel(sheets):
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as xw:
+        for name, frame in sheets.items():
+            frame.to_excel(xw, sheet_name=name, index=False)
+    return buf.getvalue()
+
+
+def test_subnational_poverty_extract_then_gold(data_root, monkeypatch):
+    spid = _excel({"Data": pd.DataFrame({
+        "code": ["TGO", "TGO", "ALB"], "sample": ["Maritime", "Maritime", "Tirane"], "year": [2018, 2024, 2024],
+        "survname": ["EHCVM", "EHCVM", "SILC"], "poor300": [0.4, 0.3, 0.01], "poor420": [0.6, 0.5, 0.05],
+        "poor830": [0.9, 0.8, 0.3], "data_group": ["ALL", "ALL", "ALL"],
+    })})
+    gsap = _excel({"Metadata": pd.DataFrame({"note": ["x"]}), "Data": pd.DataFrame({
+        "code": ["TGO", "ALB"], "sample": ["Maritime", "Tirane"], "lineupyear": [2024, 2024], "survname": ["EHCVM", "SILC"],
+        "poor300_ln": [0.31, 0.011], "poor420_ln": [0.51, 0.051], "poor830_ln": [0.81, 0.31],
+    })})
+    files = {"http://files/spid.xlsx": spid, "http://files/gsap.xlsx": gsap}
+
+    def fake_get(url, **kw):
+        if url.endswith("DR0092191"):
+            return FakeResponse(json.dumps({"distribution": {"url": "http://files/spid.xlsx"}}))
+        if url.endswith("DR0052555"):
+            return FakeResponse(json.dumps({"distribution": {"url": "http://files/gsap.xlsx"}}))
+        return FakeResponse(files[url])
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    write_country(fresh_utils())
+    run_script("poverty/subnational_poverty_extract.py")
+    run_script("poverty/subnational_poverty_gold.py")
+
+    gold = fresh_utils()["read_table"]("subnational_poverty_rate").sort_values(["country_code", "year"])
+    togo = gold[gold.country_code == "TGO"]
+    assert togo.year.tolist() == [2018, 2024] and togo.data_source.tolist() == ["SPID", "GSAP"]
+    assert togo.poverty_rate.tolist() == [0.6, 0.51]  # LMC: the 4.20 line; 2024 from GSAP replaces SPID's 2024
+    assert togo.earliest_year.unique().tolist() == [2018] and togo.latest_year.unique().tolist() == [2024]
+    assert gold[gold.country_code == "ALB"].poverty_rate.tolist() == [0.31]  # UMC: the 8.30 line
+
+
+def test_global_data_lab_hd_index_extract_then_gold(data_root, monkeypatch):
+    """Two datasets, two years, two regions: the extract collapses them to one row per
+    region and year and the gold step renames, joins country and scales attendance."""
+    monkeypatch.setenv("GDL_API_TOKEN", "t0k3n")
+    calls = []
+
+    def fake_get(url, params=None, **kw):
+        calls.append(url)
+        dataset, year = url.split("/download/")[0].rsplit("/", 1)[1], int(url.split("/download/")[1].split("/")[0])
+        assert params["token"] == "t0k3n" and url.endswith("/TGO/")
+        head = "Country,ISO_Code,Level,GDLCODE,Region,Year"
+        rows = [("Total", "TGOt", 0), ("Maritime (incl. Lome)", "TGOr101", 1)]
+        if dataset == "shdi":
+            body = "\n".join(f"Togo,TGO,{lvl},{code},{reg},{year},0.5,0.6,0.7" for reg, code, lvl in rows)
+            return FakeResponse(f"{head},healthindex,edindex,incindex\n{body}\n")
+        body = "\n".join(f"Togo,TGO,{lvl},{code},{reg},{year},80,70,60,50" for reg, code, lvl in rows)
+        return FakeResponse(f"{head},lprimary,uprimary,lsecondary,usecondary\n{body}\n")
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    write_country(fresh_utils())
+    ns = run_script("human_development/global_data_lab_hd_index_extract.py")
+    run_script("human_development/global_data_lab_hd_index_gold.py")
+
+    gold = fresh_utils()["read_table"]("global_data_lab_hd_index")
+    assert list(gold.columns) == ["country_name", "adm1_name", "year", "education_index", "health_index", "income_index", "attendance", "attendance_6to17yo"]
+    assert sorted(gold.adm1_name.unique()) == ["Maritime", "Total"]  # parenthetical stripped
+    assert not gold.duplicated(["adm1_name", "year"]).any()
+    row = gold[(gold.adm1_name == "Maritime") & (gold.year == 1990)].iloc[0]
+    assert (row.health_index, row.education_index, row.income_index) == (0.5, 0.6, 0.7)
+    assert row.attendance == 65.0 and row.attendance_6to17yo == 0.65
+    assert len(calls) == 2 * (ns["END_YEAR"] - 1990 + 1)
+
+
+def test_indicator_data_availability(data_root):
+    ns = fresh_utils()
+    w = ns["write_table"]
+    w(pd.DataFrame({"country_name": ["Togo"] * 3, "year": [2000, 2010, 2020], "health_index": [0.4, None, 0.6],
+                    "education_index": [0.3, 0.5, 0.5], "attendance_6to17yo": [None, 0.7, 0.8]}), "global_data_lab_hd_index")
+    w(pd.DataFrame({"country_name": ["Togo", "Togo"], "year": [2015, 2019]}), "learning_poverty_rate")
+    w(pd.DataFrame({"country_name": ["Togo"] * 2, "year": [2006, 2024], "poverty_rate": [0.9, 0.6]}), "subnational_poverty_rate")
+    w(pd.DataFrame({"country_name": ["Togo"] * 2, "year": [2000, 2021], "universal_health_coverage_index": [None, 45.0]}), "universal_health_coverage_index_GHO")
+    w(pd.DataFrame({"country_name": ["Togo", "Togo"], "year": [2008, 2016]}), "pefa_by_pillar")
+    w(pd.DataFrame({"country_name": ["Togo"] * 2, "year": [2000, 2022], "oop_per_capita_usd": [20.0, 40.0]}), "health_expenditure")
+    w(pd.DataFrame({"country_name": ["Togo"] * 2, "year": [2011, 2021], "poverty_rate": [0.5, None]}), "poverty_rate")
+
+    run_script("indicator_data_availability.py")
+
+    out = ns["read_table"]("indicator_data_availability")
+    assert list(out.columns) == ["country_name", "indicator_key", "earliest_year", "latest_year", "source_url"]
+    span = out.set_index("indicator_key")[["earliest_year", "latest_year"]].apply(tuple, axis=1).to_dict()
+    assert span["global_data_lab_hd_index"] == (2000, 2020)  # 2010 dropped: health_index null
+    assert span["global_data_lab_attendance"] == (2010, 2020)
+    assert span["universal_health_coverage_index_gho"] == (2021, 2021)
+    assert span["poverty_rate"] == (2011, 2011)
+    assert span["learning_poverty_rate"] == (2015, 2019) and span["pefa_by_pillar"] == (2008, 2016)
+    assert out.source_url.str.startswith("https://").all() and out.earliest_year.dtype.kind == "i"
 
 
 def test_pefa_by_pillar(data_root):

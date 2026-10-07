@@ -22,12 +22,7 @@ from pathlib import Path
 
 import pytest
 
-# `imf_sdmx.py` carries a `# Databricks notebook source` header (it's %run'd by
-# government_revenue_expenditure.py), so a plain `import imf_sdmx` fails on Databricks: the
-# runtime's import hook refuses to import a notebook as a module. Load it
-# straight from its file with the standard SourceFileLoader instead, which reads
-# the raw source and treats that header as the ordinary comment it is. This also
-# works locally and needs no sys.path manipulation.
+# Load imf_sdmx.py straight from its file so the test needs no sys.path setup.
 _imf_sdmx_path = Path(__file__).parent.parent / 'imf_sdmx.py'
 _spec = importlib.util.spec_from_file_location('imf_sdmx', _imf_sdmx_path)
 imf_sdmx = importlib.util.module_from_spec(_spec)

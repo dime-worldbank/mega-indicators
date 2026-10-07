@@ -34,6 +34,11 @@ SCRIPTS = [
     'geo/admin_boundaries_gold.py',
     'population/tgo_subnational_population.py',
     'population/subnational_population_gold.py',
+    'poverty/subnational_poverty_extract.py',
+    'poverty/subnational_poverty_gold.py',
+    'human_development/global_data_lab_hd_index_extract.py',  # needs GDL_API_TOKEN
+    'human_development/global_data_lab_hd_index_gold.py',
+    'indicator_data_availability.py',  # last: summarises the tables above
 ]
 
 
