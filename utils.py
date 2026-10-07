@@ -2,8 +2,9 @@
 # Shared helpers, %run from the indicator notebooks. They run in two places: on
 # Databricks, where tables are Delta tables in INDICATOR_SCHEMA, and off Databricks,
 # where a table is a CSV at DATA_ROOT/<catalog>/<schema>/<table>.csv (both from
-# config.py). Notebooks should go through read_table / write_table / versioned_dataframe
-# and never call spark or dbutils directly, so the same notebook works in both.
+# config.py), or with DB_BACKEND=postgres a PostgreSQL table (postgres_tables.py).
+# Notebooks should go through read_table / write_table / versioned_dataframe and never
+# call spark or dbutils directly, so the same notebook works in all of them.
 import os
 import io
 import time
@@ -19,6 +20,13 @@ if IS_DATABRICKS:
 else:
     from config import *  # off Databricks this file is imported, not %run alongside config
 
+# Off Databricks: "csv" (default) or "postgres"
+DB_BACKEND = "databricks" if IS_DATABRICKS else os.environ.get("DB_BACKEND", "csv")
+if DB_BACKEND == "postgres":
+    import postgres_tables
+elif not IS_DATABRICKS and DB_BACKEND != "csv":
+    raise RuntimeError(f"Unknown DB_BACKEND {DB_BACKEND!r}; expected csv or postgres.")
+
 DEFAULT_TIMEOUT_SECONDS = 60
 
 # wbgapi has no timeout by default, set it so a stalled connection doesn't hang forever
@@ -29,10 +37,17 @@ wb.get_options = {'timeout': DEFAULT_TIMEOUT_SECONDS}
 # Table IO. INDICATOR_SCHEMA / DATA_ROOT come from config.py: on Databricks every
 # notebook %runs it alongside this file, locally the import above brings it in.
 # A table name is either bare (`gdp`, qualified with INDICATOR_SCHEMA) or already
-# `catalog.schema.table`; locally both map to DATA_ROOT/catalog/schema/table.csv.
+# `catalog.schema.table`; locally both map to DATA_ROOT/catalog/schema/table.csv, or
+# with DB_BACKEND=postgres to schema.table in the database named after the catalog.
 
 def _qualified_name(table_name):
     return table_name if '.' in table_name else f"{INDICATOR_SCHEMA}.{table_name}"
+
+def _pg_name(table_name):
+    parts = _qualified_name(table_name).split('.')
+    if len(parts) != 3:
+        raise ValueError(f"{table_name!r} is neither a bare table name nor catalog.schema.table")
+    return parts
 
 def _table_path(table_name):
     return os.path.join(DATA_ROOT, *_qualified_name(table_name).split('.')) + '.csv'
@@ -40,6 +55,8 @@ def _table_path(table_name):
 def table_exists(table_name):
     if IS_DATABRICKS:
         return spark.catalog.tableExists(_qualified_name(table_name))
+    if DB_BACKEND == "postgres":
+        return postgres_tables.table_exists(*_pg_name(table_name))
     return os.path.exists(_table_path(table_name))
 
 def read_table(table_name, columns=None):
@@ -49,6 +66,8 @@ def read_table(table_name, columns=None):
         if columns is not None:
             sdf = sdf.select(*columns)
         return sdf.toPandas()
+    if DB_BACKEND == "postgres":
+        return postgres_tables.read_table(*_pg_name(table_name), columns=columns)
     # Only blanks (what write_table emits for nulls) and "null" (what a Databricks CSV
     # export emits) are nulls; pandas' default list would also swallow real values such
     # as Namibia's ISO2 code "NA".
@@ -66,9 +85,14 @@ def write_table(df, table_name, options=None):
         for key, value in (options or {}).items():
             writer = writer.option(key, value)
         writer.saveAsTable(_qualified_name(table_name))
+        return
+    if COUNTRY_NAME and 'country_name' in df.columns:
+        df = df[df['country_name'] == COUNTRY_NAME]
+    if DB_BACKEND == "postgres":
+        catalog, schema, table = _pg_name(table_name)
+        postgres_tables.replace_table(df, catalog, schema, table)
+        print(f"wrote {len(df)} rows to {catalog}.{schema}.{table.lower()}")
     else:
-        if COUNTRY_NAME and 'country_name' in df.columns:
-            df = df[df['country_name'] == COUNTRY_NAME]
         path = _table_path(table_name)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         df.to_csv(path, index=False)

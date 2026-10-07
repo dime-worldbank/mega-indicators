@@ -114,6 +114,34 @@ in its own process. Any other notebook runs one at a time.
 
 Tests for the local runtime live in [tests/](tests/) and run offline: `pytest -v`.
 
+### Tables in PostgreSQL
+
+With `DB_BACKEND=postgres` the same helpers keep the tables in a PostgreSQL database
+instead of CSVs, in the layout the dashboard reads with its own `DB_BACKEND=postgres`:
+`prd_mega.indicator.gdp` is table `gdp` in schema `indicator` of a database named
+`prd_mega`. `DATA_ROOT` is still required, for the files kept outside tables.
+
+```bash
+pip install "psycopg[binary]"
+
+export DB_BACKEND=postgres
+export POSTGRES_DSN=postgresql://user:password@host:5432/prd_mega
+python local_runner.py
+```
+
+- The role in `POSTGRES_DSN` must be allowed to create schemas and tables in the
+  database; the dashboard's read-only role is not enough.
+- Table names are lowercased, as in Unity Catalog; column names are kept as written.
+- A write replaces the table in one transaction.
+- The dashboard caches query results, so clear its cache after a refresh, or it keeps
+  showing the previous figures.
+- The required inputs below then go in the database instead of CSV files, as tables of
+  the same name in the `indicator` schema, e.g. loaded with `write_table`.
+- [postgres_tables.py](postgres_tables.py) has the PostgreSQL code; mega-boost keeps an
+  identical copy for the Togo BOOST scripts.
+- [tests/test_postgres_tables.py](tests/test_postgres_tables.py) runs against a test
+  database named `prd_mega` given in `TEST_POSTGRES_DSN`, and is skipped without one.
+
 ### Required inputs
 
 The PEFA scores cannot be fetched from an API. Before running, put the two tables in the table store
