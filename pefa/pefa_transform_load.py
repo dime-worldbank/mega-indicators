@@ -2,8 +2,8 @@ from utils import *
 
 # TODO: Add PEFA score extraction step. Currently the data is imported manually for prototyping
 # Data source: https://www.pefa.org/assessments/batch-downloads 
-# Download once for 2016 framework then uploaded to {INDICATOR_SCHEMA}.pefa_2016_bronze,
-#      and once for 2011 framework then uploaded to {INDICATOR_SCHEMA}.pefa_2011_bronze
+# Download once per framework and save as indicator/pefa_2016_bronze.csv and
+#      indicator/pefa_2011_bronze.csv (see the README, Required inputs).
 
 import pandas as pd
 import re

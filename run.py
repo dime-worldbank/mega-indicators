@@ -14,9 +14,11 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 
-# In dependency order: gdp before health_expenditure, the boundaries extract before its
-# gold step, the Togo population before the subnational_population step.
+# In dependency order: country before everything that joins to it, gdp before
+# health_expenditure, the boundaries extract before its gold step, the Togo population
+# before the subnational_population step.
 SCRIPTS = [
+    'country.py',
     'gdp.py',
     'consumer_price_index.py',
     'population/national_population.py',

@@ -19,14 +19,10 @@ DEFAULT_TIMEOUT_SECONDS = 60
 wb.get_options = {'timeout': DEFAULT_TIMEOUT_SECONDS}
 
 
-# --- Table IO: DATA_ROOT/<catalog>/<schema>/<table>.csv ---------------------------------
-# A table name is either bare (`gdp`, qualified with INDICATOR_SCHEMA) or `catalog.schema.table`.
-
-def _qualified_name(table_name):
-    return table_name if '.' in table_name else f"{INDICATOR_SCHEMA}.{table_name}"
+# --- Table IO: INDICATOR_DIR/<table>.csv --------------------------------------------------
 
 def _table_path(table_name):
-    return os.path.join(DATA_ROOT, *_qualified_name(table_name).split('.')) + '.csv'
+    return os.path.join(INDICATOR_DIR, f'{table_name}.csv')
 
 def table_exists(table_name):
     return os.path.exists(_table_path(table_name))

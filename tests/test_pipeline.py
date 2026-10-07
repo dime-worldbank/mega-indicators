@@ -83,6 +83,7 @@ def test_defaults(monkeypatch):
 def test_env_overrides(data_root):
     ns = fresh_utils()
     assert ns["DATA_ROOT"] == str(data_root)
+    assert ns["INDICATOR_DIR"] == str(data_root) + "/indicator"
     assert ns["VOLUME_ROOT_PATH"] == str(data_root) + "/raw_data"
     assert ns["COUNTRY_NAME"] == ""
 
@@ -94,23 +95,16 @@ def test_write_then_read_table_roundtrip(data_root):
     df = pd.DataFrame({"country_name": ["Togo", "Congo, Dem. Rep."], "year": [2020, 2021], "value": [1.5, None]})
     assert not ns["table_exists"]("t")
     ns["write_table"](df, "t")
-    assert (data_root / "prd_mega" / "indicator" / "t.csv").exists()
+    assert (data_root / "indicator" / "t.csv").exists()
     assert ns["table_exists"]("t")
     pd.testing.assert_frame_equal(ns["read_table"]("t"), df)
     assert list(ns["read_table"]("t", columns=["year"]).columns) == ["year"]
 
 
-def test_qualified_table_name_maps_to_catalog_schema_dirs(data_root):
-    ns = fresh_utils()
-    ns["write_table"](pd.DataFrame({"a": [1]}), "prd_corpdata.dm_reference_gold.fx")
-    assert (data_root / "prd_corpdata" / "dm_reference_gold" / "fx.csv").exists()
-    assert ns["read_table"]("prd_corpdata.dm_reference_gold.fx")["a"].tolist() == [1]
-
-
 def test_read_table_null_handling(data_root):
     """Blanks and 'null' are nulls; a literal 'NA' (Namibia's ISO2 code) is a value."""
     ns = fresh_utils()
-    path = data_root / "prd_mega" / "indicator" / "country.csv"
+    path = data_root / "indicator" / "country.csv"
     path.parent.mkdir(parents=True)
     path.write_text("country_code,country_code_iso2,region\nNAM,NA,\nTGO,TG,null\n")
     df = ns["read_table"]("country")
@@ -167,6 +161,7 @@ def test_scripts_exist_and_are_in_dependency_order():
     names = run.SCRIPTS
     assert not [n for n in names if not (REPO / n).is_file()]
     assert len(set(names)) == len(names)
+    assert names[0] == "country.py"
     assert names.index("gdp.py") < names.index("health/health_expenditure.py")
     assert names.index("geo/admin_boundaries_extract.py") < names.index("geo/admin_boundaries_gold.py")
     assert names.index("population/tgo_subnational_population.py") < names.index("population/subnational_population_gold.py")
@@ -188,6 +183,31 @@ def _wb_indicator_zip(indicator):
         zf.writestr(f"API_{indicator}_DS2_en_csv_v2_1.csv", csv)
         zf.writestr(f"Metadata_Indicator_API_{indicator}_DS2_en_csv_v2_1.csv", "x")
     return buf.getvalue()
+
+
+WB_COUNTRY_JSON = json.dumps([{"page": 1}, [{
+    "id": "TGO", "iso2Code": "TG", "name": "Togo",
+    "region": {"id": "SSF", "iso2code": "ZG", "value": "Sub-Saharan Africa "},
+    "adminregion": {"id": "SSA", "iso2code": "ZF", "value": "Sub-Saharan Africa (excluding high income)"},
+    "incomeLevel": {"id": "LMC", "iso2code": "XN", "value": "Lower middle income"},
+    "lendingType": {"id": "IDX", "iso2code": "XI", "value": "IDA"},
+    "capitalCity": "Lome", "longitude": "1.2255", "latitude": "6.1228",
+}]])
+
+
+def test_country(data_root, monkeypatch):
+    monkeypatch.setattr(requests, "get", lambda url, **kw: FakeResponse(WB_COUNTRY_JSON))
+    run_script("country.py")
+    country = fresh_utils()["read_table"]("country")
+    assert list(country.columns) == [
+        "country_name", "country_code", "longitude", "latitude", "region", "lending_type",
+        "income_level", "capital_city", "is_aggregate", "country_code_iso2", "display_lon",
+        "display_lat", "zoom", "currency_name", "currency_code", "country_code_iso3",
+    ]
+    row = country.iloc[0]
+    assert (row.country_name, row.country_code, row.country_code_iso2, row.region, row.income_level, row.lending_type) == ("Togo", "TGO", "TG", "SSF", "LMC", "IDX")
+    assert row.is_aggregate == False and row.currency_code == "XOF" and row.zoom == 5.0  # noqa: E712
+    assert row.longitude == 1.2255
 
 
 def test_consumer_price_index(data_root, monkeypatch):

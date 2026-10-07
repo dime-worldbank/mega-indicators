@@ -29,20 +29,18 @@ Two optional environment variables:
 | `DATA_ROOT` | `./data` next to this README | Where everything is read and written |
 | `COUNTRY_NAME` | `Togo` | Every table written keeps only this country's rows. Set it to an empty string to keep all countries. |
 
-Tables are CSV files at `$DATA_ROOT/prd_mega/indicator/<table>.csv`. The two path
-segments mirror the Databricks catalog and schema the dashboard reads, so a table name
-means the same thing in both places. Files that are not tables (the downloaded
+Tables are CSV files at `$DATA_ROOT/indicator/<table>.csv`, the folder the BOOST
+aggregate reads as `INDICATOR_DIR`. Files that are not tables (the downloaded
 boundaries GeoJSON, the source PDFs) go under `$DATA_ROOT/raw_data/`.
 
 ## Required inputs
 
-Two tables cannot be fetched from an API. Put them in place before running, as CSV
-files named after the table, e.g. `./data/prd_mega/indicator/country.csv`. Nulls may be
-blank or `null`.
+The PEFA scores cannot be fetched from an API. Put the two tables in place before
+running, as CSV files named after the table, e.g. `./data/indicator/pefa_2016_bronze.csv`.
+Nulls may be blank or `null`.
 
 | Table | Where it comes from | Columns |
 |---|---|---|
-| `country` | One row for Togo. The World Bank API country endpoint, `https://api.worldbank.org/v2/country/TGO?format=json`, gives the codes, name, capital, coordinates, region, income and lending groups as codes (`SSF`, `LMC`, `IDX`), not labels. Currency code and name follow ISO 4217. `display_lon`, `display_lat` and `zoom` are the map's initial view, chosen by hand. | `country_name`, `country_code`, `longitude`, `latitude`, `region`, `lending_type`, `income_level`, `capital_city`, `is_aggregate`, `country_code_iso2`, `display_lon`, `display_lat`, `zoom`, `currency_name`, `currency_code`, `country_code_iso3` |
 | `pefa_2016_bronze` | [pefa.org](https://www.pefa.org/assessments/batch-downloads), Assessments, Batch downloads: Framework "2016 Framework", Country Togo, Type National, Status Final, Download. Save as CSV with the header as downloaded. | `Country`, `Year`, `Framework`, `PI-01` to `PI-31`; other columns are ignored |
 | `pefa_2011_bronze` | Same, with Framework "2011 Framework". | `Country`, `Year`, `Framework`, `PI-01` to `PI-28` |
 
@@ -61,6 +59,7 @@ Scripts in sub-folders import `utils.py` from this folder, so run them through `
 
 | Script | Table(s) written |
 |---|---|
+| `country.py` | `country` (codes, capital and coordinates from the World Bank API; map view and currency are constants in the script) |
 | `gdp.py` | `gdp` |
 | `consumer_price_index.py` | `consumer_price_index` |
 | `population/national_population.py` | `population` |

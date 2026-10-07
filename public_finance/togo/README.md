@@ -1,7 +1,7 @@
 # Togo Budget Data
 
 Annual fiscal metrics for Togo, derived from the DGB/DGBFTG budget execution
-reports. Feeds `prd_mega.indicator.togo_revenue_budget`.
+reports. Feeds the `togo_revenue_budget` table.
 
 ## Files
 
