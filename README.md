@@ -145,6 +145,7 @@ blank or `null`.
 | `energy/energy_generation_consumption.py` | `energy_generation` (needs `EMBER_ENERGY_KEY`) |
 | `public_sector_employment/wwbi_extract.py` | `public_sector_employment_silver` (the gold table is DLT, below) |
 | `population/TGO/tgo_subnational_population.py` then `population/subnational_population_gold.py` | `tgo_subnational_population_silver`, then `subnational_population` (the union of whichever country silver tables exist locally) |
+| `poverty/subnational_poverty/subnational_poverty_index_extract_transform.py` then `subnational_poverty_index_transform_load.py` | `poverty_rate_SPID_GSAP_silver`, then `subnational_poverty_rate` (plain pandas on both sides; it replaced the DLT pipeline) |
 | `geo/admin_boundaries_extract.py` then `geo/admin_boundaries_gold.py` | `admin1_boundaries_gold`, `admin0_disputed_boundaries_gold` (empty for Togo); the extract downloads a 254 MB GeoJSON |
 
 ### Not supported locally yet
@@ -154,7 +155,6 @@ These tables are not supported by the local runtime for the time being.
 | Table | What builds it on Databricks | Where the data is published |
 |---|---|---|
 | `country` (all countries) | [country.py](country.py): pyspark UDFs over `admin1_boundaries_gold` for map centroids, plus the corporate currency table. | The World Bank API country endpoint (`https://api.worldbank.org/v2/country?format=json&per_page=400`), ISO 4217 for currencies, and a hand-chosen map view per country, as for the single row under Required inputs. |
-| `subnational_poverty_rate` | DLT in [poverty/subnational_poverty/](poverty/subnational_poverty/), with region-name fixes. Subnational. | World Bank Data Catalog: SPID (resource `DR0092191`) and GSAP (resource `DR0052555`) Excel files, whose current URLs come from `https://ddh-openapi.worldbank.org/resources/<resource id>`. |
 | `global_data_lab_hd_index` | R extract [human_development/global_data_lab_hdi_extract.r](human_development/global_data_lab_hdi_extract.r) plus a DLT transform. Subnational. | Global Data Lab (`https://globaldatalab.org`), `shdi` and `education` datasets, through the `gdldata` R package with a free API token (`https://docs.globaldatalab.org/gdldata/`). |
 | `public_sector_employment` | DLT gold ([public_sector_employment/wwbi_transform_load_dlt.py](public_sector_employment/wwbi_transform_load_dlt.py)) adding regional means over the silver table. | Worldwide Bureaucracy Indicators, World Bank API source 64; `wwbi_extract.py` already fetches it and runs locally, so only the regional-means step is missing. |
 | `indicator_data_availability` | DLT SQL view [indicator_data_availability_dlt.sql](indicator_data_availability_dlt.sql) across 12 indicator tables. | No external source: it is the earliest and latest year per country of each indicator table, so it is a pandas port of the SQL. |

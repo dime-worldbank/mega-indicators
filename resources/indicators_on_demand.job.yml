@@ -41,8 +41,9 @@ resources:
         depends_on:
         - task_key: subnational_poverty_index_ET
         - task_key: country
-        pipeline_task:
-          pipeline_id: ${resources.pipelines.subnational_poverty_index_uc.id}
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../poverty/subnational_poverty/subnational_poverty_index_transform_load.py
       max_concurrent_runs: 20
       performance_target: PERFORMANCE_OPTIMIZED
       queue:

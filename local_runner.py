@@ -36,6 +36,8 @@ NOTEBOOKS = [
     'geo/admin_boundaries_gold.py',
     'population/TGO/tgo_subnational_population.py',
     'population/subnational_population_gold.py',
+    'poverty/subnational_poverty/subnational_poverty_index_extract_transform.py',
+    'poverty/subnational_poverty/subnational_poverty_index_transform_load.py',
 ]
 
 if __name__ == '__main__':

@@ -1,8 +1,19 @@
 # Databricks notebook source
-import dlt
-import pyspark.sql.functions as F
-from pyspark.sql import Window
+# MAGIC %run ../../config
 
+# COMMAND ----------
+
+# MAGIC %run ../../utils
+
+# COMMAND ----------
+
+# Subnational poverty rate per region and year from the SPID/GSAP silver table. Region
+# names are aligned to admin1_boundaries_gold with the fixes below, and the poverty line
+# follows the country's income group, as for the national poverty_rate. Plain pandas, so
+# it runs on Databricks as a notebook task and off Databricks alike (it replaced a DLT
+# pipeline).
+import numpy as np
+import pandas as pd
 
 # Instead of chained when clauses, use a mapping table to improve readability and make it easier to add new cases.
 REGION_NAME_FIXES = [
@@ -81,48 +92,39 @@ REGION_NAME_FIXES = [
 ]
 
 
-@dlt.table(name='subnational_poverty_rate_silver')
-def subnational_poverty_rate_silver():
-    countries = spark.table('country').select('country_name', 'country_code', 'income_level')
-    region_name_fixes = spark.createDataFrame(
-        REGION_NAME_FIXES,
-        ['country_code', 'region_name', 'country_fixed_region_name']
-    )
+def initcap(name):
+    """Spark's initcap: first letter of each space-separated word upper, the rest lower."""
+    if not isinstance(name, str):
+        return name
+    return ' '.join(word[:1].upper() + word[1:].lower() for word in name.split(' '))
 
-    return (
-        spark.table('poverty_rate_SPID_GSAP_silver')
-        .join(region_name_fixes, ['country_code', 'region_name'], 'left')
-        .withColumn(
-            'region_name',
-            F.coalesce(
-                F.col('country_fixed_region_name'),  # explicit fixes win over the COL initcap default below
-                F.when(F.col('country_code') == 'COL', F.initcap(F.col('region_name'))),
-                F.col('region_name')
-            )
-        )
-        .drop('country_fixed_region_name')
-        .join(countries, ["country_code"], "inner") # TODO: change to left & investigate dropped
-        .withColumn(
-            'poverty_rate',
-            F.when(
-                F.col('income_level').isin('LIC', 'INX'), F.col('poor300') # INX: income classification is not assigned or not applicable
-            ).when(
-                F.col('income_level') == 'LMC', F.col('poor420')
-            ).when(
-                F.col('income_level').isin('UMC', 'HIC'), F.col('poor830')
-            )
-        )
-    )
+# COMMAND ----------
 
-@dlt.expect_or_fail(
-    'poverty rates for country income level should be present',
-    'poverty_rate IS NOT NULL'
+silver = read_table('poverty_rate_SPID_GSAP_silver')
+countries = read_table('country', columns=['country_name', 'country_code', 'income_level'])
+fixes = pd.DataFrame(REGION_NAME_FIXES, columns=['country_code', 'region_name', 'country_fixed_region_name'])
+
+df = silver.merge(fixes, on=['country_code', 'region_name'], how='left')
+# explicit fixes win over the COL initcap default
+default_name = np.where(df['country_code'] == 'COL', df['region_name'].map(initcap), df['region_name'])
+df['region_name'] = df['country_fixed_region_name'].fillna(pd.Series(default_name, index=df.index))
+df = df.drop(columns='country_fixed_region_name')
+df = df.merge(countries, on='country_code', how='inner')  # TODO: change to left & investigate dropped
+
+df['poverty_rate'] = np.select(
+    [df['income_level'].isin(['LIC', 'INX']),  # INX: income classification is not assigned or not applicable
+     df['income_level'] == 'LMC',
+     df['income_level'].isin(['UMC', 'HIC'])],
+    [df['poor300'], df['poor420'], df['poor830']],
+    np.nan,
 )
-@dlt.table(name='subnational_poverty_rate')
-def subnational_poverty_rate():
-    w = Window.partitionBy('country_name', 'region_name')
-    return (
-        dlt.read('subnational_poverty_rate_silver')
-        .withColumn('earliest_year', F.min('year').over(w))
-        .withColumn('latest_year', F.max('year').over(w))
-    )
+assert df['poverty_rate'].notna().all(), 'poverty rates for country income level should be present'
+
+by_region = df.groupby(['country_name', 'region_name'])['year']
+df['earliest_year'] = by_region.transform('min')
+df['latest_year'] = by_region.transform('max')
+df
+
+# COMMAND ----------
+
+write_table(df, 'subnational_poverty_rate')

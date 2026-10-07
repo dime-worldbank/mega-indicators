@@ -30,8 +30,6 @@ targets:
       pipelines:
         admin_boundaries_tl_uc:
           schema: indicator_dev
-        subnational_poverty_index_uc:
-          schema: indicator_dev
         subnational_human_development_index_uc:
           schema: indicator_dev
         subnational_population_agg_uc:
@@ -66,8 +64,6 @@ targets:
     resources:
       pipelines:
         admin_boundaries_tl_uc:
-          schema: indicator_staging
-        subnational_poverty_index_uc:
           schema: indicator_staging
         subnational_human_development_index_uc:
           schema: indicator_staging
