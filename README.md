@@ -52,7 +52,7 @@ Prod is bound to the existing jobs/pipelines (no duplicates) and deploys to the 
 To add more indicators, please open a pull request after you've tested your code in Databricks.
 
 - See [consumer_price_index.py](consumer_price_index.py) as a Python example of fetching data from WB API
-- See [global_data_lab.r](global_data_lab.r) as an R example of fetching data using a R package from an external data source. Note running this as a job will require setting the `GDL_API_TOKEN` environment variable. Follow the instructions [here](https://docs.globaldatalab.org/gdldata/) to obtain the API token.
+- See [global_data_lab_hdi_extract.py](human_development/global_data_lab_hdi_extract.py) for a source that needs an API token (`GDL_API_TOKEN`, a secret on Databricks and an environment variable off it; get one at [globaldatalab.org](https://globaldatalab.org)), 
 - If your source is a single external site (a national stats agency, etc.) rather than a
   well-established API, fetch it through `utils.py`'s `versioned_dataframe`/`fetch_raw`
   instead of calling `requests`/`pd.read_csv` directly — it caches the parsed result as a
@@ -69,7 +69,7 @@ The notebooks also run as plain Python, with each table stored as a CSV at
 counterpart without a Databricks workspace (e.g. Togo) refreshes the indicator tables.
 
 ```bash
-pip install pandas requests wbgapi openpyxl
+pip install pandas requests wbgapi openpyxl shapely
 
 export DATA_ROOT=./data        # tables land under ./data/prd_mega/indicator/
 export COUNTRY_NAME=Togo       # optional: keep only this country's rows in every table written
@@ -102,6 +102,10 @@ in its own process. Any other notebook runs one at a time.
 - Job widgets such as `census_population_update_version` are read from the upper-cased
   environment variable of the same name (`CENSUS_POPULATION_UPDATE_VERSION=true`), and
   so are secrets (`get_secret("DIMEBOOSTKEYVAULT", "ember_energy_key")` reads `EMBER_ENERGY_KEY`).
+- The other countries' population notebooks under `population/<ISO3>/` run the same way
+  (`COUNTRY_NAME` unset, or set to that country); `population/wb_subnational_population_extract.py`
+  first for the ones that read the World Bank subnational database, and
+  `population/global_data_lab_subnational_population.py` (needs `GDL_API_TOKEN`) for Congo DR and Liberia.
 - Files a notebook would write to the Unity Catalog volume (downloaded GeoJSON, PDFs)
   go under `$DATA_ROOT/raw_data/`.
 
@@ -112,14 +116,13 @@ Tests for the local runtime live in [tests/](tests/) and run offline: `pytest -v
 
 ### Required inputs
 
-Two tables cannot be fetched from an API. Before running, put them in the table store
+The PEFA scores cannot be fetched from an API. Before running, put the two tables in the table store
 as CSV files named after the table, at `$DATA_ROOT/prd_mega/indicator/<table>.csv`;
 with `DATA_ROOT=./data` that is `./data/prd_mega/indicator/country.csv`. Nulls may be
 blank or `null`.
 
 | Table | Where it comes from | Columns |
 |---|---|---|
-| `country` | One row per country. World Bank API country metadata, e.g. `https://api.worldbank.org/v2/country/TGO?format=json`, gives the codes, name, capital, coordinates, region, income and lending groups as codes (`SSF`, `LMC`, `IDX`), not labels. Currency code and name follow ISO 4217. `display_lon`, `display_lat` and `zoom` are the map's initial view, chosen by hand. With Databricks access, `SELECT * FROM prd_mega.indicator.country WHERE country_code = 'TGO'` exported as CSV is the same row. | `country_name`, `country_code`, `longitude`, `latitude`, `region`, `lending_type`, `income_level`, `capital_city`, `is_aggregate`, `country_code_iso2`, `display_lon`, `display_lat`, `zoom`, `currency_name`, `currency_code`, `country_code_iso3` |
 | `pefa_2016_bronze` | [pefa.org](https://www.pefa.org/assessments/batch-downloads), Assessments, Batch downloads: Framework "2016 Framework", Country Togo, Type National, Status Final, Download. Save as CSV with the header as downloaded. | `Country`, `Year`, `Framework`, `PI-01` to `PI-31`; other columns are ignored |
 | `pefa_2011_bronze` | Same, with Framework "2011 Framework". | `Country`, `Year`, `Framework`, `PI-01` to `PI-28` |
 
@@ -127,6 +130,7 @@ blank or `null`.
 
 | Notebook | Table(s) written |
 |---|---|
+| `country.py` | `country` (World Bank API metadata; map centroids from `admin1_boundaries_gold`, so run the boundaries notebooks first for those; currency from the corporate table where reachable, else a dictionary in the notebook) |
 | `consumer_price_index.py` | `consumer_price_index` |
 | `gdp.py` | `gdp` |
 | `population/national_population.py` | `population` |
@@ -143,18 +147,9 @@ blank or `null`.
 | `public_finance/togo/togo_finance_report_transform_load_dlt.py` | `togo_revenue_budget` |
 | `pefa/pefa_transform_load.py` | `pefa_by_pillar` (reads the hand-uploaded `pefa_2011_bronze`, `pefa_2016_bronze`) |
 | `energy/energy_generation_consumption.py` | `energy_generation` (needs `EMBER_ENERGY_KEY`) |
-| `public_sector_employment/wwbi_extract.py` | `public_sector_employment_silver` (the gold table is DLT, below) |
-| `population/TGO/tgo_subnational_population.py` then `population/subnational_population_gold.py` | `tgo_subnational_population_silver`, then `subnational_population` (the union of whichever country silver tables exist locally) |
+| `public_sector_employment/wwbi_extract.py` then `public_sector_employment/wwbi_transform_load.py` | `public_sector_employment_silver`, then `public_sector_employment` (with regional means; plain pandas on both sides, it replaced the DLT pipeline) |
+| `population/TGO/tgo_subnational_population.py` then `population/subnational_population.py` | `tgo_subnational_population_silver`, then `subnational_population` (the countries listed in the notebook stacked; with `COUNTRY_NAME` set, only the silver tables present; plain pandas on both sides, it replaced the DLT pipeline) |
 | `poverty/subnational_poverty/subnational_poverty_index_extract_transform.py` then `subnational_poverty_index_transform_load.py` | `poverty_rate_SPID_GSAP_silver`, then `subnational_poverty_rate` (plain pandas on both sides; it replaced the DLT pipeline) |
-| `geo/admin_boundaries_extract.py` then `geo/admin_boundaries_gold.py` | `admin1_boundaries_gold`, `admin0_disputed_boundaries_gold` (empty for Togo); the extract downloads a 254 MB GeoJSON |
-
-### Not supported locally yet
-
-These tables are not supported by the local runtime for the time being.
-
-| Table | What builds it on Databricks | Where the data is published |
-|---|---|---|
-| `country` (all countries) | [country.py](country.py): pyspark UDFs over `admin1_boundaries_gold` for map centroids, plus the corporate currency table. | The World Bank API country endpoint (`https://api.worldbank.org/v2/country?format=json&per_page=400`), ISO 4217 for currencies, and a hand-chosen map view per country, as for the single row under Required inputs. |
-| `global_data_lab_hd_index` | R extract [human_development/global_data_lab_hdi_extract.r](human_development/global_data_lab_hdi_extract.r) plus a DLT transform. Subnational. | Global Data Lab (`https://globaldatalab.org`), `shdi` and `education` datasets, through the `gdldata` R package with a free API token (`https://docs.globaldatalab.org/gdldata/`). |
-| `public_sector_employment` | DLT gold ([public_sector_employment/wwbi_transform_load_dlt.py](public_sector_employment/wwbi_transform_load_dlt.py)) adding regional means over the silver table. | Worldwide Bureaucracy Indicators, World Bank API source 64; `wwbi_extract.py` already fetches it and runs locally, so only the regional-means step is missing. |
-| `indicator_data_availability` | DLT SQL view [indicator_data_availability_dlt.sql](indicator_data_availability_dlt.sql) across 12 indicator tables. | No external source: it is the earliest and latest year per country of each indicator table, so it is a pandas port of the SQL. |
+| `human_development/global_data_lab_hdi_extract.py` then `global_data_lab_hdi_transform_load.py` | `global_data_lab_hd_index_bronze`, `global_data_lab_hd_index_silver`, then `global_data_lab_hd_index` (needs `GDL_API_TOKEN`; about 70 API calls; plain pandas on both sides, it replaced the R notebook and the DLT pipeline) |
+| `indicator_data_availability.py` (last) | `indicator_data_availability`: earliest and latest year per indicator and country, for the dashboard's source notes (plain pandas on both sides; it replaced the DLT SQL view) |
+| `geo/admin_boundaries_extract.py` then `geo/admin_boundaries_transform_load.py` | `admin1_boundaries_bronze`/`_silver`/`_gold` and `admin0_disputed_boundaries_bronze`/`_silver`/`_gold`, with the region-name corrections and the Albania and Ghana polygon unions (plain pandas with shapely on both sides; it replaced the DLT pipeline). The extract downloads two GeoJSON files, 254 MB and 174 MB; loading them takes about 3 GB of memory. |

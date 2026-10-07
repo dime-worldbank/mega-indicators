@@ -14,9 +14,9 @@ resources:
       - task_key: admin1_boundary_transform_load
         depends_on:
         - task_key: admin1_boundary_extract
-        pipeline_task:
-          full_refresh: true
-          pipeline_id: ${resources.pipelines.admin_boundaries_tl_uc.id}
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../geo/admin_boundaries_transform_load.py
       - task_key: country
         depends_on:
         - task_key: admin1_boundary_transform_load

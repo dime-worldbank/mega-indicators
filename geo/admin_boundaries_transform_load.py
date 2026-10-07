@@ -1,28 +1,29 @@
 # Databricks notebook source
-!pip install shapely
-dbutils.library.restartPython()
+# MAGIC %pip install shapely
 
 # COMMAND ----------
 
-import dlt
-import pandas as pd
+# MAGIC %run ../config
+
+# COMMAND ----------
+
+# MAGIC %run ../utils
+
+# COMMAND ----------
+
+# Admin-1 boundaries, and the admin-0 disputed areas, from the World Bank Official
+# Boundaries GeoJSON files that admin_boundaries_extract.py downloads: one row per region
+# with the boundary as GeoJSON text, region names corrected to match the BOOST data, and
+# the Albania and Ghana regions merged into the units BOOST reports on. Plain pandas with
+# shapely on both sides (it replaced a DLT pipeline).
 import json
-from itertools import chain
+
+import pandas as pd
 from shapely.geometry import shape
-from pyspark.sql.functions import col, first, collect_list, udf, lit, create_map, coalesce
-from functools import reduce
-from pyspark.sql.types import StringType
 from shapely.ops import unary_union
 
-# Same suffix scheme as config.py (vboost4_staging/vboost4_dev mirror vboost4); DLT
-# can't %run config, so map inline — keep the two in sync.
-_SUFFIX_BY_TARGET = {"prod": "", "staging": "_staging", "dev": "_dev"}
-_target = spark.conf.get("bundle_target", None)
-if _target not in _SUFFIX_BY_TARGET:
-    raise RuntimeError(f"Unknown bundle target {_target!r}; expected one of {sorted(_SUFFIX_BY_TARGET)}.")
-VOLUME_ROOT_PATH = f"/Volumes/prd_mega/sboost4/vboost4{_SUFFIX_BY_TARGET[_target]}/Workspace"
-
-ADMIN1_DATA_DIR = f'{VOLUME_ROOT_PATH}/auxiliary_data/admin1geoboundaries'
+ADMIN1_GEOJSON = f'{VOLUME_ROOT_PATH}/auxiliary_data/admin1geoboundaries/World Bank Official Boundaries - Admin 1.geojson'
+ADMIN0_GEOJSON = f'{VOLUME_ROOT_PATH}/auxiliary_data/admin0geoboundaries/World Bank Official Boundaries - Admin 0_all_layers.geojson'
 
 # admin1 name corrections
 correct_admin1_names = {
@@ -164,120 +165,77 @@ albania_region_to_county = {
     'Delvine': 'Vlore'
 }
 
+
 def union_polygons(polygon_list):
     polygons = [shape(json.loads(p)) for p in polygon_list]
-    union_polygon = unary_union(polygons)
-    return json.dumps(union_polygon.__geo_interface__)
+    return json.dumps(unary_union(polygons).__geo_interface__)
+
 
 def harmonize_admin1_regions(bronze_df, country_name, region_to_county_dict):
-    """
-    Harmonizes admin1 regions for a given country using a mapping dictionary.
-    Groups by the harmonized region and unions polygons.
-    """
+    """One country's rows with admin1_region mapped through the dict and the polygons of
+    each resulting region unioned: one row per harmonized region."""
+    country_df = bronze_df[bronze_df['country_name'] == country_name].copy()
+    country_df['admin1_region'] = country_df['admin1_region'].map(region_to_county_dict).fillna(country_df['admin1_region'])
+    return (country_df.groupby('admin1_region', as_index=False)
+            .agg(country_name=('country_name', 'first'), country_code=('country_code', 'first'),
+                 C=('C', 'first'), region_code=('region_code', 'first'), boundary=('boundary', union_polygons)))
 
-    # Filter for the specified country
-    country_df = bronze_df.filter(col('country_name') == country_name)
-    # Create the mapping as a Spark map
-    region_map = create_map([lit(x) for x in chain(*region_to_county_dict.items())])
-    # Harmonize the region names
-    country_df = country_df.withColumn(
-        "admin1_region",
-        coalesce(region_map[col("admin1_region")], col("admin1_region"))
-    )
-    # UDF for unioning polygons
-    union_udf = udf(union_polygons, StringType())
-    # Group by harmonized region and union polygons
-    country_mod = country_df.groupBy("admin1_region").agg(
-        first("country_name").alias("country_name"),
-        first("country_code").alias("country_code"),
-        first("C").alias("C"),
-        first("region_code").alias("region_code"),
-        union_udf(collect_list("boundary")).alias("boundary")
-    )
-    return country_mod
 
-# COMMAND ----------
-
-@dlt.table(name=f'admin1_boundaries_bronze')
-def admin1_boundaries_bronze():
-    with open(f'{ADMIN1_DATA_DIR}/World Bank Official Boundaries - Admin 1.geojson', 'r', encoding='utf-8') as f:
+def geojson_frame(path):
+    """The features' properties, plus the geometry as GeoJSON text in `boundary`."""
+    with open(path, encoding='utf-8') as f:
         boundaries = json.load(f)
     df = pd.DataFrame([x['properties'] for x in boundaries['features']])
-    df = df.rename(columns = {"WB_REGION": "region_code", "ISO_A2": "C", "NAM_0": "country_name","NAM_1": "admin1_region_raw", "ISO_A3": "country_code"})
-    # different country name for Democratic republic of Congo
-    #TODO adjust the BOOST data to match the World Bank data instead of the other way around
-    df['country_name'] = df['country_name'].replace('Democratic Republic of Congo', 'Congo, Dem. Rep.')
     df['boundary'] = [json.dumps(x['geometry']) for x in boundaries['features']]
-    df['admin1_region'] = df.apply(lambda x: correct_admin1_names.
-    get((x['country_code'], x['admin1_region_raw']), x['admin1_region_raw']), axis=1)
-    bronze = spark.createDataFrame(df)
-    return bronze
-
-@dlt.table(name='admin1_boundaries_silver')
-def admin1_boundaries_silver():
-    bronze = dlt.read('admin1_boundaries_bronze')
-    print(f"Number of ENTRIES: {bronze.toPandas().shape[0]}")
-    # Harmonize for Albania (and you can call for other countries as needed)
-    alb_bronze_mod = harmonize_admin1_regions(bronze, 'Albania', albania_region_to_county)
-    print(f"Number of rows in the ALBANIA dataframe: {alb_bronze_mod.toPandas().shape[0]}")
-    gha_bronze_mod = harmonize_admin1_regions(bronze, 'Ghana', ghana_regions_new_to_old_map)
-    print(f"Number of rows in the Ghana dataframe: {gha_bronze_mod.toPandas().shape[0]}")
-    common_columns = list(set(bronze.columns).intersection(set(alb_bronze_mod.columns)))
-    bronze_filtered = bronze.filter(~col('country_name').isin(['Albania', "Ghana"])).select(common_columns)
-    dfs = [bronze_filtered] + [alb_bronze_mod.select(common_columns), gha_bronze_mod.select(common_columns)]
-    silver = reduce(lambda df1, df2: df1.unionByName(df2), dfs)
-    return silver
-
-@dlt.table(name=f'admin1_boundaries_gold')
-def admin1_boundaries_gold():
-    return (dlt.read(f'admin1_boundaries_silver')
-        .select('country_name',
-                'country_code',
-                col('C').alias('country_code_iso2'),
-                'admin1_region',
-                'boundary',
-                )
-    )
+    return df
 
 # COMMAND ----------
 
-ADMIN0_DATA_DIR = f'{VOLUME_ROOT_PATH}/auxiliary_data/admin0geoboundaries'
+bronze = geojson_frame(ADMIN1_GEOJSON)
+bronze = bronze.rename(columns={"WB_REGION": "region_code", "ISO_A2": "C", "NAM_0": "country_name", "NAM_1": "admin1_region_raw", "ISO_A3": "country_code"})
+# different country name for Democratic republic of Congo
+#TODO adjust the BOOST data to match the World Bank data instead of the other way around
+bronze['country_name'] = bronze['country_name'].replace('Democratic Republic of Congo', 'Congo, Dem. Rep.')
+bronze['admin1_region'] = [correct_admin1_names.get((code, raw), raw) for code, raw in zip(bronze['country_code'], bronze['admin1_region_raw'])]
+print(f"Number of ENTRIES: {len(bronze)}")
+write_table(bronze, 'admin1_boundaries_bronze')
+
+# COMMAND ----------
+
+# Harmonize for Albania (and you can call for other countries as needed)
+alb_bronze_mod = harmonize_admin1_regions(bronze, 'Albania', albania_region_to_county)
+print(f"Number of rows in the ALBANIA dataframe: {len(alb_bronze_mod)}")
+gha_bronze_mod = harmonize_admin1_regions(bronze, 'Ghana', ghana_regions_new_to_old_map)
+print(f"Number of rows in the Ghana dataframe: {len(gha_bronze_mod)}")
+SILVER_COLUMNS = ['country_name', 'country_code', 'C', 'region_code', 'admin1_region', 'boundary']
+silver = pd.concat([
+    bronze[~bronze['country_name'].isin(['Albania', 'Ghana'])][SILVER_COLUMNS],
+    alb_bronze_mod[SILVER_COLUMNS],
+    gha_bronze_mod[SILVER_COLUMNS],
+], ignore_index=True)
+write_table(silver, 'admin1_boundaries_silver')
+
+gold = silver.rename(columns={'C': 'country_code_iso2'})[['country_name', 'country_code', 'country_code_iso2', 'admin1_region', 'boundary']]
+write_table(gold, 'admin1_boundaries_gold')
+
+# COMMAND ----------
+
+# Disputed areas: the 'Non-determined legal status area' features of the Admin 0 file,
+# attributed to each country that claims them.
 disputed_area_country_map = {
     'Ilemi Triangle': ['Kenya', 'South Sudan'],
     #TODO add more countries: refer to map department's notes
 }
 
-@dlt.table(name=f'admin0_disputed_boundaries_bronze')
-def admin1_boundaries_bronze():
-    with open(f'{ADMIN0_DATA_DIR}/World Bank Official Boundaries - Admin 0_all_layers.geojson', 'r', encoding='utf-8') as f:
-        boundaries = json.load(f)
-    df = pd.DataFrame([x['properties'] for x in boundaries['features']])
-    df['boundary'] = [json.dumps(x['geometry']) for x in boundaries['features']]
-    df = df.rename(columns = {"WB_REGION": "region_code", "ISO_A2": "country_code_iso2", "NAM_0": "region_name"}).fillna('')
-    df = df[df.WB_STATUS == 'Non-determined legal status area']
-    return spark.createDataFrame(df)
+admin0 = geojson_frame(ADMIN0_GEOJSON)
+admin0 = admin0.rename(columns={"WB_REGION": "region_code", "ISO_A2": "country_code_iso2", "NAM_0": "region_name"}).fillna('')
+disputed_bronze = admin0[admin0['WB_STATUS'] == 'Non-determined legal status area']
+write_table(disputed_bronze, 'admin0_disputed_boundaries_bronze')
 
-@dlt.table(name=f'admin0_disputed_boundaries_silver')
-def admin0_disputed_boundaries_silver():
-    bronze = dlt.read('admin0_disputed_boundaries_bronze')
-    flattened_data = []
+disputed_region_country = pd.DataFrame(
+    [{'region_name': region, 'country': country} for region, countries in disputed_area_country_map.items() for country in countries])
+disputed_silver = disputed_bronze.merge(disputed_region_country, on='region_name', how='inner')
+write_table(disputed_silver, 'admin0_disputed_boundaries_silver')
 
-    for region, countries in disputed_area_country_map.items():
-        for country in countries:
-            flattened_data.append({'region_name': region, 'country': country})
-    disputed_region_country = spark.createDataFrame(flattened_data)
-    silver = bronze.join(disputed_region_country, on='region_name', how='inner')
-    return silver
-
-@dlt.table(name=f'admin0_disputed_boundaries_gold')
-def admin0_disputed_boundaries_gold():
-    return (dlt.read(f'admin0_disputed_boundaries_silver')
-        .select(col('country').alias('country_name'),
-                'region_name',
-                'boundary',
-                'country_code_iso2'
-                )
-    )   
-   
-
-
+disputed_gold = disputed_silver.rename(columns={'country': 'country_name'})[['country_name', 'region_name', 'boundary', 'country_code_iso2']]
+write_table(disputed_gold, 'admin0_disputed_boundaries_gold')

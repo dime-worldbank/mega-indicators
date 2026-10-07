@@ -7,6 +7,11 @@
 
 # COMMAND ----------
 
+if 'get_pop_from_census_gov' not in globals():  # off Databricks the %run cells above are comments
+    from population.subnational_population_extraction_from_census_gov import get_pop_from_census_gov
+
+# COMMAND ----------
+
 import pandas as pd
 import wbgapi as wb
 
@@ -65,11 +70,4 @@ assert num_adm1_units_src2 == 13
 
 # COMMAND ----------
 
-database_name = INDICATOR_SCHEMA
-
-if not spark.catalog.databaseExists(database_name):
-    print(f"Database '{database_name}' does not exist. Creating the database.")
-    spark.sql(f"CREATE DATABASE {database_name}")
-
-sdf = spark.createDataFrame(pop)
-sdf.write.mode("overwrite").saveAsTable(f"{database_name}.bfa_subnational_population_silver")
+write_table(pop, 'bfa_subnational_population_silver')

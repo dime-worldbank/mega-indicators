@@ -7,7 +7,7 @@
 
 # COMMAND ----------
 
-!pip install openpyxl
+# MAGIC %pip install openpyxl
 
 # COMMAND ----------
 
@@ -49,14 +49,7 @@ df_adm2_adm1_lookup
 # COMMAND ----------
 
 # Save the adm1 adm2 nso lookup table for reuse
-database_name = INDICATOR_SCHEMA
-
-if not spark.catalog.databaseExists(database_name):
-    print(f"Database '{database_name}' does not exist. Creating the database.")
-    spark.sql(f"CREATE DATABASE {database_name}")
-
-sdf = spark.createDataFrame(df_adm2_adm1_lookup)
-sdf.write.mode("overwrite").option("mergeSchema", "true").saveAsTable(f"{database_name}.col_subnational_adm2_adm1_lookup_silver")
+write_table(df_adm2_adm1_lookup, 'col_subnational_adm2_adm1_lookup_silver')
 
 # COMMAND ----------
 
@@ -80,5 +73,4 @@ assert np.all(num_adm1_by_year.values == expected_num_adm1_units), f'Expect ther
 
 # COMMAND ----------
 
-sdf_pop = spark.createDataFrame(df_pop)
-sdf_pop.write.mode("overwrite").option("mergeSchema", "true").saveAsTable(f"{database_name}.col_subnational_population_silver")
+write_table(df_pop, 'col_subnational_population_silver')

@@ -21,6 +21,7 @@ from pathlib import Path
 # The notebooks behind the tables the Togo BOOST aggregate and the dashboard read, in
 # dependency order. The other notebooks still run one at a time.
 NOTEBOOKS = [
+    'country.py',  # every other notebook joins to it
     'gdp.py',
     'consumer_price_index.py',
     'population/national_population.py',
@@ -32,12 +33,19 @@ NOTEBOOKS = [
     'pefa/pefa_transform_load.py',  # reads the hand-uploaded pefa_2011_bronze / pefa_2016_bronze
     'public_finance/government_revenue_expenditure.py',
     'public_finance/togo/togo_finance_report_transform_load_dlt.py',
-    'geo/admin_boundaries_extract.py',  # downloads the 254 MB World Bank Admin 1 GeoJSON
-    'geo/admin_boundaries_gold.py',
+    'geo/admin_boundaries_extract.py',  # country.py's map centroids come from these boundaries; downloads the World Bank Admin 1 (254 MB) and Admin 0 (174 MB) GeoJSON files
+    'geo/admin_boundaries_transform_load.py',
     'population/TGO/tgo_subnational_population.py',
-    'population/subnational_population_gold.py',
+    'population/subnational_population.py',
     'poverty/subnational_poverty/subnational_poverty_index_extract_transform.py',
     'poverty/subnational_poverty/subnational_poverty_index_transform_load.py',
+    'human_development/global_data_lab_hdi_extract.py',  # needs GDL_API_TOKEN
+    'human_development/global_data_lab_hdi_transform_load.py',
+    'education/completion_rates.py',  # these four only feed indicator_data_availability
+    'education/pupil_teacher_ratio.py',
+    'education/school_basic_services.py',
+    'education/teacher_salaries.py',
+    'indicator_data_availability.py',  # last: summarises the tables above
 ]
 
 if __name__ == '__main__':

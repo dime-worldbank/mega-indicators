@@ -20,7 +20,7 @@ jobs:
       # module level, so the local-runtime tests need those two. Keep this list
       # minimal so adding a heavy dependency to a notebook doesn't slow CI down.
       - name: Install test dependencies
-        run: pip install pytest pandas requests wbgapi
+        run: pip install pytest pandas requests wbgapi shapely
 
       # Test paths come from pytest.ini.
       - name: Run tests
