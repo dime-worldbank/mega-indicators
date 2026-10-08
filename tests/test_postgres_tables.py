@@ -144,6 +144,14 @@ def test_country_name_restricts_rows(utils, monkeypatch):
     assert utils.read_table(f"prd_mega.{SCHEMA}.one_country")["year"].tolist() == [2021, 2022]
 
 
+def test_table_of_another_catalog_does_not_exist(utils):
+    # country.py falls back to a built-in table when the corporate one is absent
+    corporate = "prd_corpdata.dm_reference_gold.v_dim_country_currency_exchange_rate"
+    assert not utils.table_exists(corporate)
+    with pytest.raises(RuntimeError, match="named 'prd_corpdata'"):
+        utils.read_table(corporate)
+
+
 def test_database_must_be_named_after_the_catalog(utils, monkeypatch):
     monkeypatch.setenv("POSTGRES_DSN", make_conninfo(DSN, dbname="postgres"))
     with pytest.raises(RuntimeError, match="named 'prd_mega'"):
