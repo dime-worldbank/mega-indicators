@@ -154,31 +154,3 @@ blank or `null`.
 |---|---|---|
 | `pefa_2016_bronze` | [pefa.org](https://www.pefa.org/assessments/batch-downloads), Assessments, Batch downloads: Framework "2016 Framework", Country Togo, Type National, Status Final, Download. Save as CSV with the header as downloaded. | `Country`, `Year`, `Framework`, `PI-01` to `PI-31`; other columns are ignored |
 | `pefa_2011_bronze` | Same, with Framework "2011 Framework". | `Country`, `Year`, `Framework`, `PI-01` to `PI-28` |
-
-### What runs locally
-
-| Notebook | Table(s) written |
-|---|---|
-| `geo/admin_boundaries_extract.py` then `geo/admin_boundaries_transform_load.py` | `admin1_boundaries_bronze`/`_silver`/`_gold` and `admin0_disputed_boundaries_bronze`/`_silver`/`_gold`, with the region-name corrections and the Albania and Ghana polygon unions. The extract downloads two GeoJSON files, 254 MB and 174 MB; loading them takes about 3 GB of memory. |
-| `country.py` | `country` (World Bank API metadata; map centroids from `admin1_boundaries_gold`, so the boundaries notebooks run first; currency from the corporate table where reachable, else a dictionary in the notebook) |
-| `consumer_price_index.py` | `consumer_price_index` |
-| `gdp.py` | `gdp` |
-| `population/national_population.py` | `population` |
-| `poverty/poverty.py` | `poverty_rate` |
-| `education/education_spending_icp.py` | `edu_spending` |
-| `education/learning_poverty.py` | `learning_poverty_rate` |
-| `education/education_sdg.py` | `youth_literacy_rate_unesco` |
-| `education/education_private_spending.py` | `edu_private_spending` (reads `gdp`) |
-| `education/education_public_spending.py` | `edu_gov_spending` |
-| `education/completion_rates.py`, `pupil_teacher_ratio.py`, `school_basic_services.py`, `teacher_salaries.py` | `completion_rates`, `pupil_teacher_ratio`, `school_basic_services`, `teacher_salaries` |
-| `health/health_expenditure.py` | `health_expenditure` (reads `gdp`) |
-| `health/sdg_health.py` | `maternal_mortality_ratio_WHO`, `universal_health_coverage_index_GHO` |
-| `public_finance/government_revenue_expenditure.py` | `government_revenue_expenditure` |
-| `public_finance/togo/togo_finance_report_transform_load_dlt.py` | `togo_revenue_budget` |
-| `pefa/pefa_transform_load.py` | `pefa_by_pillar` (reads the hand-uploaded `pefa_2011_bronze`, `pefa_2016_bronze`) |
-| `energy/energy_generation_consumption.py` | `energy_generation` (needs `ember_energy_key`) |
-| `public_sector_employment/wwbi_extract.py` then `public_sector_employment/wwbi_transform_load.py` | `public_sector_employment_silver`, then `public_sector_employment` (with regional means) |
-| `population/<ISO3>/<iso3>_subnational_population.py` (the runner picks it from `COUNTRY_NAME`) then `population/subnational_population.py` | `<iso3>_subnational_population_silver`, then `subnational_population` (the countries listed in the notebook stacked; with `COUNTRY_NAME` set, only the silver tables present) |
-| `poverty/subnational_poverty/subnational_poverty_index_extract_transform.py` then `subnational_poverty_index_transform_load.py` | `poverty_rate_SPID_GSAP_silver`, then `subnational_poverty_rate` |
-| `human_development/global_data_lab_hdi_extract.py` then `global_data_lab_hdi_transform_load.py` | `global_data_lab_hd_index_bronze`, `global_data_lab_hd_index_silver`, then `global_data_lab_hd_index` (needs `GDL_API_TOKEN`; about 70 API calls) |
-| `indicator_data_availability.py` (last) | `indicator_data_availability`: earliest and latest year per indicator and country, for the dashboard's source notes |
