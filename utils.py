@@ -20,12 +20,14 @@ else:
 
 DEFAULT_TIMEOUT_SECONDS = 60
 
-def retrying_session(total=5, backoff_factor=1):
-    """A requests session that retries GETs on connection errors, read timeouts and
-    429/5xx responses, waiting 0, 2, 4, 8 and 16 s between attempts."""
+def retrying_session(total=5, read=1, backoff_factor=1):
+    """A requests session that retries GETs on connection errors and 429/5xx responses
+    (`total` times, waiting 0, 2, 4, 8 and 16 s between attempts) and on a read timeout
+    only `read` times: a timeout means the server is up but slow, and each attempt costs
+    the full timeout, so a stalled source fails in minutes rather than hours."""
     session = requests.Session()
     session.mount('https://', HTTPAdapter(max_retries=Retry(
-        total=total, backoff_factor=backoff_factor, status_forcelist=(429, 500, 502, 503, 504),
+        total=total, read=read, backoff_factor=backoff_factor, status_forcelist=(429, 500, 502, 503, 504),
         allowed_methods=frozenset(['GET']),
     )))
     return session
@@ -56,7 +58,9 @@ def http_get(url, retries=5, backoff_factor=1, **kwargs):
                 return resp
             reason = f'HTTP {resp.status_code}'
         except TRANSIENT_HTTP_ERRORS as e:
-            if attempt == retries:
+            # a timeout means the server is up but slow, and every attempt costs the full
+            # timeout: one more try, then fail rather than wait for minutes
+            if attempt == retries or (isinstance(e, requests.exceptions.Timeout) and attempt >= 1):
                 raise
             reason = type(e).__name__
         wait = backoff_factor * 2 ** attempt if attempt else 0
@@ -134,16 +138,6 @@ def get_secret(scope, key):
 
 # COMMAND ----------
 
-def _wb_dataframe_with_retry(series, attempts=5, backoff=2.0):
-    # World Bank's API intermittently 502s mid-pagination; retry the whole fetch.
-    for i in range(attempts):
-        try:
-            return wb.data.DataFrame(series, skipBlanks=True)
-        except Exception:
-            if i == attempts - 1:
-                raise
-            time.sleep(backoff * (2 ** i))
-
 def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_country_table=None, how: str = 'inner'):
     if extra_col_names_from_country_table is None:
         extra_col_names_from_country_table = []
@@ -151,7 +145,10 @@ def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_countr
         raise ValueError(f"Unsupported merge how='{how}'")
     long_dfs = []
     for series, col_name in zip(indicators, col_names):
-        df = _wb_dataframe_with_retry(series).reset_index()
+        # The World Bank API intermittently 502s mid-pagination; the session wbgapi uses
+        # (above) retries each page, so a failure that gets through is one to stop on.
+        print(f'wbgapi: fetching {series}', flush=True)
+        df = wb.data.DataFrame(series, skipBlanks=True).reset_index()
         long_df = df.melt(id_vars='economy', var_name='year', value_name=col_name)
         long_df = long_df.dropna(subset=col_name)
         long_df['year'] = long_df['year'].str.replace('YR', '')

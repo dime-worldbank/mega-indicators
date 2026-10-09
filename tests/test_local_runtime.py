@@ -197,6 +197,26 @@ def test_http_get_retries_transient_failures_then_gives_up(data_root, monkeypatc
     with pytest.raises(requests.exceptions.ConnectionError):
         ns["http_get"]("http://example/x", retries=1)
 
+    # a timeout means the server is up but slow: one more try, then fail
+    outcomes[:] = [requests.exceptions.ReadTimeout("slow"), FakeResponse(b"ok")]
+    monkeypatch.setattr(requests, "get", fake_get)
+    assert ns["http_get"]("http://example/x").text == "ok"
+    outcomes[:] = [requests.exceptions.ReadTimeout("slow"), requests.exceptions.ReadTimeout("slow"), FakeResponse(b"never")]
+    with pytest.raises(requests.exceptions.ReadTimeout):
+        ns["http_get"]("http://example/x")
+    assert len(outcomes) == 1  # the third attempt was not made
+
+
+def test_wbgapi_requests_retry_transient_failures_but_not_slow_pages_for_long(data_root):
+    """utils points wbgapi at a session that retries resets and 5xx several times but a read timeout once."""
+    shared = load_shared()
+    session = wbgapi.requests
+    assert isinstance(session, requests.Session)
+    retry = session.get_adapter("https://api.worldbank.org/v2/country").max_retries
+    assert retry.total >= 3 and 503 in retry.status_forcelist and "GET" in retry.allowed_methods
+    assert retry.read == 1
+    assert wbgapi.get_options["timeout"] == shared["DEFAULT_TIMEOUT_SECONDS"]
+
 
 def write_country(ns):
     ns["write_table"](pd.DataFrame({
