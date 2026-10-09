@@ -34,7 +34,7 @@ resources:
       - task_key: gdl_subnational_population
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
-          notebook_path: ../population/global_data_lab_subnational_population.r
+          notebook_path: ../population/global_data_lab_subnational_population.py
       - task_key: wb_subnational_population_extract
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
