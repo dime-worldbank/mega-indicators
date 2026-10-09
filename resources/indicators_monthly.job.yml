@@ -155,6 +155,7 @@ resources:
         - task_key: subnational_population_alb
         - task_key: subnational_population_gha
         - task_key: subnational_population_tgo
-        pipeline_task:
-          pipeline_id: ${resources.pipelines.subnational_population_agg_uc.id}
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/subnational_population.py
       performance_target: PERFORMANCE_OPTIMIZED

@@ -28,8 +28,6 @@ targets:
       name_prefix: "[dev] "
     resources:
       pipelines:
-        subnational_population_agg_uc:
-          schema: indicator_dev
         public_sector_employment_uc:
           schema: indicator_dev
         indicator_data_availability_uc:
@@ -59,8 +57,6 @@ targets:
     # DLT LIVE TABLES write to the staging schema (notebooks resolve it from bundle_target).
     resources:
       pipelines:
-        subnational_population_agg_uc:
-          schema: indicator_staging
         public_sector_employment_uc:
           schema: indicator_staging
         indicator_data_availability_uc:
