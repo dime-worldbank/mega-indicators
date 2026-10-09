@@ -32,7 +32,7 @@ wb.source.info()
 
 # COMMAND ----------
 
-country_df = spark.table(f'{INDICATOR_SCHEMA}.country').select('country_name', 'country_code', 'region').toPandas()
+country_df = read_table('country', columns=['country_name', 'country_code', 'region'])
 country_df
 
 # COMMAND ----------
@@ -58,6 +58,5 @@ for key, val in outcome_series_to_col_name.items():
     long_df = long_df.dropna(subset=[indicator_name]).sort_values(by=['economy', 'year'])
 
     df_indicator = pd.merge(long_df, country_df, left_on='economy', right_on='country_code', how='left')[['country_name', 'country_code', 'region', 'year', indicator_name, 'data_source']]
-    sdf = spark.createDataFrame(df_indicator)
-    sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f'{INDICATOR_SCHEMA}.{db_name}')
+    write_table(df_indicator, db_name)
 

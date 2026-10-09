@@ -21,7 +21,7 @@ response.raise_for_status()
 with zipfile.ZipFile(io.BytesIO(response.content)) as zip_file:
     filenames = zip_file.namelist()
     csv_file_name = next((name for name in filenames if name.startswith(f'API_{INDICATOR}')), None)
-    
+
     if not csv_file_name:
         raise ValueError(f"No file starting with 'API_{INDICATOR}' found in the ZIP archive: {filenames}")
 
@@ -39,5 +39,4 @@ df
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").saveAsTable(f"{INDICATOR_SCHEMA}.consumer_price_index")
+write_table(df, 'consumer_price_index')

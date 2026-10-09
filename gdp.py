@@ -28,5 +28,4 @@ data_source = 'WB & OECD National Accounts, WB International Comparison Program,
 
 df = wbgapi_fetch(indicators, col_names, data_source)
 
-sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.gdp")
+write_table(df, 'gdp')

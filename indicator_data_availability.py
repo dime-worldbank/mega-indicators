@@ -3,8 +3,12 @@
 
 # COMMAND ----------
 
+# MAGIC %run ./utils
+
+# COMMAND ----------
+
 # Earliest and latest year with data, per indicator and country, read by the dashboard's
-# source notes. Plain pandas, run as a notebook task (it replaced a DLT SQL view). A row counts for
+# source notes. Plain pandas on both sides (it replaced a DLT SQL view). A row counts for
 # an indicator when every column in `all_of` is present, or any column in `any_of` is.
 # The producers are sequenced ahead of this notebook by depends_on in
 # resources/indicators_weekly.job.yml; a new indicator here needs its producer added there.
@@ -50,7 +54,7 @@ INDICATORS = {
 
 rows = []
 for key, (table, all_of, any_of, source_url) in INDICATORS.items():
-    df = spark.table(f'{INDICATOR_SCHEMA}.{table}').toPandas()
+    df = read_table(table)
     if all_of:
         df = df.dropna(subset=all_of)
     if any_of:
@@ -68,4 +72,4 @@ availability
 
 # COMMAND ----------
 
-spark.createDataFrame(availability).write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.indicator_data_availability")
+write_table(availability, 'indicator_data_availability')

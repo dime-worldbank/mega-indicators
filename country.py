@@ -14,9 +14,9 @@
 
 # The country table: World Bank API metadata for every economy, the map's initial view
 # (the centroid of the admin-1 boundaries, and a hand-set zoom) and the currency. Plain
-# pandas; the centroid and the latest-exchange-rate row were Spark UDF and window code.
-# The currency comes from the corporate reference table where it is reachable and
-# otherwise from the FALLBACK_CURRENCIES dictionary below.
+# pandas on both sides. The currency comes from the corporate reference table where it is
+# reachable (Databricks, or a CSV export of it under DATA_ROOT) and otherwise from the
+# FALLBACK_CURRENCIES dictionary below.
 import json
 
 import pandas as pd
@@ -90,7 +90,7 @@ def compute_country_centroid(boundaries_list):
     centroid = multi_polygon.centroid
     return (centroid.x, centroid.y)
 
-admin1_boundaries = spark.table(f'{INDICATOR_SCHEMA}.admin1_boundaries_gold').select('country_name', 'country_code_iso2', 'boundary').toPandas()
+admin1_boundaries = read_table('admin1_boundaries_gold', columns=['country_name', 'country_code_iso2', 'boundary'])
 centroid_df = (admin1_boundaries.groupby('country_name')
     .agg(country_code_iso2=('country_code_iso2', 'first'), all_boundaries=('boundary', list))
     .reset_index())
@@ -129,8 +129,8 @@ FALLBACK_CURRENCIES = {
     'ZAF': ('Rand', 'ZAR'),
 }
 
-if spark.catalog.tableExists(CURRENCY_TABLE):
-    base_df = spark.table(CURRENCY_TABLE).select('cntry_code', 'ccy_src_name', 'ccy_src_code', 'ccy_exch_rate_ref_date').toPandas()
+if table_exists(CURRENCY_TABLE):
+    base_df = read_table(CURRENCY_TABLE, columns=['cntry_code', 'ccy_src_name', 'ccy_src_code', 'ccy_exch_rate_ref_date'])
     # the latest row per country, joined on the ISO2 code
     currency_df = (base_df.sort_values('ccy_exch_rate_ref_date', ascending=False)
         .drop_duplicates('cntry_code')
@@ -154,4 +154,4 @@ joined_df
 
 # COMMAND ----------
 
-spark.createDataFrame(joined_df).write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.country")
+write_table(joined_df, 'country')

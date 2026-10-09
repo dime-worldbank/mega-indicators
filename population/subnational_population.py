@@ -3,8 +3,12 @@
 
 # COMMAND ----------
 
-# subnational_population: the per-country silver tables stacked into one. Plain pandas, run
-# as a notebook task (it replaced a DLT pipeline).
+# MAGIC %run ../utils
+
+# COMMAND ----------
+
+# subnational_population: the per-country silver tables stacked into one. Plain pandas on
+# both sides (it replaced a DLT pipeline).
 import pandas as pd
 
 # Adding a new country requires adding the country here
@@ -13,5 +17,5 @@ country_codes = ['moz', 'pry', 'ken', 'pak', 'bfa', 'col', 'cod', 'tun', 'btn', 
 # COMMAND ----------
 
 # Consolidating all the country specific dataframes
-dfs = [spark.table(f'{INDICATOR_SCHEMA}.{code}_subnational_population_silver').toPandas() for code in country_codes]
-spark.createDataFrame(pd.concat(dfs, ignore_index=True)).write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.subnational_population")
+dfs = [read_table(f'{code}_subnational_population_silver') for code in country_codes]
+write_table(pd.concat(dfs, ignore_index=True), 'subnational_population')

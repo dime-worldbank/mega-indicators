@@ -10,10 +10,9 @@
 # Subnational human development indices and school attendance from Global Data Lab, for
 # every country, one request per dataset and year, as the R notebook made through the
 # gdldata package: <base>/<dataset>/download/<year>/<indicator+indicator>/?format=csv&token=...
-# Plain pandas; it replaced the R notebook. The token is the GDL_API_TOKEN secret
-# (DIMEBOOSTKEYVAULT) on Databricks and the GDL_API_TOKEN environment variable otherwise.
+# Plain pandas on both sides; it replaced the R notebook. The token is the GDL_API_TOKEN
+# secret (DIMEBOOSTKEYVAULT) on Databricks and the GDL_API_TOKEN environment variable off it.
 import io
-import os
 from datetime import date
 
 import pandas as pd
@@ -28,10 +27,7 @@ DATASETS = {
 }
 INDICATORS = [i for inds in DATASETS.values() for i in inds]
 
-if 'DATABRICKS_RUNTIME_VERSION' in os.environ:
-    token = dbutils.secrets.get(scope='DIMEBOOSTKEYVAULT', key='GDL_API_TOKEN')
-else:
-    token = os.environ['GDL_API_TOKEN']
+token = get_secret('DIMEBOOSTKEYVAULT', 'GDL_API_TOKEN')
 
 
 def gdl_download(dataset, indicators, year):
@@ -53,7 +49,7 @@ for dataset, indicators in DATASETS.items():
 # The education download returns the nearest survey's rows for every requested year, so
 # the same row comes back many times; the R notebook's merge(all = TRUE) collapsed those.
 raw = pd.concat(frames, ignore_index=True).drop_duplicates(ignore_index=True)
-spark.createDataFrame(raw).write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.global_data_lab_hd_index_bronze")
+write_table(raw, 'global_data_lab_hd_index_bronze')
 print(f'global_data_lab_hd_index_bronze nrow: {len(raw)}')
 
 # COMMAND ----------
@@ -73,5 +69,5 @@ silver
 
 # COMMAND ----------
 
-spark.createDataFrame(silver).write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.global_data_lab_hd_index_silver")
+write_table(silver, 'global_data_lab_hd_index_silver')
 print(f'global_data_lab_hd_index_silver nrow: {len(silver)}')

@@ -7,6 +7,11 @@
 
 # COMMAND ----------
 
+if 'get_pop_from_census_gov' not in globals():  # off Databricks the %run cells above are comments
+    from population.subnational_population_extraction_from_census_gov import get_pop_from_census_gov
+
+# COMMAND ----------
+
 update_version = update_version_flag('census_population_update_version')
 df_pop = get_pop_from_census_gov('nigeria', update_version=update_version)
 
@@ -34,11 +39,4 @@ assert num_adm1_units==37
 
 # COMMAND ----------
 
-database_name = INDICATOR_SCHEMA
-
-if not spark.catalog.databaseExists(database_name):
-    print(f"Database '{database_name}' does not exist. Creating the database.")
-    spark.sql(f"CREATE DATABASE {database_name}")
-
-sdf = spark.createDataFrame(df_pop)
-sdf.write.mode("overwrite").saveAsTable(f"{database_name}.nga_subnational_population_silver")
+write_table(df_pop, 'nga_subnational_population_silver')

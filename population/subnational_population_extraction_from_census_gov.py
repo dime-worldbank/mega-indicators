@@ -5,6 +5,9 @@
 
 import pandas as pd
 
+if 'versioned_dataframe' not in globals():  # off Databricks the %run above is a comment
+    from utils import *
+
 def _read_census_gov_excel(buf):
     xls = pd.ExcelFile(buf)
     target_sheet = next(sheet for sheet in xls.sheet_names if sheet.startswith('2'))

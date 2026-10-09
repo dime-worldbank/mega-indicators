@@ -3,10 +3,14 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../../utils
+
+# COMMAND ----------
+
 # Subnational poverty rate per region and year from the SPID/GSAP silver table. Region
 # names are aligned to admin1_boundaries_gold with the fixes below, and the poverty line
-# follows the country's income group, as for the national poverty_rate. Plain pandas, run
-# as a notebook task (it replaced a DLT pipeline). The pipeline's intermediate
+# follows the country's income group, as for the national poverty_rate. Plain pandas on
+# both sides (it replaced a DLT pipeline). The pipeline's intermediate
 # subnational_poverty_rate_silver table is no longer written; nothing read it.
 import numpy as np
 import pandas as pd
@@ -96,8 +100,8 @@ def initcap(name):
 
 # COMMAND ----------
 
-silver = spark.table(f'{INDICATOR_SCHEMA}.poverty_rate_SPID_GSAP_silver').toPandas()
-countries = spark.table(f'{INDICATOR_SCHEMA}.country').select('country_name', 'country_code', 'income_level').toPandas()
+silver = read_table('poverty_rate_SPID_GSAP_silver')
+countries = read_table('country', columns=['country_name', 'country_code', 'income_level'])
 fixes = pd.DataFrame(REGION_NAME_FIXES, columns=['country_code', 'region_name', 'country_fixed_region_name'])
 
 df = silver.merge(fixes, on=['country_code', 'region_name'], how='left')
@@ -123,4 +127,4 @@ df
 
 # COMMAND ----------
 
-spark.createDataFrame(df).write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.subnational_poverty_rate")
+write_table(df, 'subnational_poverty_rate')

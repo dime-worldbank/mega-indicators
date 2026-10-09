@@ -63,3 +63,7 @@ To add more indicators, please open a pull request after you've tested your code
 - For an API, call `utils.py`'s `http_get` rather than `requests.get`: it retries connection
   errors, timeouts, responses cut short and 429/5xx answers with a backoff, which these
   sources produce now and then.
+- Read and write tables through `utils.py`'s `read_table` / `write_table` (and
+  `table_exists`, `get_secret`), never `spark.table` / `saveAsTable` / `dbutils` directly: on
+  Databricks they are Delta tables in `INDICATOR_SCHEMA`, off it CSVs under `DATA_ROOT`, so the
+  same notebook runs in both. A test fails if a notebook calls spark or dbutils.

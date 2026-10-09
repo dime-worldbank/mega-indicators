@@ -3,6 +3,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../../utils
+
+# COMMAND ----------
+
 
 import pandas as pd
 
@@ -74,5 +78,4 @@ print(df.to_string(index=False))
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.togo_revenue_budget")
+write_table(df, 'togo_revenue_budget')

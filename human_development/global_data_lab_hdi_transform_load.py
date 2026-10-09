@@ -3,9 +3,13 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../utils
+
+# COMMAND ----------
+
 # global_data_lab_hd_index: the silver table joined to country, regions named as in
-# admin1_boundaries_gold, attendance also as a 0-1 share. Plain pandas, run as a notebook
-# task (it replaced a DLT pipeline); the silver table still comes from the R extract.
+# admin1_boundaries_gold, attendance also as a 0-1 share. Plain pandas on both sides
+# (it replaced a DLT pipeline).
 import pandas as pd
 
 # (country_name, GDL region) -> admin1 name, where the two spellings differ
@@ -48,8 +52,8 @@ def adm1_name(country_name, region):
 
 # COMMAND ----------
 
-silver = spark.table(f'{INDICATOR_SCHEMA}.global_data_lab_hd_index_silver').toPandas().rename(columns={'ISO_Code': 'country_code'})
-countries = spark.table(f'{INDICATOR_SCHEMA}.country').select('country_name', 'country_code').toPandas()
+silver = read_table('global_data_lab_hd_index_silver').rename(columns={'ISO_Code': 'country_code'})
+countries = read_table('country', columns=['country_name', 'country_code'])
 df = silver.merge(countries, on='country_code', how='inner')
 
 df['Region'] = df['Region'].str.replace(r'\(.*\)', '', regex=True).str.strip()
@@ -61,4 +65,4 @@ df
 
 # COMMAND ----------
 
-spark.createDataFrame(df).write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.global_data_lab_hd_index")
+write_table(df, 'global_data_lab_hd_index')

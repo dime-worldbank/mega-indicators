@@ -32,12 +32,8 @@ def remove_accents(input_str: str) -> str:
 
 # Extract 2016 and earlier data from WB subnational Population — shared download+parse
 # across countries (wb_subnational_population_extract.py).
-df_wb_long = (
-    spark.table(f'{INDICATOR_SCHEMA}.wb_subnational_population_silver')
-    .where(f"country_code = '{COUNTRY_CODE}'")
-    .drop('country_code')
-    .toPandas()
-)
+df_wb_long = read_table('wb_subnational_population_silver')
+df_wb_long = df_wb_long[df_wb_long['country_code'] == COUNTRY_CODE].drop(columns='country_code').reset_index(drop=True)
 df_wb_long['country_name'] = COUNTRY_NAME
 df_wb_long['data_source'] = WB_SUBNATIONAL_POPULATION_SOURCE
 
@@ -148,11 +144,4 @@ df_pop['population'] = df_pop['population'].astype(int)
 
 # COMMAND ----------
 
-database_name = INDICATOR_SCHEMA
-
-if not spark.catalog.databaseExists(database_name):
-    print(f"Database '{database_name}' does not exist. Creating the database.")
-    spark.sql(f"CREATE DATABASE {database_name}")
-
-sdf = spark.createDataFrame(df_pop)
-sdf.write.mode("overwrite").saveAsTable(f"{database_name}.alb_subnational_population_silver")
+write_table(df_pop, 'alb_subnational_population_silver')

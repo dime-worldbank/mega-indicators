@@ -89,5 +89,4 @@ df_combined
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(df_combined)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.poverty_rate_SPID_GSAP_silver")
+write_table(df_combined, 'poverty_rate_SPID_GSAP_silver')

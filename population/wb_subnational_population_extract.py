@@ -45,5 +45,4 @@ df_long['year'] = df_long['year'].astype('int')
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(df_long)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.wb_subnational_population_silver")
+write_table(df_long, 'wb_subnational_population_silver')

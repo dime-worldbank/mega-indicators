@@ -3,13 +3,13 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../../utils
+
+# COMMAND ----------
+
 # Shared download+parse across countries (wb_subnational_population_extract.py).
-ddf_pop = (
-    spark.table(f'{INDICATOR_SCHEMA}.wb_subnational_population_silver')
-    .where("country_code = 'CHL'")
-    .drop('country_code')
-    .toPandas()
-)
+ddf_pop = read_table('wb_subnational_population_silver')
+ddf_pop = ddf_pop[ddf_pop['country_code'] == 'CHL'].drop(columns='country_code').reset_index(drop=True)
 ddf_pop['country_name'] = 'Chile'
 ddf_pop['data_source'] = 'WB subnational population database'
 
@@ -48,14 +48,6 @@ assert ddf_pop.adm1_name.nunique() >14, f'Expect 15 adm1 regions (districts) if 
 if 2019 in ddf_pop.year.unique():
     assert ddf_pop.adm1_name.nunique() >15, f'Expect 16 adm1 regions (districts) if data is after 2018, got {ddf_pop.adm1_name.nunique()}'
 
-
 # COMMAND ----------
 
-database_name = INDICATOR_SCHEMA
-
-if not spark.catalog.databaseExists(database_name):
-    print(f"Database '{database_name}' does not exist. Creating the database.")
-    spark.sql(f"CREATE DATABASE {database_name}")
-
-sdf = spark.createDataFrame(ddf_pop)
-sdf.write.mode("overwrite").saveAsTable(f"{database_name}.chl_subnational_population_silver")
+write_table(ddf_pop, 'chl_subnational_population_silver')
