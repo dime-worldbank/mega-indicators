@@ -8,7 +8,6 @@
 # COMMAND ----------
 
 import pandas as pd
-import requests
 from io import StringIO
 
 URL = 'https://sdmx.oecd.org/public/rest/data/OECD.EDU.IMEP,DSD_EAG_UOE_FIN@DF_UOE_FIN_SOURCE_GV_PR_NDOM,3.1/.EXP.ISCED11_0+ISCED11_1T8.S1D_NON_EDU.INST_EDU...PT_B1GQ.?format=csv'

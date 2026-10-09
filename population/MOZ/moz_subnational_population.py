@@ -9,7 +9,6 @@
 
 import unicodedata
 from io import BytesIO
-import requests
 import pandas as pd
 
 # COMMAND ----------
