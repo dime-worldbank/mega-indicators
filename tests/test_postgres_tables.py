@@ -120,17 +120,18 @@ def test_object_column_of_booleans_with_nulls_stays_boolean(utils):
 
 def test_versioned_dataframe_snapshots_and_reads_back(utils, monkeypatch):
     class Response:
+        status_code = 200
         content = b"Country,PI-01,code\nNamibia,A,NA\nTogo,,TG\n"
         def raise_for_status(self):
             pass
-    monkeypatch.setattr(utils.requests, "get", lambda url, timeout: Response())
+    monkeypatch.setattr(utils.SESSION, "get", lambda url, **kwargs: Response())
     table = f"prd_mega.{SCHEMA}.pefa_bronze"
     df = utils.versioned_dataframe("https://example.org/pefa.csv", table, update_version=True)
     assert columns_and_types("pefa_bronze")[-1] == ("fetched_at", "timestamp with time zone")
 
-    def unreachable(url, timeout):
+    def unreachable(url, **kwargs):
         raise AssertionError("an existing snapshot must be read without fetching")
-    monkeypatch.setattr(utils.requests, "get", unreachable)
+    monkeypatch.setattr(utils.SESSION, "get", unreachable)
     cached = utils.versioned_dataframe("https://example.org/pefa.csv", table, update_version=False)
     assert list(cached.columns) == ["Country", "PI-01", "code"]
     assert cached["PI-01"][0] == "A" and pd.isna(cached["PI-01"][1])
