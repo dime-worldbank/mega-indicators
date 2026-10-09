@@ -89,7 +89,7 @@ The notebooks also run as plain Python, with each table stored as a CSV at
 counterpart without a Databricks workspace (e.g. Togo) refreshes the indicator tables.
 
 ```bash
-pip install pandas requests wbgapi openpyxl shapely
+pip install -r requirements.txt   # Python 3.10 or newer
 
 export DATA_ROOT=./data        # tables land under ./data/prd_mega/indicator/
 export GDL_API_TOKEN=...       # the Global Data Lab notebooks need it; get one at https://globaldatalab.org

@@ -15,13 +15,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      # Only the deps the tests actually need — not the full notebook stack
-      # (no pyspark, no openai, etc.). utils.py imports requests and wbgapi at
-      # module level; the notebook tests need shapely (boundaries, country) and
-      # openpyxl (Excel sources). Keep this list minimal so adding a heavy
-      # dependency to a notebook doesn't slow CI down.
+      # requirements.txt is what the notebooks need off Databricks (no pyspark); the
+      # tests run the notebooks, so they need the same, plus pytest.
       - name: Install test dependencies
-        run: pip install pytest pandas requests wbgapi shapely openpyxl
+        run: pip install -r requirements.txt pytest
 
       # Test paths come from pytest.ini.
       - name: Run tests
