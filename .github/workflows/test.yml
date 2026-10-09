@@ -8,6 +8,19 @@ on:
 jobs:
   pytest:
     runs-on: ubuntu-latest
+    # For tests/test_postgres_tables.py, which is skipped without TEST_POSTGRES_DSN.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: prd_mega
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      TEST_POSTGRES_DSN: postgresql://postgres:test@localhost:5432/prd_mega
     steps:
       - uses: actions/checkout@v4
 
@@ -16,9 +29,10 @@ jobs:
           python-version: '3.11'
 
       # requirements.txt is what the notebooks need off Databricks (no pyspark); the
-      # tests run the notebooks, so they need the same, plus pytest.
+      # tests run the notebooks, so they need the same, plus pytest and the driver of
+      # the PostgreSQL backend.
       - name: Install test dependencies
-        run: pip install -r requirements.txt pytest
+        run: pip install -r requirements.txt pytest "psycopg[binary]"
 
       # Test paths come from pytest.ini.
       - name: Run tests
