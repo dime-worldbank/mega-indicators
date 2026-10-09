@@ -27,9 +27,6 @@ targets:
     presets:
       name_prefix: "[dev] "
     resources:
-      pipelines:
-        indicator_data_availability_uc:
-          schema: indicator_dev
       # Always paused (dev runs are manual); crons offset from staging's, which
       # are offset from prod's, in case one is ever unpaused for validation.
       jobs:
@@ -52,11 +49,7 @@ targets:
     default: true
     presets:
       name_prefix: "[staging] "
-    # DLT LIVE TABLES write to the staging schema (notebooks resolve it from bundle_target).
     resources:
-      pipelines:
-        indicator_data_availability_uc:
-          schema: indicator_staging
       # Always paused, and offset a day from prod's cron even so, in case a schedule is
       # ever unpaused for periodic validation.
       jobs:

@@ -3,7 +3,7 @@ A collection of notebooks to fetch and store indicator datasets
 
 ## Deployment
 
-The jobs and DLT pipelines are defined as a [Databricks Asset Bundle](https://docs.databricks.com/dev-tools/bundles/)
+The jobs are defined as a [Databricks Asset Bundle](https://docs.databricks.com/dev-tools/bundles/)
 (`databricks.yml` + `resources/`) and deployed with the Databricks CLI. All targets
 (dev, staging, prod) are deployed *and* run as the `RPF-ADBSvc-PROD` service principal,
 so deploys, resource ownership, and monitoring aren't tied to any one person's account.
@@ -42,7 +42,7 @@ schema *and* its own volume, isolated from prod's:
 | `prod` | `prd_mega.indicator` | `vboost4` | The real thing (live schedules + failure emails) |
 
 
-Prod is bound to the existing jobs/pipelines (no duplicates) and deploys to the team's
+Prod is bound to the existing jobs (no duplicates) and deploys to the team's
 `/Workspace/Repos/boostprocessed` folder, with `CAN_MANAGE` granted to the
 `ITSDA-LKHS-DAP-PROD-boostprocessed` group. The GDL token is read from the existing
 `DIMEBOOSTKEYVAULT` secret scope — no setup needed.
