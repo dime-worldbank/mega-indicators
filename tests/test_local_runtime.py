@@ -575,11 +575,12 @@ def test_country_notebook_runs_locally(data_root, monkeypatch):
     world = country.set_index("country_code").loc["WLD"]
     assert world.is_aggregate == True and pd.isna(world.display_lon) and pd.isna(world.currency_code)  # noqa: E712
 
-    ns["write_table"](pd.DataFrame({"cntry_code": ["TG", "TG"], "ccy_src_name": ["Old name", "C.F.A. Francs BCEAO"],
-                                    "ccy_src_code": ["XOF", "XOF"], "ccy_exch_rate_ref_date": ["2020-01-01", "2024-01-01"]}),
+    ns["write_table"](pd.DataFrame({"cntry_code": ["TG", "TG", "TG"], "ccy_src_name": ["Old name", "Other currency", "C.F.A. Francs BCEAO"],
+                                    "ccy_src_code": ["XOF", "AAA", "XOF"], "ccy_exch_rate_ref_date": ["2020-01-01", "2024-01-01", "2024-01-01"]}),
                      "prd_corpdata.dm_reference_gold.v_dim_country_currency_exchange_rate")
-    run_notebook(REPO / "country.py")  # the corporate table wins, latest row per country
-    assert ns["read_table"]("country").set_index("country_code").loc["TGO", "currency_name"] == "C.F.A. Francs BCEAO"
+    run_notebook(REPO / "country.py")  # the corporate table wins: the latest date, and on a tie the later code
+    togo = ns["read_table"]("country").set_index("country_code").loc["TGO"]
+    assert (togo.currency_code, togo.currency_name) == ("XOF", "C.F.A. Francs BCEAO")
 
 
 def _wb_indicator_zip(indicator):
