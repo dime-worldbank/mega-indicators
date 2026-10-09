@@ -3,6 +3,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../utils
+
+# COMMAND ----------
+
 import pandas as pd
 import requests
 from io import StringIO
@@ -13,7 +17,7 @@ HEADERS = {
 }
 
 # OECD API returns 403: Forbidden if no headers
-response = requests.get(URL, headers=HEADERS, timeout=60)
+response = http_get(URL, headers=HEADERS, timeout=60)
 response.raise_for_status()
 
 # COMMAND ----------

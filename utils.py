@@ -1,14 +1,57 @@
 # Databricks notebook source
 import os
 import time
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import wbgapi as wb
 import pandas as pd
 from databricks.sdk.runtime import spark, dbutils
 
 DEFAULT_TIMEOUT_SECONDS = 60
 
-# wbgapi has no timeout by default, set it so a stalled connection doesn't hang forever
+def retrying_session(total=5, backoff_factor=1):
+    """A requests session that retries GETs on connection errors, read timeouts and
+    429/5xx responses, waiting 0, 2, 4, 8 and 16 s between attempts."""
+    session = requests.Session()
+    session.mount('https://', HTTPAdapter(max_retries=Retry(
+        total=total, backoff_factor=backoff_factor, status_forcelist=(429, 500, 502, 503, 504),
+        allowed_methods=frozenset(['GET']),
+    )))
+    return session
+
+# The World Bank API now and then resets a connection or stalls, and one such failure
+# fails the notebook. wbgapi calls `requests.get` through its module global, so point
+# that at a retrying session; and as wbgapi has no timeout by default, set one so a
+# stalled connection doesn't hang forever (the read is retried once it expires).
+wb.requests = retrying_session()
 wb.get_options = {'timeout': DEFAULT_TIMEOUT_SECONDS}
+
+# Notebooks fetch through http_get rather than requests.get, so a flaky source (the sources
+# here reset connections, stall, cut a response short or answer 5xx now and then) is retried
+# before it fails the notebook. The whole request is retried, body included, which urllib3's
+# Retry above does not do for a body that breaks after the headers have arrived.
+TRANSIENT_HTTP_ERRORS = (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.ChunkedEncodingError)
+RETRIED_STATUS_CODES = (429, 500, 502, 503, 504)
+
+def http_get(url, retries=5, backoff_factor=1, **kwargs):
+    """requests.get with the body read, retried on connection errors, timeouts, bodies cut
+    short and 429/5xx responses, waiting 0, 2, 4, 8 and 16 s between attempts. The last
+    response is returned whatever its status, so call raise_for_status() as usual."""
+    kwargs.setdefault('timeout', DEFAULT_TIMEOUT_SECONDS)
+    for attempt in range(retries + 1):
+        try:
+            resp = requests.get(url, **kwargs)
+            if resp.status_code not in RETRIED_STATUS_CODES or attempt == retries:
+                return resp
+            reason = f'HTTP {resp.status_code}'
+        except TRANSIENT_HTTP_ERRORS as e:
+            if attempt == retries:
+                raise
+            reason = type(e).__name__
+        wait = backoff_factor * 2 ** attempt if attempt else 0
+        print(f'{url}: {reason}; retry {attempt + 1}/{retries} in {wait}s', flush=True)
+        time.sleep(wait)
 
 def _wb_dataframe_with_retry(series, attempts=5, backoff=2.0):
     # World Bank's API intermittently 502s mid-pagination; retry the whole fetch.
@@ -48,8 +91,6 @@ def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_countr
 
 # COMMAND ----------
 
-import requests
-
 UIS_API_URL = 'https://api.uis.unesco.org/api/public/data/indicators'
 
 def uis_fetch(series_to_col_name, data_source, extra_col_names_from_country_table=None, how: str = 'inner', start: int = None, stop: int = None):
@@ -74,7 +115,7 @@ def uis_fetch(series_to_col_name, data_source, extra_col_names_from_country_tabl
         params.append(('start', start))
     if stop is not None:
         params.append(('stop', stop))
-    resp = requests.get(UIS_API_URL, params=params, timeout=DEFAULT_TIMEOUT_SECONDS)
+    resp = http_get(UIS_API_URL, params=params, timeout=DEFAULT_TIMEOUT_SECONDS)
     resp.raise_for_status()
     payload = resp.json()
     raw_df = pd.DataFrame.from_records(payload.get('records', []))
@@ -117,7 +158,7 @@ def ddh_bytes(url):
     if os.path.exists(vol):
         with open(vol, 'rb') as f:
             return f.read()
-    resp = requests.get(url, timeout=DEFAULT_TIMEOUT_SECONDS)
+    resp = http_get(url, timeout=DEFAULT_TIMEOUT_SECONDS)
     resp.raise_for_status()
     return resp.content
 
@@ -131,7 +172,7 @@ def fetch_raw(source_url, table_name, parse=pd.read_csv, **parse_kwargs):
 
     Delta's transaction log is the audit trail (DESCRIBE HISTORY / VERSION AS OF).
     """
-    resp = requests.get(source_url, timeout=DEFAULT_TIMEOUT_SECONDS)
+    resp = http_get(source_url, timeout=DEFAULT_TIMEOUT_SECONDS)
     resp.raise_for_status()
     df = parse(io.BytesIO(resp.content), **parse_kwargs)
     df['fetched_at'] = datetime.now(timezone.utc)

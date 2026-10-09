@@ -3,6 +3,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../utils
+
+# COMMAND ----------
+
 import pandas as pd
 import requests
 
@@ -18,7 +22,7 @@ query_url = (
     + f"&api_key={my_api_key}"
 )
 
-response = requests.get(query_url, timeout=60)
+response = http_get(query_url, timeout=60)
 response.raise_for_status()
 
 data = response.json()

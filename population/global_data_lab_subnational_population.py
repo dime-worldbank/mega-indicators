@@ -29,7 +29,7 @@ else:
 
 # by default linear extrapolation for 3 years
 # disabling extrapolation doesn't seem to work
-resp = requests.get(f'{GDL_BASEURL}/demographics/download/regpopm/', params={'format': 'csv', 'token': token, 'interpolation': 1},
+resp = http_get(f'{GDL_BASEURL}/demographics/download/regpopm/', params={'format': 'csv', 'token': token, 'interpolation': 1},
                     headers={'Accept': 'text/csv'}, timeout=DEFAULT_TIMEOUT_SECONDS)
 resp.raise_for_status()
 if resp.text.lstrip().startswith('<'):  # errors (bad token, exhausted quota) come back as an HTML page

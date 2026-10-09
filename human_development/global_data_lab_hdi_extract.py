@@ -36,7 +36,7 @@ else:
 
 def gdl_download(dataset, indicators, year):
     url = f"{GDL_BASEURL}/{dataset}/download/{year}/{'+'.join(indicators)}/"
-    resp = requests.get(url, params={'format': 'csv', 'token': token, 'interpolation': 1},
+    resp = http_get(url, params={'format': 'csv', 'token': token, 'interpolation': 1},
                         headers={'Accept': 'text/csv'}, timeout=DEFAULT_TIMEOUT_SECONDS)
     resp.raise_for_status()
     if resp.text.lstrip().startswith('<'):  # errors (bad token, exhausted quota) come back as an HTML page

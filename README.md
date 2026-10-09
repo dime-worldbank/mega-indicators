@@ -60,3 +60,6 @@ To add more indicators, please open a pull request after you've tested your code
   failing the pipeline. See [pry_subnational_population.py](population/PRY/pry_subnational_population.py)
   for a CSV example and [alb_subnational_population.py](population/ALB/alb_subnational_population.py)
   for Excel (`parse=`).
+- For an API, call `utils.py`'s `http_get` rather than `requests.get`: it retries connection
+  errors, timeouts, responses cut short and 429/5xx answers with a backoff, which these
+  sources produce now and then.

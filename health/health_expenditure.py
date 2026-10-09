@@ -3,6 +3,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../utils
+
+# COMMAND ----------
+
 import pandas as pd
 import requests
 
@@ -34,7 +38,7 @@ indicators = {
 df = pd.DataFrame()
 for indicator, value in indicators.items():
     url = f"https://ghoapi.azureedge.net/api/{indicator}"
-    resp = requests.get(url, timeout=60)
+    resp = http_get(url, timeout=60)
     resp.raise_for_status()
     ddf = pd.DataFrame(resp.json()['value'])
     ddf = ddf[ddf.SpatialDimType=='COUNTRY'][['SpatialDim', 'ParentLocationCode', 'TimeDim', 'NumericValue']]

@@ -3,6 +3,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../../utils
+
+# COMMAND ----------
+
 import unicodedata
 from io import BytesIO
 import requests
@@ -12,7 +16,7 @@ import pandas as pd
 
 def _fetch_csv(url, **kwargs):
     """pd.read_csv(url) has no way to pass a timeout — fetch explicitly instead."""
-    resp = requests.get(url, timeout=60)
+    resp = http_get(url, timeout=60)
     resp.raise_for_status()
     return pd.read_csv(BytesIO(resp.content), **kwargs)
 

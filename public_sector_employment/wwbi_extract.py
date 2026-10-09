@@ -35,7 +35,7 @@ avg_df
 
 # COMMAND ----------
 
-wide_df = df.append(avg_df).reset_index()
+wide_df = pd.concat([df, avg_df]).reset_index()
 wide_df
 
 # COMMAND ----------
