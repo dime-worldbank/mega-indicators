@@ -73,8 +73,9 @@ resources:
       - task_key: public_sector_employment_TL
         depends_on:
         - task_key: public_sector_employment_E
-        pipeline_task:
-          pipeline_id: ${resources.pipelines.public_sector_employment_uc.id}
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../public_sector_employment/wwbi_transform_load.py
       # Aggregates 12 indicator tables into indicator_data_availability. Eight are
       # produced here; the rest come from monthly (global_data_lab_hd_index) and
       # on_demand (pefa_by_pillar, subnational_poverty_rate), whose year ranges move

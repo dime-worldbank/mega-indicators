@@ -28,8 +28,6 @@ targets:
       name_prefix: "[dev] "
     resources:
       pipelines:
-        public_sector_employment_uc:
-          schema: indicator_dev
         indicator_data_availability_uc:
           schema: indicator_dev
       # Always paused (dev runs are manual); crons offset from staging's, which
@@ -57,8 +55,6 @@ targets:
     # DLT LIVE TABLES write to the staging schema (notebooks resolve it from bundle_target).
     resources:
       pipelines:
-        public_sector_employment_uc:
-          schema: indicator_staging
         indicator_data_availability_uc:
           schema: indicator_staging
       # Always paused, and offset a day from prod's cron even so, in case a schedule is
