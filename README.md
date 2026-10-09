@@ -52,7 +52,7 @@ Prod is bound to the existing jobs (no duplicates) and deploys to the team's
 To add more indicators, please open a pull request after you've tested your code in Databricks.
 
 - See [consumer_price_index.py](consumer_price_index.py) as a Python example of fetching data from WB API
-- See [global_data_lab.r](global_data_lab.r) as an R example of fetching data using a R package from an external data source. Note running this as a job will require setting the `GDL_API_TOKEN` environment variable. Follow the instructions [here](https://docs.globaldatalab.org/gdldata/) to obtain the API token.
+- See [global_data_lab_hdi_extract.py](human_development/global_data_lab_hdi_extract.py) for a source that needs an API token (`GDL_API_TOKEN`: the `DIMEBOOSTKEYVAULT` secret on Databricks, the environment variable of the same name otherwise; get one at [globaldatalab.org](https://globaldatalab.org)).
 - If your source is a single external site (a national stats agency, etc.) rather than a
   well-established API, fetch it through `utils.py`'s `versioned_dataframe`/`fetch_raw`
   instead of calling `requests`/`pd.read_csv` directly — it caches the parsed result as a

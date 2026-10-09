@@ -24,7 +24,7 @@ resources:
       - task_key: gdl_subnat_human_development_index_E
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
-          notebook_path: ../human_development/global_data_lab_hdi_extract.r
+          notebook_path: ../human_development/global_data_lab_hdi_extract.py
       - task_key: gdl_subnat_hdi_TL
         depends_on:
         - task_key: gdl_subnat_human_development_index_E
