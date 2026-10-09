@@ -95,7 +95,7 @@ export DATA_ROOT=./data        # tables land under ./data/prd_mega/indicator/
 export GDL_API_TOKEN=...       # the Global Data Lab notebooks need it; get one at https://globaldatalab.org
 export COUNTRY_NAME=Togo       # optional: keep only this country's rows in every table written
 # export BUNDLE_TARGET=dev     # optional: mirror the indicator_dev schema instead
-# export EMBER_ENERGY_KEY=...  # only for energy/energy_generation_consumption.py, which the runner does not include
+# export ember_energy_key=...  # only for energy/energy_generation_consumption.py, which the runner does not include
 
 python local_runner.py           # the notebooks in NOTEBOOKS, in order
 python local_runner.py gdp.py    # one notebook
@@ -129,10 +129,10 @@ row would leave every table empty. The pieces that make this work:
 - [utils.py](utils.py) provides `read_table`, `write_table`, `table_exists` and
   `versioned_dataframe`, which use Delta tables on Databricks and CSVs locally. A table
   name is either bare (`gdp`, qualified with `INDICATOR_SCHEMA`) or `catalog.schema.table`.
-- Job widgets such as `census_population_update_version` are read from the upper-cased
-  environment variable of the same name (`CENSUS_POPULATION_UPDATE_VERSION=true`), and
-  so are secrets: `get_secret("DIMEBOOSTKEYVAULT", "GDL_API_TOKEN")` reads `GDL_API_TOKEN`
-  and `get_secret("DIMEBOOSTKEYVAULT", "ember_energy_key")` reads `EMBER_ENERGY_KEY`. A
+- Job widgets such as `census_population_update_version` are read from the environment
+  variable of the same name (`census_population_update_version=true`), and so are
+  secrets: `get_secret("DIMEBOOSTKEYVAULT", "GDL_API_TOKEN")` reads `GDL_API_TOKEN` and
+  `get_secret("DIMEBOOSTKEYVAULT", "ember_energy_key")` reads `ember_energy_key`. A
   notebook that needs a secret stops with a message naming the variable when it is unset.
 - Any country's population notebook under `population/<ISO3>/` also runs on its own
   (`COUNTRY_NAME` unset, or set to that country), after `population/wb_subnational_population_extract.py`
@@ -176,7 +176,7 @@ blank or `null`.
 | `public_finance/government_revenue_expenditure.py` | `government_revenue_expenditure` |
 | `public_finance/togo/togo_finance_report_transform_load_dlt.py` | `togo_revenue_budget` |
 | `pefa/pefa_transform_load.py` | `pefa_by_pillar` (reads the hand-uploaded `pefa_2011_bronze`, `pefa_2016_bronze`) |
-| `energy/energy_generation_consumption.py` | `energy_generation` (needs `EMBER_ENERGY_KEY`) |
+| `energy/energy_generation_consumption.py` | `energy_generation` (needs `ember_energy_key`) |
 | `public_sector_employment/wwbi_extract.py` then `public_sector_employment/wwbi_transform_load.py` | `public_sector_employment_silver`, then `public_sector_employment` (with regional means) |
 | `population/<ISO3>/<iso3>_subnational_population.py` (the runner picks it from `COUNTRY_NAME`) then `population/subnational_population.py` | `<iso3>_subnational_population_silver`, then `subnational_population` (the countries listed in the notebook stacked; with `COUNTRY_NAME` set, only the silver tables present) |
 | `poverty/subnational_poverty/subnational_poverty_index_extract_transform.py` then `subnational_poverty_index_transform_load.py` | `poverty_rate_SPID_GSAP_silver`, then `subnational_poverty_rate` |

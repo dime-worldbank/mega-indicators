@@ -21,52 +21,43 @@ else:
 DEFAULT_TIMEOUT_SECONDS = 60
 
 def retrying_session(total=5, read=1, backoff_factor=1):
-    """A requests session that retries GETs on connection errors and 429/5xx responses
-    (`total` times, waiting 0, 2, 4, 8 and 16 s between attempts) and on a read timeout
-    only `read` times: a timeout means the server is up but slow, and each attempt costs
-    the full timeout, so a stalled source fails in minutes rather than hours."""
+    """A requests session whose adapter retries GETs on connection errors and 429/5xx
+    responses (`total` times, waiting 0, 2, 4, 8 and 16 s between attempts) and on a read
+    timeout only `read` times: a timeout means the server is up but slow, and each attempt
+    costs the full timeout, so a stalled source fails in minutes rather than hours. When
+    the status retries run out the last response is returned, so raise_for_status() applies."""
     session = requests.Session()
-    session.mount('https://', HTTPAdapter(max_retries=Retry(
+    adapter = HTTPAdapter(max_retries=Retry(
         total=total, read=read, backoff_factor=backoff_factor, status_forcelist=(429, 500, 502, 503, 504),
-        allowed_methods=frozenset(['GET']),
-    )))
+        allowed_methods=frozenset(['GET']), raise_on_status=False,
+    ))
+    session.mount('https://', adapter)
+    session.mount('http://', adapter)
     return session
 
-# The World Bank API now and then resets a connection or stalls, and one such failure
-# fails the notebook. wbgapi calls `requests.get` through its module global, so point
-# that at a retrying session; and as wbgapi has no timeout by default, set one so a
-# stalled connection doesn't hang forever (the read is retried once it expires).
-wb.requests = retrying_session()
+# The sources now and then reset a connection, stall or answer 5xx, and one such failure
+# fails the notebook: one retrying session serves the notebooks' own requests (http_get)
+# and wbgapi, which calls `requests.get` through its module global. wbgapi has no timeout
+# by default; set one so a stalled connection doesn't hang forever.
+SESSION = retrying_session()
+wb.requests = SESSION
 wb.get_options = {'timeout': DEFAULT_TIMEOUT_SECONDS}
 
-# Notebooks fetch through http_get rather than requests.get, so a flaky source (the sources
-# here reset connections, stall, cut a response short or answer 5xx now and then) is retried
-# before it fails the notebook. The whole request is retried, body included, which urllib3's
-# Retry above does not do for a body that breaks after the headers have arrived.
-TRANSIENT_HTTP_ERRORS = (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.ChunkedEncodingError)
-RETRIED_STATUS_CODES = (429, 500, 502, 503, 504)
-
-def http_get(url, retries=5, backoff_factor=1, **kwargs):
-    """requests.get with the body read, retried on connection errors, timeouts, bodies cut
-    short and 429/5xx responses, waiting 0, 2, 4, 8 and 16 s between attempts. The last
-    response is returned whatever its status, so call raise_for_status() as usual."""
+def http_get(url, retries=2, **kwargs):
+    """SESSION.get with the body read. The adapter's retries end once the response headers
+    have arrived, so a body cut short after them (a ChunkedEncodingError; the WHO API does
+    this now and then) is the one failure the whole request must be repeated for, which
+    this does `retries` times. Call raise_for_status() on the result as usual."""
     kwargs.setdefault('timeout', DEFAULT_TIMEOUT_SECONDS)
     for attempt in range(retries + 1):
         try:
-            resp = requests.get(url, **kwargs)
-            if resp.status_code not in RETRIED_STATUS_CODES or attempt == retries:
-                return resp
-            reason = f'HTTP {resp.status_code}'
-        except TRANSIENT_HTTP_ERRORS as e:
-            # a timeout means the server is up but slow, and every attempt costs the full
-            # timeout: one more try, then fail rather than wait for minutes
-            if attempt == retries or (isinstance(e, requests.exceptions.Timeout) and attempt >= 1):
+            return SESSION.get(url, **kwargs)
+        except requests.exceptions.ChunkedEncodingError:
+            if attempt == retries:
                 raise
-            reason = type(e).__name__
-        wait = backoff_factor * 2 ** attempt if attempt else 0
-        # the URL without its query string: a key may be in it
-        print(f"{url.split('?', 1)[0]}: {reason}; retry {attempt + 1}/{retries} in {wait}s", flush=True)
-        time.sleep(wait)
+            # the URL without its query string: a key may be in it
+            print(f"{url.split('?', 1)[0]}: response cut short; retry {attempt + 1}/{retries}", flush=True)
+            time.sleep(2 ** attempt)
 
 # COMMAND ----------
 
@@ -99,15 +90,16 @@ def read_table(table_name, columns=None):
     df = pd.read_csv(_table_path(table_name), keep_default_na=False, na_values=['', 'null'])
     return df if columns is None else df[list(columns)]
 
-def write_table(df, table_name, options=None):
+def write_table(df, table_name, delta_options=None):
     """Overwrite the table with `df`.
 
-    `options` are Delta table options (e.g. retention); they only apply on Databricks.
+    `delta_options` are Delta table options (e.g. retention), applied on Databricks only;
+    the local CSV store has no equivalent.
     Locally, COUNTRY_NAME (config.py) restricts rows to that country.
     """
     if IS_DATABRICKS:
         writer = spark.createDataFrame(df).write.mode("overwrite").option("overwriteSchema", "true")
-        for key, value in (options or {}).items():
+        for key, value in (delta_options or {}).items():
             writer = writer.option(key, value)
         writer.saveAsTable(_qualified_name(table_name))
     else:
@@ -119,22 +111,22 @@ def write_table(df, table_name, options=None):
         print(f"wrote {len(df)} rows to {path}")
 
 def update_version_flag(widget_name):
-    """True when the job widget (Databricks) or the upper-cased env var of the same name (local) is "true"."""
+    """True when the job widget (Databricks) or the environment variable of the same name (local) is "true"."""
     if IS_DATABRICKS:
         raw = dbutils.widgets.getArgument(widget_name, 'false')
     else:
-        raw = os.environ.get(widget_name.upper(), 'false')
+        raw = os.environ.get(widget_name, 'false')
     return raw.strip().lower() == 'true'
 
 def get_secret(scope, key):
-    """A secret from the Databricks secret scope, or locally from the upper-cased env var of the same name."""
+    """A secret from the Databricks secret scope, or locally from the environment variable of the same name."""
     if IS_DATABRICKS:
         return dbutils.secrets.get(scope=scope, key=key)
     try:
-        return os.environ[key.upper()]
+        return os.environ[key]
     except KeyError:
         raise RuntimeError(
-            f"Secret {scope}/{key} is read from the {key.upper()} environment variable off Databricks; it is not set."
+            f"Secret {scope}/{key} is read from the {key} environment variable off Databricks; it is not set."
         ) from None
 
 # COMMAND ----------
@@ -146,7 +138,7 @@ def _wb_dataframe_with_retry(series, attempts=3, backoff=2.0):
     for i in range(attempts):
         try:
             return wb.data.DataFrame(series, skipBlanks=True)
-        except (*TRANSIENT_HTTP_ERRORS, wb.APIResponseError):
+        except (requests.exceptions.ChunkedEncodingError, wb.APIResponseError):
             if i == attempts - 1:
                 raise
             wait = backoff * 2 ** i
@@ -274,7 +266,7 @@ def fetch_raw(source_url, table_name, parse=pd.read_csv, **parse_kwargs):
     resp.raise_for_status()
     df = parse(io.BytesIO(resp.content), **parse_kwargs)
     df['fetched_at'] = datetime.now(timezone.utc)
-    write_table(df, table_name, options=_RAW_TABLE_OPTIONS)
+    write_table(df, table_name, delta_options=_RAW_TABLE_OPTIONS)
 
 def versioned_dataframe(source_url, table_name, update_version, parse=pd.read_csv, **parse_kwargs):
     """Read table_name's cached snapshot, refreshing first if update_version or unset.

@@ -66,6 +66,13 @@ class FakeResponse:
         return json.loads(self.text)
 
 
+def stub_http(monkeypatch, fake):
+    """Answer every GET with fake(url, **kwargs): the notebooks' http_get, utils' helpers and
+    wbgapi all go through requests.Session.request (the first two on utils' retrying
+    session, whose adapter and retries are bypassed here)."""
+    monkeypatch.setattr(requests.Session, "request", lambda self, method, url, **kwargs: fake(url, **kwargs))
+
+
 # --- config.py ---------------------------------------------------------------
 
 def test_config_requires_data_root_off_databricks(monkeypatch):
@@ -132,16 +139,16 @@ def test_read_table_null_handling(data_root):
 def test_update_version_flag_reads_env(data_root, monkeypatch):
     ns = load_shared()
     assert ns["update_version_flag"]("census_population_update_version") is False
-    monkeypatch.setenv("CENSUS_POPULATION_UPDATE_VERSION", " True ")
+    monkeypatch.setenv("census_population_update_version", " True ")
     assert ns["update_version_flag"]("census_population_update_version") is True
 
 
 def test_get_secret_reads_env(data_root, monkeypatch):
     ns = load_shared()
-    monkeypatch.delenv("EMBER_ENERGY_KEY", raising=False)
-    with pytest.raises(RuntimeError, match="EMBER_ENERGY_KEY"):
+    monkeypatch.delenv("ember_energy_key", raising=False)
+    with pytest.raises(RuntimeError, match="ember_energy_key"):
         ns["get_secret"]("DIMEBOOSTKEYVAULT", "ember_energy_key")
-    monkeypatch.setenv("EMBER_ENERGY_KEY", "k3y")
+    monkeypatch.setenv("ember_energy_key", "k3y")
     assert ns["get_secret"]("DIMEBOOSTKEYVAULT", "ember_energy_key") == "k3y"
 
 
@@ -153,7 +160,7 @@ def test_versioned_dataframe_fetches_once_then_serves_cache(data_root, monkeypat
         calls.append(url)
         return FakeResponse(b"a,b\n1,2\n")
 
-    monkeypatch.setattr(requests, "get", fake_get)
+    stub_http(monkeypatch, fake_get)
 
     first = ns["versioned_dataframe"]("http://example/x.csv", "x_raw", update_version=False)
     assert list(first.columns) == ["a", "b"]  # fetched_at stripped
@@ -167,11 +174,12 @@ def test_versioned_dataframe_fetches_once_then_serves_cache(data_root, monkeypat
     assert len(calls) == 2, "update_version=True should refetch"
 
 
-def test_http_get_retries_transient_failures_then_gives_up(data_root, monkeypatch, capsys):
+def test_http_get_repeats_a_request_whose_body_was_cut_short(data_root, monkeypatch, capsys):
+    """The adapter's retries stop at the response headers; a body cut short after them is the
+    one failure http_get repeats the whole request for. Everything else is the adapter's."""
     ns = load_shared()
     monkeypatch.setattr(ns["time"], "sleep", lambda s: None)
-    outcomes = [requests.exceptions.ChunkedEncodingError("cut short"), FakeResponse(b"", 502),
-                requests.exceptions.ConnectionError("reset"), FakeResponse(b"ok")]
+    outcomes = [requests.exceptions.ChunkedEncodingError("cut short"), FakeResponse(b"ok")]
 
     def fake_get(url, **kwargs):
         outcome = outcomes.pop(0)
@@ -179,42 +187,33 @@ def test_http_get_retries_transient_failures_then_gives_up(data_root, monkeypatc
             raise outcome
         return outcome
 
-    monkeypatch.setattr(requests, "get", fake_get)
+    stub_http(monkeypatch, fake_get)
     assert ns["http_get"]("http://example/x").text == "ok"
-    assert outcomes == [] and capsys.readouterr().out.count("retry") == 3
+    assert outcomes == [] and capsys.readouterr().out.count("retry") == 1
 
-    monkeypatch.setattr(requests, "get", lambda url, **kw: FakeResponse(b"", 404))
-    assert ns["http_get"]("http://example/x").status_code == 404  # not transient: no retry
-    assert "retry" not in capsys.readouterr().out
+    outcomes[:] = [requests.exceptions.ChunkedEncodingError("cut short")] * 3 + [FakeResponse(b"never")]
+    with pytest.raises(requests.exceptions.ChunkedEncodingError):
+        ns["http_get"]("http://example/x")  # retries=2: three attempts, then the error
+    assert len(outcomes) == 1
 
-    monkeypatch.setattr(requests, "get", lambda url, **kw: FakeResponse(b"", 503))
-    assert ns["http_get"]("http://example/x", retries=2).status_code == 503  # the last response, for raise_for_status
-    assert capsys.readouterr().out.count("retry") == 2
-
-    def always_reset(url, **kw):
-        raise requests.exceptions.ConnectionError("reset")
-    monkeypatch.setattr(requests, "get", always_reset)
+    outcomes[:] = [requests.exceptions.ConnectionError("reset"), FakeResponse(b"never")]
     with pytest.raises(requests.exceptions.ConnectionError):
-        ns["http_get"]("http://example/x", retries=1)
+        ns["http_get"]("http://example/x")  # not http_get's to retry: the adapter already did
+    assert len(outcomes) == 1
 
-    # a timeout means the server is up but slow: one more try, then fail
-    outcomes[:] = [requests.exceptions.ReadTimeout("slow"), FakeResponse(b"ok")]
-    monkeypatch.setattr(requests, "get", fake_get)
-    assert ns["http_get"]("http://example/x").text == "ok"
-    outcomes[:] = [requests.exceptions.ReadTimeout("slow"), requests.exceptions.ReadTimeout("slow"), FakeResponse(b"never")]
-    with pytest.raises(requests.exceptions.ReadTimeout):
-        ns["http_get"]("http://example/x")
-    assert len(outcomes) == 1  # the third attempt was not made
+    stub_http(monkeypatch, lambda url, **kw: FakeResponse(b"", 503))
+    assert ns["http_get"]("http://example/x").status_code == 503  # the last response, for raise_for_status
 
 
-def test_wbgapi_requests_retry_transient_failures_but_not_slow_pages_for_long(data_root):
-    """utils points wbgapi at a session that retries resets and 5xx several times but a read timeout once."""
+def test_one_session_retries_transient_failures_but_not_slow_pages_for_long(data_root):
+    """utils' session serves http_get and wbgapi alike; its adapter retries resets and 5xx several
+    times but a read timeout once, and hands back the last response rather than raising."""
     shared = load_shared()
     session = wbgapi.requests
-    assert isinstance(session, requests.Session)
+    assert isinstance(session, requests.Session) and session is shared["SESSION"]
     retry = session.get_adapter("https://api.worldbank.org/v2/country").max_retries
     assert retry.total >= 3 and 503 in retry.status_forcelist and "GET" in retry.allowed_methods
-    assert retry.read == 1
+    assert retry.read == 1 and retry.raise_on_status is False
     assert wbgapi.get_options["timeout"] == shared["DEFAULT_TIMEOUT_SECONDS"]
 
 
@@ -395,7 +394,7 @@ def test_global_data_lab_hdi_notebooks_run_locally(data_root, monkeypatch):
         body = "\n".join(f"{c},{iso},{lvl},{code},{reg},{year},80,70,60,50" for c, iso, reg, code, lvl in rows)
         return FakeResponse(f"{head},lprimary,uprimary,lsecondary,usecondary\n{body}\n")
 
-    monkeypatch.setattr(requests, "get", fake_get)
+    stub_http(monkeypatch, fake_get)
     ns = load_shared()
     ns["write_table"](pd.DataFrame({"country_name": ["Togo", "Nigeria"], "country_code": ["TGO", "NGA"],
                                     "region": ["SSF", "SSF"], "income_level": ["LMC", "LMC"], "is_aggregate": [False, False]}), "country")
@@ -485,7 +484,7 @@ def test_subnational_poverty_notebooks_run_locally(data_root, monkeypatch):
             return FakeResponse(json.dumps({"distribution": {"url": "https://datacatalogfiles.worldbank.org/ddh-published/0012345/DR0052555/gsap.xlsx"}}))
         return FakeResponse(files[url])
 
-    monkeypatch.setattr(requests, "get", fake_get)
+    stub_http(monkeypatch, fake_get)
     ns = load_shared()
     ns["write_table"](pd.DataFrame({
         "country_name": ["Togo", "Albania", "Colombia"], "country_code": ["TGO", "ALB", "COL"],
@@ -600,7 +599,7 @@ def _wb_indicator_zip(indicator):
 
 
 def test_consumer_price_index_notebook_runs_locally(data_root, monkeypatch):
-    monkeypatch.setattr(requests, "get", lambda url, **kw: FakeResponse(_wb_indicator_zip("FP.CPI.TOTL")))
+    stub_http(monkeypatch, lambda url, **kw: FakeResponse(_wb_indicator_zip("FP.CPI.TOTL")))
 
     run_notebook(REPO / "consumer_price_index.py")
 
@@ -628,7 +627,7 @@ def test_gdp_then_edu_private_spending_notebooks_chain_locally(data_root, monkey
         "TGO,ISCED11_1T8,2020,1.5\n"
         "ALB,ISCED11_1T8,2021,2.0\n"
     )
-    monkeypatch.setattr(requests, "get", lambda url, **kw: FakeResponse(oecd_csv.encode()))
+    stub_http(monkeypatch, lambda url, **kw: FakeResponse(oecd_csv.encode()))
     run_notebook(REPO / "education" / "education_private_spending.py")
 
     out = pd.read_csv(data_root / "prd_mega" / "indicator" / "edu_private_spending.csv")
@@ -663,7 +662,7 @@ def _census_gov_workbook(country, regions, years):
 def test_togo_subnational_population_notebook_runs_locally(data_root, monkeypatch):
     regions = ["Centrale", "Kara", "Maritime", "Plateaux", "Savanes"]
     years = list(range(2000, 2016))
-    monkeypatch.setattr(requests, "get", lambda url, **kw: FakeResponse(_census_gov_workbook("TOGO", regions, years)))
+    stub_http(monkeypatch, lambda url, **kw: FakeResponse(_census_gov_workbook("TOGO", regions, years)))
     run_notebook(REPO / "population" / "TGO" / "tgo_subnational_population.py")
 
     silver = load_shared()["read_table"]("tgo_subnational_population_silver")
