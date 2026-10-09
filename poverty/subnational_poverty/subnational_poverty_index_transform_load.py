@@ -10,8 +10,7 @@
 # Subnational poverty rate per region and year from the SPID/GSAP silver table. Region
 # names are aligned to admin1_boundaries_gold with the fixes below, and the poverty line
 # follows the country's income group, as for the national poverty_rate. Plain pandas on
-# both sides (it replaced a DLT pipeline). The pipeline's intermediate
-# subnational_poverty_rate_silver table is no longer written; nothing read it.
+# both sides.
 import numpy as np
 import pandas as pd
 

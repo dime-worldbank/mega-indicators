@@ -8,7 +8,7 @@
 # COMMAND ----------
 
 # Earliest and latest year with data, per indicator and country, read by the dashboard's
-# source notes. Plain pandas on both sides (it replaced a DLT SQL view). A row counts for
+# source notes. Plain pandas on both sides. A row counts for
 # an indicator when every column in `all_of` is present, or any column in `any_of` is.
 # The producers are sequenced ahead of this notebook by depends_on in
 # resources/indicators_weekly.job.yml; a new indicator here needs its producer added there.

@@ -15,7 +15,7 @@
 # Boundaries GeoJSON files that admin_boundaries_extract.py downloads: one row per region
 # with the boundary as GeoJSON text, region names corrected to match the BOOST data, and
 # the Albania and Ghana regions merged into the units BOOST reports on. Plain pandas with
-# shapely on both sides (it replaced a DLT pipeline).
+# shapely on both sides.
 import json
 
 import pandas as pd

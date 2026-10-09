@@ -9,7 +9,7 @@
 
 # public_sector_employment: the WWBI silver table joined to country, plus one row per
 # region and year with the regional means (region codes are country codes of the
-# aggregate rows in country). Plain pandas on both sides (it replaced a DLT pipeline).
+# aggregate rows in country). Plain pandas on both sides.
 import pandas as pd
 
 countries = read_table('country', columns=['country_name', 'country_code', 'region'])

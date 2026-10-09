@@ -8,7 +8,7 @@
 # COMMAND ----------
 
 # subnational_population: the per-country silver tables stacked into one. Plain pandas on
-# both sides (it replaced a DLT pipeline).
+# both sides.
 import pandas as pd
 
 # Adding a new country requires adding the country here

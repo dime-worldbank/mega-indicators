@@ -8,8 +8,8 @@
 # COMMAND ----------
 
 # Subnational human development indices and school attendance from Global Data Lab, for
-# every country, one request per dataset and year, as the R notebook made through the
-# gdldata package (gdl_download in utils). Plain pandas on both sides; it replaced the R notebook.
+# every country, one request per dataset and year through the gdldata package's URL scheme
+# (gdl_download in utils). Plain pandas on both sides.
 from datetime import date
 
 import pandas as pd
@@ -31,7 +31,7 @@ for dataset, indicators in DATASETS.items():
         print(f'{dataset} {year}: {len(df)} rows')
         frames.append(df)
 # The education download returns the nearest survey's rows for every requested year, so
-# the same row comes back many times; the R notebook's merge(all = TRUE) collapsed those.
+# the same row comes back many times; keep one copy of each.
 raw = pd.concat(frames, ignore_index=True).drop_duplicates(ignore_index=True)
 write_table(raw, 'global_data_lab_hd_index_bronze')
 print(f'global_data_lab_hd_index_bronze nrow: {len(raw)}')

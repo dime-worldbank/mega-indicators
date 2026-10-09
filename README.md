@@ -47,19 +47,6 @@ Prod is bound to the existing jobs (no duplicates) and deploys to the team's
 `ITSDA-LKHS-DAP-PROD-boostprocessed` group. The GDL token is read from the existing
 `DIMEBOOSTKEYVAULT` secret scope — no setup needed.
 
-The DLT pipelines were replaced by notebooks (`admin_boundaries_transform_load.py`,
-`subnational_poverty_index_transform_load.py`, `global_data_lab_hdi_transform_load.py`,
-`subnational_population.py`, `wwbi_transform_load.py`, `indicator_data_availability.py`).
-The first deploy of this version deletes the pipelines, and Unity Catalog drops the tables a
-deleted pipeline owned; the notebooks recreate them as plain Delta tables when their jobs run,
-and a notebook that runs while a pipeline still owns its table cannot overwrite it. So right
-after that deploy run `indicators_on_demand` (it has no schedule), then `indicators_weekly` and
-`indicators_monthly`, before the dashboard is next read:
-
-```bash
-databricks bundle run indicators_on_demand -t prod -p RPF-ADBSvc-PROD
-```
-
 ## Contributing
 
 To add more indicators, please open a pull request after you've tested your code in Databricks.
