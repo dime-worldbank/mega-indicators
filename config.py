@@ -14,6 +14,7 @@ _SUFFIX_BY_TARGET = {"prod": "", "staging": "_staging", "dev": "_dev"}
 if IS_DATABRICKS:
     _target = dbutils.widgets.get("bundle_target")
     DATA_ROOT = None
+    COUNTRY_NAME = None
 else:
     _target = os.environ.get("BUNDLE_TARGET", "prod")
     DATA_ROOT = os.environ.get("DATA_ROOT")
@@ -24,6 +25,7 @@ else:
             "./data/prd_mega/indicator/gdp.csv."
         )
     DATA_ROOT = os.path.abspath(DATA_ROOT)
+    COUNTRY_NAME = os.environ.get("COUNTRY_NAME")  # optional: write_table keeps only this country's rows
 
 if _target not in _SUFFIX_BY_TARGET:
     raise RuntimeError(f"Unknown bundle target {_target!r}; expected one of {sorted(_SUFFIX_BY_TARGET)}.")

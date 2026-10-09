@@ -1,6 +1,7 @@
 """Off-Databricks runtime: config.py's DATA_ROOT fallback, utils.py's CSV-backed table
-IO and environment fallbacks, and notebooks run with utils' names in scope. Everything
-runs in a temp directory with no network (requests / wbgapi calls are monkeypatched)."""
+IO and environment fallbacks, local_runner.py's list and resume, and notebooks run the
+way the runner runs them. Everything runs in a temp directory with no network
+(requests / wbgapi calls are monkeypatched)."""
 import io
 import json
 import re
@@ -14,6 +15,8 @@ import pytest
 import requests
 import wbgapi
 
+import local_runner
+
 REPO = Path(__file__).resolve().parent.parent
 
 
@@ -22,6 +25,7 @@ def data_root(tmp_path, monkeypatch):
     """A local-mode environment: no Databricks runtime, tables under tmp_path/data."""
     monkeypatch.delenv("DATABRICKS_RUNTIME_VERSION", raising=False)
     monkeypatch.delenv("BUNDLE_TARGET", raising=False)
+    monkeypatch.delenv("COUNTRY_NAME", raising=False)
     root = tmp_path / "data"
     monkeypatch.setenv("DATA_ROOT", str(root))
     return root
@@ -42,7 +46,7 @@ def load_shared():
 
 
 def run_notebook(path):
-    """The notebook as a plain script, with utils' (and config's) names in scope as %run gives them."""
+    """As local_runner.py does: the notebook with utils' (and config's) names in scope."""
     return runpy.run_path(str(path), init_globals=load_shared(), run_name="__main__")
 
 
@@ -218,6 +222,97 @@ def test_wbgapi_fetch_joins_local_country_table(data_root, monkeypatch):
     togo_2021 = df[(df.country_code == "TGO") & (df.year == 2021)].iloc[0]
     assert togo_2021.v1 == 11.0 and togo_2021.country_name == "Togo" and togo_2021.income_level == "LIC"
     assert len(df) == 3  # ALB 2021 was blank and dropped
+
+
+# --- local_runner.py -------------------------------------------------------------------
+
+def test_default_notebooks_exist_and_producers_run_before_their_readers():
+    names = local_runner.NOTEBOOKS
+    placeholder = local_runner.SUBNATIONAL_POPULATION
+    missing = [n for n in names if n != placeholder and not (REPO / n).is_file()]
+    assert not missing, missing
+    assert len(set(names)) == len(names)
+    assert names.index("gdp.py") < names.index("health/health_expenditure.py")
+    # country.py reads admin1_boundaries_gold for the map centroids
+    assert names.index("geo/admin_boundaries_transform_load.py") < names.index("country.py")
+    assert names[-1] == "indicator_data_availability.py"
+    # the placeholder resolves to population/<ISO3>/<iso3>_subnational_population.py, which exists for
+    # every country the union stacks, and the union comes after it
+    union = REPO / local_runner.SUBNATIONAL_POPULATION_UNION
+    codes = re.findall(r"'([a-z]{3})'", re.search(r"^country_codes = .*$", union.read_text(), re.M).group())
+    assert len(codes) >= 18
+    assert all((REPO / "population" / code.upper() / f"{code}_subnational_population.py").is_file() for code in codes)
+    assert names.index(placeholder) < names.index(local_runner.SUBNATIONAL_POPULATION_UNION)
+
+
+def test_runner_resumes_from_a_notebook(data_root):
+    load_shared()  # no COUNTRY_NAME
+    names = local_runner.NOTEBOOKS
+    assert local_runner.notebooks_from() == names
+    assert local_runner.notebooks_from("gdp.py") == names[names.index("gdp.py"):]
+    assert local_runner.notebooks_from("./gdp.py") == names[names.index("gdp.py"):]
+    assert local_runner.notebooks_from(str(REPO / "gdp.py")) == names[names.index("gdp.py"):]
+    placeholder = local_runner.SUBNATIONAL_POPULATION  # a per-country notebook resumes at its placeholder
+    assert local_runner.notebooks_from("population/TGO/tgo_subnational_population.py") == names[names.index(placeholder):]
+    with pytest.raises(SystemExit):
+        local_runner.notebooks_from("nope.py")
+
+
+def test_runner_picks_the_country_population_notebook_from_country_name(data_root, monkeypatch, capsys):
+    ns = load_shared()
+    assert local_runner.subnational_population_notebook() is None  # no COUNTRY_NAME
+    ns["write_table"](pd.DataFrame({"country_name": ["Togo", "Nigeria"], "country_code": ["TGO", "NGA"]}), "country")
+    monkeypatch.setenv("COUNTRY_NAME", "Nigeria")
+    load_shared()
+    assert local_runner.subnational_population_notebook() == "population/NGA/nga_subnational_population.py"
+    with pytest.raises(SystemExit, match="is not COUNTRY_NAME's notebook"):
+        local_runner.notebooks_from("population/TGO/tgo_subnational_population.py")
+    monkeypatch.setenv("COUNTRY_NAME", "Nowhere")
+    load_shared()
+    with pytest.raises(SystemExit, match="not a country_name"):
+        local_runner.subnational_population_notebook()
+
+    ran = []
+    monkeypatch.setattr(local_runner.subprocess, "run",
+                        lambda cmd: (ran.append(str(Path(cmd[-1]).relative_to(REPO))), local_runner.subprocess.CompletedProcess(cmd, 0))[1])
+    union = local_runner.SUBNATIONAL_POPULATION_UNION
+    monkeypatch.delenv("COUNTRY_NAME")
+    load_shared()
+    local_runner.run_in_order([local_runner.SUBNATIONAL_POPULATION, union, "gdp.py"])
+    assert ran == ["gdp.py"]  # without COUNTRY_NAME the two subnational population entries are skipped, loudly
+    assert capsys.readouterr().out.count("skipped, COUNTRY_NAME is not set") == 2
+    monkeypatch.setenv("COUNTRY_NAME", "Togo")
+    load_shared()
+    ran.clear()
+    local_runner.run_in_order([local_runner.SUBNATIONAL_POPULATION, union])
+    assert ran == ["population/TGO/tgo_subnational_population.py", union]
+
+
+def test_write_table_country_filter(data_root, monkeypatch):
+    frame = pd.DataFrame({"country_name": ["Togo", "Albania", "Togo"], "year": [2020, 2020, 2021]})
+    ns = load_shared()  # COUNTRY_NAME unset: everything is written
+    ns["write_table"](frame, "t")
+    assert len(ns["read_table"]("t")) == 3
+
+    monkeypatch.setenv("COUNTRY_NAME", "Togo")
+    ns = load_shared()
+    ns["write_table"](frame, "t")
+    assert ns["read_table"]("t")["country_name"].tolist() == ["Togo", "Togo"]
+    ns["write_table"](pd.DataFrame({"economy": ["TGO", "ALB"]}), "u")  # no country_name column: untouched
+    assert len(ns["read_table"]("u")) == 2
+
+
+def test_runner_stops_at_the_first_failure_and_says_how_to_resume(monkeypatch):
+    ran = []
+
+    def fake_run(cmd):
+        ran.append(Path(cmd[-1]).name)
+        return local_runner.subprocess.CompletedProcess(cmd, 1 if cmd[-1].endswith("gdp.py") else 0)
+
+    monkeypatch.setattr(local_runner.subprocess, "run", fake_run)
+    with pytest.raises(SystemExit, match="--from gdp.py"):
+        local_runner.run_in_order(["country.py", "gdp.py", "consumer_price_index.py"])
+    assert ran == ["country.py", "gdp.py"]
 
 
 # --- converted notebooks, end to end, offline ------------------------------------------
@@ -535,4 +630,7 @@ def test_togo_subnational_population_notebook_runs_locally(data_root, monkeypatc
     assert len(silver) == 5 * len(years)
 
     with pytest.raises(FileNotFoundError):
-        run_notebook(REPO / "population" / "subnational_population.py")  # the union needs every listed country's table
+        run_notebook(REPO / "population" / "subnational_population.py")  # a full run needs every listed country's table
+    monkeypatch.setenv("COUNTRY_NAME", "Togo")
+    run_notebook(REPO / "population" / "subnational_population.py")  # a one-country run stacks what it has
+    pd.testing.assert_frame_equal(load_shared()["read_table"]("subnational_population"), silver)

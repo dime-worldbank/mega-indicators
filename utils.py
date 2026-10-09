@@ -98,6 +98,7 @@ def write_table(df, table_name, options=None):
     """Overwrite the table with `df`.
 
     `options` are Delta table options (e.g. retention); they only apply on Databricks.
+    Locally, COUNTRY_NAME (config.py) restricts rows to that country.
     """
     if IS_DATABRICKS:
         writer = spark.createDataFrame(df).write.mode("overwrite").option("overwriteSchema", "true")
@@ -105,6 +106,8 @@ def write_table(df, table_name, options=None):
             writer = writer.option(key, value)
         writer.saveAsTable(_qualified_name(table_name))
     else:
+        if COUNTRY_NAME and 'country_name' in df.columns:
+            df = df[df['country_name'] == COUNTRY_NAME]
         path = _table_path(table_name)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         df.to_csv(path, index=False)

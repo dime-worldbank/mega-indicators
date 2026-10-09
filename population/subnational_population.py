@@ -14,6 +14,9 @@ import pandas as pd
 # Adding a new country requires adding the country here
 country_codes = ['moz', 'pry', 'ken', 'pak', 'bfa', 'col', 'cod', 'tun', 'btn', 'chl', 'nga', 'bgd', 'alb', 'zaf', 'gha', 'lbr', 'tgo', 'bdi']
 
+if COUNTRY_NAME:  # a one-country run only has that country's silver table
+    country_codes = [code for code in country_codes if table_exists(f'{code}_subnational_population_silver')]
+
 # COMMAND ----------
 
 # Consolidating all the country specific dataframes
