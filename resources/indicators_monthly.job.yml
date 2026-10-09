@@ -28,9 +28,9 @@ resources:
       - task_key: gdl_subnat_hdi_TL
         depends_on:
         - task_key: gdl_subnat_human_development_index_E
-        pipeline_task:
-          full_refresh: true
-          pipeline_id: ${resources.pipelines.subnational_human_development_index_uc.id}
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../human_development/global_data_lab_hdi_transform_load.py
       - task_key: gdl_subnational_population
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
