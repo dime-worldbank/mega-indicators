@@ -247,86 +247,50 @@ def test_wbgapi_fetch_joins_local_country_table(data_root, monkeypatch):
 
 def test_default_notebooks_exist_and_producers_run_before_their_readers():
     names = local_runner.NOTEBOOKS
-    placeholder = local_runner.SUBNATIONAL_POPULATION
-    missing = [n for n in names if n != placeholder and not (REPO / n).is_file()]
+    missing = [n for n in names if not (REPO / n).is_file()]
     assert not missing, missing
     assert len(set(names)) == len(names)
     assert names.index("gdp.py") < names.index("health/health_expenditure.py")
     # country.py reads admin1_boundaries_gold for the map centroids
     assert names.index("geo/admin_boundaries_transform_load.py") < names.index("country.py")
     assert names[-1] == "indicator_data_availability.py"
-    # the placeholder resolves to population/<ISO3>/<iso3>_subnational_population.py, which exists for
-    # every country the union stacks, and the union comes after it
+    # every country the union stacks is in COUNTRIES, has its notebook, and its extract exists
     union = REPO / local_runner.SUBNATIONAL_POPULATION_UNION
     codes = re.findall(r"'([a-z]{3})'", re.search(r"^country_codes = .*$", union.read_text(), re.M).group())
-    assert len(codes) >= 18
+    assert sorted(code.upper() for code in codes) == sorted(local_runner.COUNTRIES.values())
     assert all((REPO / "population" / code.upper() / f"{code}_subnational_population.py").is_file() for code in codes)
-    assert all((REPO / extract).is_file() for extract in local_runner.SUBNATIONAL_POPULATION_EXTRACTS)
-    assert names.index(placeholder) < names.index(local_runner.SUBNATIONAL_POPULATION_UNION)
+    assert all((REPO / extract).is_file() for extract in set(local_runner.EXTRACTS.values()))
 
 
-def test_runner_resumes_from_a_notebook(data_root):
-    load_shared()  # no COUNTRY_NAME
+def test_runner_adds_the_country_population_step_for_country_name(monkeypatch, capsys):
+    monkeypatch.delenv("COUNTRY_NAME", raising=False)
+    assert local_runner.notebooks() == local_runner.NOTEBOOKS
+    assert "COUNTRY_NAME is not set" in capsys.readouterr().out
+    union = local_runner.SUBNATIONAL_POPULATION_UNION
+    monkeypatch.setenv("COUNTRY_NAME", "Togo")  # census.gov: no shared extract
+    assert local_runner.notebooks() == local_runner.NOTEBOOKS + ["population/TGO/tgo_subnational_population.py", union]
+    monkeypatch.setenv("COUNTRY_NAME", "Albania")
+    assert local_runner.notebooks()[-3:] == ["population/wb_subnational_population_extract.py", "population/ALB/alb_subnational_population.py", union]
+    monkeypatch.setenv("COUNTRY_NAME", "Congo, Dem. Rep.")
+    assert local_runner.notebooks()[-3] == "population/global_data_lab_subnational_population.py"
+    monkeypatch.setenv("COUNTRY_NAME", "Democratic Republic of Congo")  # not the World Bank spelling
+    with pytest.raises(SystemExit, match="Congo, Dem. Rep."):
+        local_runner.notebooks()
+
+
+def test_runner_resumes_from_a_notebook(monkeypatch):
+    monkeypatch.delenv("COUNTRY_NAME", raising=False)
     names = local_runner.NOTEBOOKS
-    assert local_runner.notebooks_from() == names
     assert local_runner.notebooks_from("gdp.py") == names[names.index("gdp.py"):]
     assert local_runner.notebooks_from("./gdp.py") == names[names.index("gdp.py"):]
     assert local_runner.notebooks_from(str(REPO / "gdp.py")) == names[names.index("gdp.py"):]
-    with pytest.raises(SystemExit, match="set COUNTRY_NAME"):  # a per-country notebook is COUNTRY_NAME's step
+    with pytest.raises(SystemExit, match="nothing to resume from"):  # only in the list with COUNTRY_NAME
         local_runner.notebooks_from("population/TGO/tgo_subnational_population.py")
+    monkeypatch.setenv("COUNTRY_NAME", "Togo")
+    assert local_runner.notebooks_from("population/TGO/tgo_subnational_population.py") == [
+        "population/TGO/tgo_subnational_population.py", local_runner.SUBNATIONAL_POPULATION_UNION]
     with pytest.raises(SystemExit):
         local_runner.notebooks_from("nope.py")
-
-
-def test_runner_picks_the_country_population_notebook_from_country_name(data_root, monkeypatch, capsys):
-    ns = load_shared()
-    assert local_runner.subnational_population_notebook() is None  # no COUNTRY_NAME
-    ns["write_table"](pd.DataFrame({"country_name": ["Togo", "Nigeria", "Albania"], "country_code": ["TGO", "NGA", "ALB"]}), "country")
-    monkeypatch.setenv("COUNTRY_NAME", "Nigeria")
-    load_shared()
-    assert local_runner.subnational_population_notebook() == "population/NGA/nga_subnational_population.py"
-    with pytest.raises(SystemExit, match="is not COUNTRY_NAME's notebook"):
-        local_runner.notebooks_from("population/TGO/tgo_subnational_population.py")
-    monkeypatch.setenv("COUNTRY_NAME", "Nowhere")
-    load_shared()
-    with pytest.raises(SystemExit, match="not a country_name"):
-        local_runner.subnational_population_notebook()
-
-    ran = []
-    monkeypatch.setattr(local_runner.subprocess, "run",
-                        lambda cmd: (ran.append(str(Path(cmd[-1]).relative_to(REPO))), local_runner.subprocess.CompletedProcess(cmd, 0))[1])
-    union = local_runner.SUBNATIONAL_POPULATION_UNION
-    monkeypatch.delenv("COUNTRY_NAME")
-    load_shared()
-    local_runner.run_in_order([local_runner.SUBNATIONAL_POPULATION, union, "gdp.py"])
-    assert ran == ["gdp.py"]  # without COUNTRY_NAME the two subnational population entries are skipped, loudly
-    assert capsys.readouterr().out.count("skipped, COUNTRY_NAME is not set") == 2
-    monkeypatch.setenv("COUNTRY_NAME", "Togo")
-    load_shared()
-    ran.clear()
-    local_runner.run_in_order([local_runner.SUBNATIONAL_POPULATION, union])
-    assert ran == ["population/TGO/tgo_subnational_population.py", union]  # census.gov: no shared extract
-    names = local_runner.NOTEBOOKS
-    assert local_runner.notebooks_from("population/TGO/tgo_subnational_population.py") == names[names.index(local_runner.SUBNATIONAL_POPULATION):]
-    monkeypatch.setenv("COUNTRY_NAME", "Albania")
-    load_shared()
-    ran.clear()
-    local_runner.run_in_order([local_runner.SUBNATIONAL_POPULATION])
-    assert ran == ["population/wb_subnational_population_extract.py", "population/ALB/alb_subnational_population.py"]
-    assert local_runner.notebooks_from("population/wb_subnational_population_extract.py")[0] == local_runner.SUBNATIONAL_POPULATION
-
-
-def test_runner_checks_country_name_before_writing_anything(data_root, monkeypatch):
-    monkeypatch.setattr(wbgapi.economy, "DataFrame", _wb_economies)
-    load_shared()
-    local_runner.check_country_name()  # unset: nothing to check
-    monkeypatch.setenv("COUNTRY_NAME", "Togo")
-    load_shared()
-    local_runner.check_country_name()
-    monkeypatch.setenv("COUNTRY_NAME", "Democratic Republic of Congo")
-    load_shared()
-    with pytest.raises(SystemExit, match="nothing was written"):
-        local_runner.check_country_name()
 
 
 def test_write_table_country_filter(data_root, monkeypatch):

@@ -7,10 +7,9 @@ imports config) and runs the notebook with those names in scope.
 
 With no argument it runs NOTEBOOKS below, in order, each in its own process (some
 notebooks change module state such as `wb.db`, and on Databricks every task starts
-fresh). The inputs listed under "Required inputs" in the README must be in place.
-COUNTRY_NAME picks the per-country subnational population notebook (see
-subnational_population_notebook) and the shared extract it reads; without it that step
-is skipped.
+fresh), then the subnational population step of the country COUNTRY_NAME names (see
+notebooks()); without COUNTRY_NAME that step is left out. The inputs listed under
+"Required inputs" in the README must be in place.
 
 Usage:
     DATA_ROOT=./data python local_runner.py           # everything in NOTEBOOKS
@@ -18,21 +17,11 @@ Usage:
     DATA_ROOT=./data python local_runner.py --from health/sdg_health.py
                                                       # resume: that notebook and the ones after it
 """
-import re
+import os
 import runpy
 import subprocess
 import sys
 from pathlib import Path
-
-# Stands in NOTEBOOKS for the COUNTRY_NAME country's own notebook; subnational_population_notebook() resolves it.
-SUBNATIONAL_POPULATION = 'population/<ISO3>/<iso3>_subnational_population.py'
-SUBNATIONAL_POPULATION_UNION = 'population/subnational_population.py'
-# The shared extract a country's notebook reads, run just before it; the other countries
-# fetch their own source (census.gov, a national statistics file).
-SUBNATIONAL_POPULATION_EXTRACTS = {
-    'population/wb_subnational_population_extract.py': ['ALB', 'BDI', 'BTN', 'CHL', 'TUN', 'ZAF'],
-    'population/global_data_lab_subnational_population.py': ['COD', 'LBR'],  # needs GDL_API_TOKEN
-}
 
 # The notebooks behind the tables the Togo BOOST aggregate and the dashboard read, in
 # dependency order. The other notebooks still run one at a time.
@@ -51,8 +40,6 @@ NOTEBOOKS = [
     'pefa/pefa_transform_load.py',  # reads the hand-uploaded pefa_2011_bronze / pefa_2016_bronze
     'public_finance/government_revenue_expenditure.py',
     'public_finance/togo/togo_finance_report_transform_load_dlt.py',
-    SUBNATIONAL_POPULATION,  # the COUNTRY_NAME country's; without COUNTRY_NAME this and the union below are skipped
-    SUBNATIONAL_POPULATION_UNION,  # stacks the per-country silver tables (with COUNTRY_NAME set, the ones present)
     'poverty/subnational_poverty/subnational_poverty_index_extract_transform.py',
     'poverty/subnational_poverty/subnational_poverty_index_transform_load.py',
     'human_development/global_data_lab_hdi_extract.py',  # needs GDL_API_TOKEN
@@ -61,99 +48,76 @@ NOTEBOOKS = [
     'education/pupil_teacher_ratio.py',
     'education/school_basic_services.py',
     'education/teacher_salaries.py',
-    'indicator_data_availability.py',  # last: summarises the tables above
+    'indicator_data_availability.py',  # summarises the tables above (the subnational population step below is not among them)
 ]
+
+# The subnational population step: the shared extract the country's notebook reads, if any,
+# population/<ISO3>/<iso3>_subnational_population.py, then the union of the per-country tables.
+# It runs for the one country COUNTRY_NAME names, after NOTEBOOKS; without COUNTRY_NAME the
+# union would want every country's table, and those are built one country at a time.
+SUBNATIONAL_POPULATION_UNION = 'population/subnational_population.py'
+WB_SUBNATIONAL_EXTRACT = 'population/wb_subnational_population_extract.py'
+GDL_SUBNATIONAL_EXTRACT = 'population/global_data_lab_subnational_population.py'  # needs GDL_API_TOKEN
+# ISO3 code of each country with a notebook, by its name in the World Bank API (what
+# COUNTRY_NAME is set to, and what write_table filters rows on)
+COUNTRIES = {
+    'Albania': 'ALB', 'Bangladesh': 'BGD', 'Bhutan': 'BTN', 'Burkina Faso': 'BFA', 'Burundi': 'BDI',
+    'Chile': 'CHL', 'Colombia': 'COL', 'Congo, Dem. Rep.': 'COD', 'Ghana': 'GHA', 'Kenya': 'KEN',
+    'Liberia': 'LBR', 'Mozambique': 'MOZ', 'Nigeria': 'NGA', 'Pakistan': 'PAK', 'Paraguay': 'PRY',
+    'South Africa': 'ZAF', 'Togo': 'TGO', 'Tunisia': 'TUN',
+}
+# the shared extract a country's notebook reads; the other notebooks fetch their own source
+EXTRACTS = {
+    'ALB': WB_SUBNATIONAL_EXTRACT, 'BDI': WB_SUBNATIONAL_EXTRACT, 'BTN': WB_SUBNATIONAL_EXTRACT,
+    'CHL': WB_SUBNATIONAL_EXTRACT, 'TUN': WB_SUBNATIONAL_EXTRACT, 'ZAF': WB_SUBNATIONAL_EXTRACT,
+    'COD': GDL_SUBNATIONAL_EXTRACT, 'LBR': GDL_SUBNATIONAL_EXTRACT,
+}
 
 HERE = Path(__file__).resolve().parent
 
 
-def check_country_name():
-    """Stop before anything is written when COUNTRY_NAME names no economy: write_table would
-    keep no rows, and every table would come out empty. The names are the World Bank API's
-    (e.g. "Congo, Dem. Rep."), which country.py writes as country_name."""
-    import utils
-    if utils.COUNTRY_NAME and utils.COUNTRY_NAME not in set(utils.wb.economy.DataFrame()['name']):
-        sys.exit(f'COUNTRY_NAME={utils.COUNTRY_NAME!r} is not a World Bank economy name (the country table\'s country_name, '
-                 f'e.g. "Congo, Dem. Rep."); nothing was written')
-
-
-def subnational_population_notebook():
-    """The COUNTRY_NAME country's own notebook, population/<ISO3>/<iso3>_subnational_population.py,
-    or None when COUNTRY_NAME is not set. The ISO3 code is looked up in the country table, so
-    country.py must have run."""
-    import utils  # here rather than at the top: it needs DATA_ROOT, and the tests re-import it per environment
-    if not utils.COUNTRY_NAME:
-        return None
-    if not utils.table_exists('country'):
-        sys.exit('COUNTRY_NAME is set but the country table is not built yet; run country.py first')
-    countries = utils.read_table('country', columns=['country_name', 'country_code'])
-    codes = countries.loc[countries['country_name'] == utils.COUNTRY_NAME, 'country_code']
-    if codes.empty:
-        sys.exit(f'COUNTRY_NAME={utils.COUNTRY_NAME!r} is not a country_name in the country table')
-    code = codes.iloc[0]
-    return f'population/{code}/{code.lower()}_subnational_population.py'
-
-
-def resolve(entry):
-    """The notebooks to run for an entry of NOTEBOOKS, in order; empty to skip it. The two
-    subnational population entries need COUNTRY_NAME: without it the union would want every
-    listed country's table, and those are built one country at a time. The country's own
-    notebook comes after the shared extract it reads, if any."""
-    if entry not in (SUBNATIONAL_POPULATION, SUBNATIONAL_POPULATION_UNION):
-        return [entry]
-    country_notebook = subnational_population_notebook()
-    if country_notebook is None:
-        return []
-    if entry == SUBNATIONAL_POPULATION_UNION:
-        return [entry]
-    code = country_notebook.split('/')[1]
-    return [extract for extract, codes in SUBNATIONAL_POPULATION_EXTRACTS.items() if code in codes] + [country_notebook]
-
-
-def notebooks_from(start=None):
-    """NOTEBOOKS, or its tail from `start` on, to resume a run that failed there."""
-    if start is None:
+def notebooks():
+    """What a full run runs, in order: NOTEBOOKS, then COUNTRY_NAME's subnational population step."""
+    country = os.environ.get('COUNTRY_NAME')
+    if not country:
+        print('COUNTRY_NAME is not set: the subnational population step is left out', flush=True)
         return list(NOTEBOOKS)
+    if country not in COUNTRIES:
+        sys.exit(f'COUNTRY_NAME={country!r} is not a country with a subnational population notebook. '
+                 f'As the World Bank API spells them: {", ".join(COUNTRIES)}')
+    code = COUNTRIES[country]
+    extract = [EXTRACTS[code]] if code in EXTRACTS else []
+    return NOTEBOOKS + extract + [f'population/{code}/{code.lower()}_subnational_population.py', SUBNATIONAL_POPULATION_UNION]
+
+
+def notebooks_from(start):
+    """notebooks() from `start` on, to resume a run that failed there."""
+    names = notebooks()
     path = Path(start)
     try:
         name = str(path.resolve().relative_to(HERE)) if path.is_absolute() else str(path)
     except ValueError:
         name = start
-    if name in SUBNATIONAL_POPULATION_EXTRACTS or re.fullmatch(r'population/[A-Z]{3}/[a-z]{3}_subnational_population\.py', name):
-        country_notebook = subnational_population_notebook()
-        if country_notebook is None:
-            sys.exit(f"{start} is a country's subnational population step: set COUNTRY_NAME to that country to resume from it")
-        if name not in resolve(SUBNATIONAL_POPULATION):
-            sys.exit(f"{start} is not COUNTRY_NAME's notebook, {country_notebook}")
-        name = SUBNATIONAL_POPULATION
-    if name not in NOTEBOOKS:
-        sys.exit(f'{start} is not in NOTEBOOKS, so there is nothing to resume from. The list:\n  '
-                 + '\n  '.join(NOTEBOOKS))
-    return NOTEBOOKS[NOTEBOOKS.index(name):]
+    if name not in names:
+        sys.exit(f'{start} is not in the list to run, so there is nothing to resume from. The list:\n  ' + '\n  '.join(names))
+    return names[names.index(name):]
 
 
-def run_in_order(entries):
+def run_in_order(names):
     """Each notebook in its own process; stop at the first failure and say how to resume."""
-    for entry in entries:
-        notebooks = resolve(entry)
-        if not notebooks:
-            print(f'==> {entry}: skipped, COUNTRY_NAME is not set', flush=True)
-            continue
-        for notebook in notebooks:
-            print(f'==> {notebook}', flush=True)
-            if subprocess.run([sys.executable, __file__, str(HERE / notebook)]).returncode:
-                sys.exit(f'{notebook} failed; the notebooks after it were not run.\n'
-                         f'Once the cause is fixed, resume with: python {Path(__file__).name} --from {notebook}')
+    for notebook in names:
+        print(f'==> {notebook}', flush=True)
+        if subprocess.run([sys.executable, __file__, str(HERE / notebook)]).returncode:
+            sys.exit(f'{notebook} failed; the notebooks after it were not run.\n'
+                     f'Once the cause is fixed, resume with: python {Path(__file__).name} --from {notebook}')
 
 
 if __name__ == '__main__':
     from utils import *  # what the %run cells provide on Databricks
     args = sys.argv[1:]
     if not args:
-        check_country_name()
-        run_in_order(notebooks_from())
+        run_in_order(notebooks())
     elif args[0] == '--from' and len(args) == 2:
-        check_country_name()
         run_in_order(notebooks_from(args[1]))
     elif len(args) == 1:
         runpy.run_path(args[0], init_globals=globals(), run_name='__main__')
