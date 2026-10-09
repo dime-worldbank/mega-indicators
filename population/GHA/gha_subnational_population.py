@@ -1,14 +1,9 @@
 # Databricks notebook source
-# MAGIC %run ../subnational_population_extraction_from_census_gov
-
-# COMMAND ----------
-
 # MAGIC %run ../../config
 
 # COMMAND ----------
 
-if 'get_pop_from_census_gov' not in globals():  # off Databricks the %run cells above are comments
-    from population.subnational_population_extraction_from_census_gov import get_pop_from_census_gov
+# MAGIC %run ../../utils
 
 # COMMAND ----------
 

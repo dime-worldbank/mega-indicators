@@ -9,7 +9,8 @@ With no argument it runs NOTEBOOKS below, in order, each in its own process (som
 notebooks change module state such as `wb.db`, and on Databricks every task starts
 fresh). The inputs listed under "Required inputs" in the README must be in place.
 COUNTRY_NAME picks the per-country subnational population notebook (see
-subnational_population_notebook); without it that step is skipped.
+subnational_population_notebook) and the shared extract it reads; without it that step
+is skipped.
 
 Usage:
     DATA_ROOT=./data python local_runner.py           # everything in NOTEBOOKS
@@ -26,6 +27,12 @@ from pathlib import Path
 # Stands in NOTEBOOKS for the COUNTRY_NAME country's own notebook; subnational_population_notebook() resolves it.
 SUBNATIONAL_POPULATION = 'population/<ISO3>/<iso3>_subnational_population.py'
 SUBNATIONAL_POPULATION_UNION = 'population/subnational_population.py'
+# The shared extract a country's notebook reads, run just before it; the other countries
+# fetch their own source (census.gov, a national statistics file).
+SUBNATIONAL_POPULATION_EXTRACTS = {
+    'population/wb_subnational_population_extract.py': ['ALB', 'BDI', 'BTN', 'CHL', 'TUN', 'ZAF'],
+    'population/global_data_lab_subnational_population.py': ['COD', 'LBR'],  # needs GDL_API_TOKEN
+}
 
 # The notebooks behind the tables the Togo BOOST aggregate and the dashboard read, in
 # dependency order. The other notebooks still run one at a time.
@@ -60,6 +67,16 @@ NOTEBOOKS = [
 HERE = Path(__file__).resolve().parent
 
 
+def check_country_name():
+    """Stop before anything is written when COUNTRY_NAME names no economy: write_table would
+    keep no rows, and every table would come out empty. The names are the World Bank API's
+    (e.g. "Congo, Dem. Rep."), which country.py writes as country_name."""
+    import utils
+    if utils.COUNTRY_NAME and utils.COUNTRY_NAME not in set(utils.wb.economy.DataFrame()['name']):
+        sys.exit(f'COUNTRY_NAME={utils.COUNTRY_NAME!r} is not a World Bank economy name (the country table\'s country_name, '
+                 f'e.g. "Congo, Dem. Rep."); nothing was written')
+
+
 def subnational_population_notebook():
     """The COUNTRY_NAME country's own notebook, population/<ISO3>/<iso3>_subnational_population.py,
     or None when COUNTRY_NAME is not set. The ISO3 code is looked up in the country table, so
@@ -78,15 +95,19 @@ def subnational_population_notebook():
 
 
 def resolve(entry):
-    """The notebook to run for an entry of NOTEBOOKS, or None to skip it. The two subnational
-    population entries need COUNTRY_NAME: without it the union would want every listed
-    country's table, and those are built one country at a time."""
+    """The notebooks to run for an entry of NOTEBOOKS, in order; empty to skip it. The two
+    subnational population entries need COUNTRY_NAME: without it the union would want every
+    listed country's table, and those are built one country at a time. The country's own
+    notebook comes after the shared extract it reads, if any."""
     if entry not in (SUBNATIONAL_POPULATION, SUBNATIONAL_POPULATION_UNION):
-        return entry
+        return [entry]
     country_notebook = subnational_population_notebook()
     if country_notebook is None:
-        return None
-    return country_notebook if entry == SUBNATIONAL_POPULATION else entry
+        return []
+    if entry == SUBNATIONAL_POPULATION_UNION:
+        return [entry]
+    code = country_notebook.split('/')[1]
+    return [extract for extract, codes in SUBNATIONAL_POPULATION_EXTRACTS.items() if code in codes] + [country_notebook]
 
 
 def notebooks_from(start=None):
@@ -98,9 +119,11 @@ def notebooks_from(start=None):
         name = str(path.resolve().relative_to(HERE)) if path.is_absolute() else str(path)
     except ValueError:
         name = start
-    if re.fullmatch(r'population/[A-Z]{3}/[a-z]{3}_subnational_population\.py', name):
+    if name in SUBNATIONAL_POPULATION_EXTRACTS or re.fullmatch(r'population/[A-Z]{3}/[a-z]{3}_subnational_population\.py', name):
         country_notebook = subnational_population_notebook()
-        if country_notebook not in (None, name):
+        if country_notebook is None:
+            sys.exit(f"{start} is a country's subnational population step: set COUNTRY_NAME to that country to resume from it")
+        if name not in resolve(SUBNATIONAL_POPULATION):
             sys.exit(f"{start} is not COUNTRY_NAME's notebook, {country_notebook}")
         name = SUBNATIONAL_POPULATION
     if name not in NOTEBOOKS:
@@ -112,22 +135,25 @@ def notebooks_from(start=None):
 def run_in_order(entries):
     """Each notebook in its own process; stop at the first failure and say how to resume."""
     for entry in entries:
-        notebook = resolve(entry)
-        if notebook is None:
+        notebooks = resolve(entry)
+        if not notebooks:
             print(f'==> {entry}: skipped, COUNTRY_NAME is not set', flush=True)
             continue
-        print(f'==> {notebook}', flush=True)
-        if subprocess.run([sys.executable, __file__, str(HERE / notebook)]).returncode:
-            sys.exit(f'{notebook} failed; the notebooks after it were not run.\n'
-                     f'Once the cause is fixed, resume with: python {Path(__file__).name} --from {notebook}')
+        for notebook in notebooks:
+            print(f'==> {notebook}', flush=True)
+            if subprocess.run([sys.executable, __file__, str(HERE / notebook)]).returncode:
+                sys.exit(f'{notebook} failed; the notebooks after it were not run.\n'
+                         f'Once the cause is fixed, resume with: python {Path(__file__).name} --from {notebook}')
 
 
 if __name__ == '__main__':
     from utils import *  # what the %run cells provide on Databricks
     args = sys.argv[1:]
     if not args:
+        check_country_name()
         run_in_order(notebooks_from())
     elif args[0] == '--from' and len(args) == 2:
+        check_country_name()
         run_in_order(notebooks_from(args[1]))
     elif len(args) == 1:
         runpy.run_path(args[0], init_globals=globals(), run_name='__main__')

@@ -64,7 +64,8 @@ def http_get(url, retries=5, backoff_factor=1, **kwargs):
                 raise
             reason = type(e).__name__
         wait = backoff_factor * 2 ** attempt if attempt else 0
-        print(f'{url}: {reason}; retry {attempt + 1}/{retries} in {wait}s', flush=True)
+        # the URL without its query string: a key may be in it
+        print(f"{url.split('?', 1)[0]}: {reason}; retry {attempt + 1}/{retries} in {wait}s", flush=True)
         time.sleep(wait)
 
 # COMMAND ----------
@@ -138,6 +139,20 @@ def get_secret(scope, key):
 
 # COMMAND ----------
 
+def _wb_dataframe_with_retry(series, attempts=3, backoff=2.0):
+    """wb.data.DataFrame, with the whole fetch retried when a page fails in a way the session's
+    Retry (above) does not cover: a body cut short after the headers arrived (the API does this
+    mid-pagination now and then) or a response that does not parse."""
+    for i in range(attempts):
+        try:
+            return wb.data.DataFrame(series, skipBlanks=True)
+        except (*TRANSIENT_HTTP_ERRORS, wb.APIResponseError):
+            if i == attempts - 1:
+                raise
+            wait = backoff * 2 ** i
+            print(f'wbgapi: {series} failed mid-fetch; retry {i + 1}/{attempts - 1} in {wait}s', flush=True)
+            time.sleep(wait)
+
 def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_country_table=None, how: str = 'inner'):
     if extra_col_names_from_country_table is None:
         extra_col_names_from_country_table = []
@@ -145,10 +160,8 @@ def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_countr
         raise ValueError(f"Unsupported merge how='{how}'")
     long_dfs = []
     for series, col_name in zip(indicators, col_names):
-        # The World Bank API intermittently 502s mid-pagination; the session wbgapi uses
-        # (above) retries each page, so a failure that gets through is one to stop on.
         print(f'wbgapi: fetching {series}', flush=True)
-        df = wb.data.DataFrame(series, skipBlanks=True).reset_index()
+        df = _wb_dataframe_with_retry(series).reset_index()
         long_df = df.melt(id_vars='economy', var_name='year', value_name=col_name)
         long_df = long_df.dropna(subset=col_name)
         long_df['year'] = long_df['year'].str.replace('YR', '')
@@ -272,3 +285,74 @@ def versioned_dataframe(source_url, table_name, update_version, parse=pd.read_cs
         fetch_raw(source_url, table_name, parse=parse, **parse_kwargs)
     return read_table(table_name).drop(columns='fetched_at')
 
+# COMMAND ----------
+
+# Subnational population from the US Census Bureau's international programs time series, for
+# the population/<ISO3> notebooks that use it: the workbook is cached through versioned_dataframe
+# (refreshed when the census_population_update_version widget / env var is true).
+
+def _read_census_gov_excel(buf):
+    xls = pd.ExcelFile(buf)
+    target_sheet = next(sheet for sheet in xls.sheet_names if sheet.startswith('2'))
+    df_raw = pd.read_excel(xls, sheet_name=target_sheet, skiprows=2, header=None)
+    header = df_raw.iloc[1]
+    df_raw.columns = header
+    df_raw = df_raw.drop([0, 1, 2])
+    # Some columns (e.g. ADM3_NAME/ADM4_NAME/NSO_CODE/NSO_NAME) are entirely blank for
+    # countries without that breakdown — an all-null column round-trips through Spark as
+    # NullType, which Delta can't persist. Keep only what get_pop_from_census_gov uses.
+    keep_cols = [c for c in df_raw.columns if c in ('COUNTRY', 'CNTRY_NAME', 'ADM1_NAME', 'ADM_LEVEL') or 'BTOTL' in c]
+    return df_raw[keep_cols]
+
+def get_pop_from_census_gov(country_filename, timeseries='pepfar', update_version=False):
+    url = f'https://www2.census.gov/programs-surveys/international-programs/tables/time-series/{timeseries}/{country_filename}.xlsx'
+    table_name = f"{country_filename.replace('-', '_')}_census_raw"
+    df_raw = versioned_dataframe(url, table_name, update_version, parse=_read_census_gov_excel)
+
+    # Determine country name column
+    country_col = None
+    for col in ['COUNTRY', 'CNTRY_NAME']:
+        if col in df_raw.columns:
+            country_col = col
+            break
+
+    if country_col is None:
+        raise ValueError(f"Neither 'COUNTRY' nor 'CNTRY_NAME' found in dataframe columns {df_raw.columns}")
+
+    # Extract Total population columns
+    df_pop_wide = df_raw[df_raw.ADM_LEVEL==1][[country_col, 'ADM1_NAME']+[x for x in df_raw.columns if 'BTOTL' in x]]
+    df_pop = pd.melt(df_pop_wide, id_vars=[country_col, 'ADM1_NAME'], var_name='year', value_name='population')
+    df_pop['year'] = df_pop['year'].str.extract(r'(\d+)').astype(int)
+    df_pop.columns = ['country_name', 'adm1_name', 'year', 'population']
+
+    # Modifications to the admin1 and county name and add data_source
+    df_pop['country_name'] = df_pop['country_name'].str.title()
+    df_pop['adm1_name'] = df_pop['adm1_name'].str.replace(r'[-/]+', ' ', regex=True).str.title()
+    df_pop['data_source'] = url
+    df_pop = df_pop.astype({'year': 'int', 'population': 'int'})
+    df_pop = df_pop.sort_values(['adm1_name', 'year'], ignore_index=True)
+
+    return df_pop
+
+# COMMAND ----------
+
+# Global Data Lab (globaldatalab.org), through the URL scheme the gdldata R package uses:
+# <dataset>/download/[<year>/]<indicator+indicator>/?format=csv&token=... . The token is the
+# GDL_API_TOKEN secret (DIMEBOOSTKEYVAULT) on Databricks and the environment variable of the
+# same name off it: get_secret('DIMEBOOSTKEYVAULT', 'GDL_API_TOKEN').
+GDL_BASEURL = 'https://globaldatalab.org'
+# GDL's country names where they differ from the rest of the pipeline's (the World Bank API's)
+GDL_COUNTRY_RENAMES = {'Congo Democratic Republic': 'Congo, Dem. Rep.', 'Chili': 'Chile'}
+
+def gdl_download(token, dataset, indicators, year=None):
+    """One download, every country: `indicators` of `dataset` for `year` (all years when None).
+    Errors (a bad token, an exhausted quota) come back as an HTML page, so the body is checked.
+    Parsed from the bytes as UTF-8: when the response declares no charset, resp.text would decode
+    the accented region names as Latin-1."""
+    years = f'{year}/' if year is not None else ''
+    url = f"{GDL_BASEURL}/{dataset}/download/{years}{'+'.join(indicators)}/"
+    resp = http_get(url, params={'format': 'csv', 'token': token, 'interpolation': 1}, headers={'Accept': 'text/csv'})
+    resp.raise_for_status()
+    if resp.content.lstrip().startswith(b'<'):
+        raise RuntimeError(f'Global Data Lab returned an error page for {url}; check the token and the API quota')
+    return pd.read_csv(io.BytesIO(resp.content))

@@ -52,7 +52,7 @@ def run_notebook(path):
 
 class FakeResponse:
     def __init__(self, content, status_code=200):
-        self.content = content
+        self.content = content.encode("utf-8") if isinstance(content, str) else content
         self.text = content.decode("utf-8", errors="replace") if isinstance(content, bytes) else content
         self.status_code = status_code
         self.headers = {}
@@ -262,6 +262,7 @@ def test_default_notebooks_exist_and_producers_run_before_their_readers():
     codes = re.findall(r"'([a-z]{3})'", re.search(r"^country_codes = .*$", union.read_text(), re.M).group())
     assert len(codes) >= 18
     assert all((REPO / "population" / code.upper() / f"{code}_subnational_population.py").is_file() for code in codes)
+    assert all((REPO / extract).is_file() for extract in local_runner.SUBNATIONAL_POPULATION_EXTRACTS)
     assert names.index(placeholder) < names.index(local_runner.SUBNATIONAL_POPULATION_UNION)
 
 
@@ -272,8 +273,8 @@ def test_runner_resumes_from_a_notebook(data_root):
     assert local_runner.notebooks_from("gdp.py") == names[names.index("gdp.py"):]
     assert local_runner.notebooks_from("./gdp.py") == names[names.index("gdp.py"):]
     assert local_runner.notebooks_from(str(REPO / "gdp.py")) == names[names.index("gdp.py"):]
-    placeholder = local_runner.SUBNATIONAL_POPULATION  # a per-country notebook resumes at its placeholder
-    assert local_runner.notebooks_from("population/TGO/tgo_subnational_population.py") == names[names.index(placeholder):]
+    with pytest.raises(SystemExit, match="set COUNTRY_NAME"):  # a per-country notebook is COUNTRY_NAME's step
+        local_runner.notebooks_from("population/TGO/tgo_subnational_population.py")
     with pytest.raises(SystemExit):
         local_runner.notebooks_from("nope.py")
 
@@ -281,7 +282,7 @@ def test_runner_resumes_from_a_notebook(data_root):
 def test_runner_picks_the_country_population_notebook_from_country_name(data_root, monkeypatch, capsys):
     ns = load_shared()
     assert local_runner.subnational_population_notebook() is None  # no COUNTRY_NAME
-    ns["write_table"](pd.DataFrame({"country_name": ["Togo", "Nigeria"], "country_code": ["TGO", "NGA"]}), "country")
+    ns["write_table"](pd.DataFrame({"country_name": ["Togo", "Nigeria", "Albania"], "country_code": ["TGO", "NGA", "ALB"]}), "country")
     monkeypatch.setenv("COUNTRY_NAME", "Nigeria")
     load_shared()
     assert local_runner.subnational_population_notebook() == "population/NGA/nga_subnational_population.py"
@@ -305,7 +306,28 @@ def test_runner_picks_the_country_population_notebook_from_country_name(data_roo
     load_shared()
     ran.clear()
     local_runner.run_in_order([local_runner.SUBNATIONAL_POPULATION, union])
-    assert ran == ["population/TGO/tgo_subnational_population.py", union]
+    assert ran == ["population/TGO/tgo_subnational_population.py", union]  # census.gov: no shared extract
+    names = local_runner.NOTEBOOKS
+    assert local_runner.notebooks_from("population/TGO/tgo_subnational_population.py") == names[names.index(local_runner.SUBNATIONAL_POPULATION):]
+    monkeypatch.setenv("COUNTRY_NAME", "Albania")
+    load_shared()
+    ran.clear()
+    local_runner.run_in_order([local_runner.SUBNATIONAL_POPULATION])
+    assert ran == ["population/wb_subnational_population_extract.py", "population/ALB/alb_subnational_population.py"]
+    assert local_runner.notebooks_from("population/wb_subnational_population_extract.py")[0] == local_runner.SUBNATIONAL_POPULATION
+
+
+def test_runner_checks_country_name_before_writing_anything(data_root, monkeypatch):
+    monkeypatch.setattr(wbgapi.economy, "DataFrame", _wb_economies)
+    load_shared()
+    local_runner.check_country_name()  # unset: nothing to check
+    monkeypatch.setenv("COUNTRY_NAME", "Togo")
+    load_shared()
+    local_runner.check_country_name()
+    monkeypatch.setenv("COUNTRY_NAME", "Democratic Republic of Congo")
+    load_shared()
+    with pytest.raises(SystemExit, match="nothing was written"):
+        local_runner.check_country_name()
 
 
 def test_write_table_country_filter(data_root, monkeypatch):

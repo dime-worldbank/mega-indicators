@@ -47,6 +47,19 @@ Prod is bound to the existing jobs (no duplicates) and deploys to the team's
 `ITSDA-LKHS-DAP-PROD-boostprocessed` group. The GDL token is read from the existing
 `DIMEBOOSTKEYVAULT` secret scope — no setup needed.
 
+The DLT pipelines were replaced by notebooks (`admin_boundaries_transform_load.py`,
+`subnational_poverty_index_transform_load.py`, `global_data_lab_hdi_transform_load.py`,
+`subnational_population.py`, `wwbi_transform_load.py`, `indicator_data_availability.py`).
+The first deploy of this version deletes the pipelines, and Unity Catalog drops the tables a
+deleted pipeline owned; the notebooks recreate them as plain Delta tables when their jobs run,
+and a notebook that runs while a pipeline still owns its table cannot overwrite it. So right
+after that deploy run `indicators_on_demand` (it has no schedule), then `indicators_weekly` and
+`indicators_monthly`, before the dashboard is next read:
+
+```bash
+databricks bundle run indicators_on_demand -t prod -p RPF-ADBSvc-PROD
+```
+
 ## Contributing
 
 To add more indicators, please open a pull request after you've tested your code in Databricks.
@@ -100,11 +113,14 @@ are the ones behind the tables the Togo BOOST aggregate and the dashboard read, 
 in its own process. Any other notebook runs one at a time. The run stops at the first
 notebook that fails; fix the cause and continue from that notebook with `--from`, the
 tables already written are kept. The subnational population step is the one place the
-runner looks at `COUNTRY_NAME`: it runs that country's own notebook,
-`population/<ISO3>/<iso3>_subnational_population.py` (the code looked up in `country`),
-then the union; without `COUNTRY_NAME` it skips both, since the union would then want
-every listed country's table and those are built one country at a time. The pieces that
-make this work:
+runner looks at `COUNTRY_NAME`: it runs the shared extract that country's notebook reads
+(`wb_subnational_population_extract.py` or `global_data_lab_subnational_population.py`, if any),
+then the country's own notebook, `population/<ISO3>/<iso3>_subnational_population.py`
+(the code looked up in `country`), then the union; without `COUNTRY_NAME` it skips the step,
+since the union would then want every listed country's table and those are built one country
+at a time. `COUNTRY_NAME` is the World Bank API's spelling (`Congo, Dem. Rep.`), the one the
+`country` table carries; the runner checks it before writing anything, as a name matching no
+row would leave every table empty. The pieces that make this work:
 
 - [config.py](config.py) detects the runtime. On Databricks it resolves the schema
   from the `bundle_target` widget as before; otherwise it reads `DATA_ROOT` (required),
@@ -118,9 +134,9 @@ make this work:
   so are secrets: `get_secret("DIMEBOOSTKEYVAULT", "GDL_API_TOKEN")` reads `GDL_API_TOKEN`
   and `get_secret("DIMEBOOSTKEYVAULT", "ember_energy_key")` reads `EMBER_ENERGY_KEY`. A
   notebook that needs a secret stops with a message naming the variable when it is unset.
-- The other countries' population notebooks under `population/<ISO3>/` run the same way
-  (`COUNTRY_NAME` unset, or set to that country); `population/wb_subnational_population_extract.py`
-  first for the ones that read the World Bank subnational database, and
+- Any country's population notebook under `population/<ISO3>/` also runs on its own
+  (`COUNTRY_NAME` unset, or set to that country), after `population/wb_subnational_population_extract.py`
+  for the ones that read the World Bank subnational database and
   `population/global_data_lab_subnational_population.py` (needs `GDL_API_TOKEN`) for Congo DR and Liberia.
 - Files a notebook would write to the Unity Catalog volume (downloaded GeoJSON, PDFs)
   go under `$DATA_ROOT/raw_data/`.

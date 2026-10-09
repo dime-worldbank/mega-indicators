@@ -9,16 +9,11 @@
 
 # Subnational human development indices and school attendance from Global Data Lab, for
 # every country, one request per dataset and year, as the R notebook made through the
-# gdldata package: <base>/<dataset>/download/<year>/<indicator+indicator>/?format=csv&token=...
-# Plain pandas on both sides; it replaced the R notebook. The token is the GDL_API_TOKEN
-# secret (DIMEBOOSTKEYVAULT) on Databricks and the GDL_API_TOKEN environment variable off it.
-import io
+# gdldata package (gdl_download in utils). Plain pandas on both sides; it replaced the R notebook.
 from datetime import date
 
 import pandas as pd
-import requests
 
-GDL_BASEURL = 'https://globaldatalab.org'
 START_YEAR = 1990
 END_YEAR = date.today().year
 DATASETS = {
@@ -29,21 +24,10 @@ INDICATORS = [i for inds in DATASETS.values() for i in inds]
 
 token = get_secret('DIMEBOOSTKEYVAULT', 'GDL_API_TOKEN')
 
-
-def gdl_download(dataset, indicators, year):
-    url = f"{GDL_BASEURL}/{dataset}/download/{year}/{'+'.join(indicators)}/"
-    resp = http_get(url, params={'format': 'csv', 'token': token, 'interpolation': 1},
-                        headers={'Accept': 'text/csv'}, timeout=DEFAULT_TIMEOUT_SECONDS)
-    resp.raise_for_status()
-    if resp.text.lstrip().startswith('<'):  # errors (bad token, exhausted quota) come back as an HTML page
-        raise RuntimeError(f'Global Data Lab returned an error page for {url}; check the token and the API quota')
-    return pd.read_csv(io.StringIO(resp.text))
-
-
 frames = []
 for dataset, indicators in DATASETS.items():
     for year in range(START_YEAR, END_YEAR + 1):
-        df = gdl_download(dataset, indicators, year)
+        df = gdl_download(token, dataset, indicators, year)
         print(f'{dataset} {year}: {len(df)} rows')
         frames.append(df)
 # The education download returns the nearest survey's rows for every requested year, so
@@ -56,7 +40,7 @@ print(f'global_data_lab_hd_index_bronze nrow: {len(raw)}')
 
 silver = raw.rename(columns={'Year': 'year'})
 # Country names as the rest of the pipeline spells them
-silver['Country'] = silver['Country'].replace({'Congo Democratic Republic': 'Congo, Dem. Rep.', 'Chili': 'Chile'})
+silver['Country'] = silver['Country'].replace(GDL_COUNTRY_RENAMES)
 
 # One row per region and year: the two datasets each contribute their own indicator
 # columns, so take the first non-null value per column.
