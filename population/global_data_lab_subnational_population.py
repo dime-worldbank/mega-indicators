@@ -10,7 +10,6 @@
 # Regional population from Global Data Lab (dataset demographics, indicator regpopm, in
 # millions) for every country, read by the Congo DR and Liberia notebooks. One request
 # gives all years (gdl_download in utils). Plain pandas on both sides.
-import pandas as pd
 
 token = get_secret('DIMEBOOSTKEYVAULT', 'GDL_API_TOKEN')
 

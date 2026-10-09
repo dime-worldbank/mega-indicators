@@ -8,7 +8,6 @@
 # COMMAND ----------
 
 import pandas as pd
-import requests
 
 # COMMAND ----------
 

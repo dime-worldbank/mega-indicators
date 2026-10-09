@@ -9,7 +9,6 @@
 
 # global_data_lab_hd_index: the silver table joined to country, regions named as in
 # admin1_boundaries_gold, attendance also as a 0-1 share. Plain pandas on both sides.
-import pandas as pd
 
 # (country_name, GDL region) -> admin1 name, where the two spellings differ
 REGION_NAME_FIXES = {

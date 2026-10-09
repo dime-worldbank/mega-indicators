@@ -134,8 +134,11 @@ FALLBACK_CURRENCIES = {
 
 if IS_DATABRICKS or table_exists(CURRENCY_TABLE):  # on Databricks an unreadable table fails the run rather than degrading to the fallback
     base_df = read_table(CURRENCY_TABLE, columns=['cntry_code', 'ccy_src_name', 'ccy_src_code', 'ccy_exch_rate_ref_date'])
-    # the latest row per country, joined on the ISO2 code
-    currency_df = (base_df.sort_values('ccy_exch_rate_ref_date', ascending=False)
+    # The latest row per country, joined on the ISO2 code. A few countries carry two
+    # official currencies on every date (Namibia NAD/ZAR, Eritrea ERN/ETB) and nothing in
+    # the table ranks them, so break the tie on the code, descending, to make the choice
+    # deterministic; this keeps the values the table has had (ZAR, ETB).
+    currency_df = (base_df.sort_values(['ccy_exch_rate_ref_date', 'ccy_src_code'], ascending=[False, False])
         .drop_duplicates('cntry_code')
         .rename(columns={'cntry_code': 'country_code', 'ccy_src_name': 'currency_name', 'ccy_src_code': 'currency_code'})
         [['country_code', 'currency_name', 'currency_code']])

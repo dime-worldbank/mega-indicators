@@ -8,7 +8,6 @@
 # COMMAND ----------
 
 import pandas as pd
-import requests
 
 # COMMAND ----------
 
@@ -18,7 +17,7 @@ base_url = "https://api.ember-energy.org"
 query_url = (
     f"{base_url}/v1/electricity-generation/yearly"
     + "?"
-    + f"is_aggregate_series=false"
+    + "is_aggregate_series=false"
     + f"&api_key={my_api_key}"
 )
 
