@@ -108,19 +108,8 @@ imports `config` and `utils` itself and runs the notebook with their names in sc
 Any other `%run` is a comment too, so a notebook that needs another helper imports it
 under a guard, as `government_revenue_expenditure.py` does for `imf_sdmx`.
 
-With no argument the runner refreshes the notebooks listed in its `NOTEBOOKS`, which
-are the ones behind the tables the Togo BOOST aggregate and the dashboard read, each
-in its own process. Any other notebook runs one at a time. The run stops at the first
-notebook that fails; fix the cause and continue from that notebook with `--from`, the
-tables already written are kept. The subnational population step is the one place the
-runner looks at `COUNTRY_NAME`: it runs the shared extract that country's notebook reads
-(`wb_subnational_population_extract.py` or `global_data_lab_subnational_population.py`, if any),
-then the country's own notebook, `population/<ISO3>/<iso3>_subnational_population.py`
-(the code looked up in `country`), then the union; without `COUNTRY_NAME` it skips the step,
-since the union would then want every listed country's table and those are built one country
-at a time. `COUNTRY_NAME` is the World Bank API's spelling (`Congo, Dem. Rep.`), the one the
-`country` table carries; the runner checks it before writing anything, as a name matching no
-row would leave every table empty. The pieces that make this work:
+What runs, in which order, and how `--from` and `COUNTRY_NAME` are handled is described
+in [local_runner.py](local_runner.py) itself. The pieces that make this work:
 
 - [config.py](config.py) detects the runtime. On Databricks it resolves the schema
   from the `bundle_target` widget as before; otherwise it reads `DATA_ROOT` (required),
