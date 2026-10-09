@@ -3,14 +3,17 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../../utils
+
+# COMMAND ----------
+
 import pandas as pd
 
 # COMMAND ----------
 
 def build_subnational_population(country_name:str, country_code:str, adm1_drop:list=[]):
 
-    spark_df = spark.table(f'{INDICATOR_SCHEMA}.global_data_lab_subnational_population')
-    df = spark_df.toPandas()
+    df = read_table('global_data_lab_subnational_population')
 
     ddf = df[df.ISO_Code==country_code.upper()][['Country', 'Region', 'year', 'population_millions']]
     ddf.columns = ['country_name', 'adm1_name', 'year', 'population']
@@ -28,13 +31,7 @@ def build_subnational_population(country_name:str, country_code:str, adm1_drop:l
 
 def write_subnational_population(pop:pd.DataFrame, country_code:str):
 
-    database_name = INDICATOR_SCHEMA
-    if not spark.catalog.databaseExists(database_name):
-        print(f"Database '{database_name}' does not exist. Creating the database.")
-        spark.sql(f"CREATE DATABASE {database_name}")
-
-    sdf = spark.createDataFrame(pop)
-    sdf.write.mode("overwrite").saveAsTable(f"{database_name}.{country_code.lower()}_subnational_population_silver")
+    write_table(pop, f'{country_code.lower()}_subnational_population_silver')
 
     return
 

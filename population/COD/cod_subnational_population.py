@@ -3,14 +3,17 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../../utils
+
+# COMMAND ----------
+
 # helper name correction map
 adm1_name_map = {
     'kasai oriental':'kasai-oriental',
     'kasai occidental': 'kasai-occidental'
 }
 # Read global datalab table for Congo
-spark_df = spark.table(f'{INDICATOR_SCHEMA}.global_data_lab_subnational_population')
-df = spark_df.toPandas()
+df = read_table('global_data_lab_subnational_population')
 
 ddf = df[df.ISO_Code=='COD'][['Country', 'Region', 'year', 'population_millions']]
 ddf.columns = ['country_name', 'adm1_name', 'year', 'population']
@@ -27,10 +30,4 @@ ddf = df[df.ISO_Code=='COD'][['Country', 'Region', 'year', 'population_millions'
 
 # COMMAND ----------
 
-database_name = INDICATOR_SCHEMA
-if not spark.catalog.databaseExists(database_name):
-    print(f"Database '{database_name}' does not exist. Creating the database.")
-    spark.sql(f"CREATE DATABASE {database_name}")
-
-sdf = spark.createDataFrame(pop)
-sdf.write.mode("overwrite").saveAsTable(f"{database_name}.cod_subnational_population_silver")
+write_table(pop, 'cod_subnational_population_silver')

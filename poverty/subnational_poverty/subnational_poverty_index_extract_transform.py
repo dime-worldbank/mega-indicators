@@ -11,7 +11,6 @@
 
 # COMMAND ----------
 
-import requests
 import pandas as pd
 import numpy as np
 from io import BytesIO
@@ -20,7 +19,7 @@ import re
 # COMMAND ----------
 
 spid_resource_url = 'https://ddh-openapi.worldbank.org/resources/DR0092191'
-response = requests.get(spid_resource_url, timeout=DEFAULT_TIMEOUT_SECONDS)
+response = http_get(spid_resource_url, timeout=DEFAULT_TIMEOUT_SECONDS)
 response.raise_for_status()
 spid_url = response.json()['distribution']['url']
 # Prefer the mounted DDH volume; fall back to the URL (see ddh_bytes in utils).
@@ -32,7 +31,7 @@ df_SPID
 # COMMAND ----------
 
 gsap_resource_url = 'https://ddh-openapi.worldbank.org/resources/DR0052555'
-response = requests.get(gsap_resource_url, timeout=DEFAULT_TIMEOUT_SECONDS)
+response = http_get(gsap_resource_url, timeout=DEFAULT_TIMEOUT_SECONDS)
 response.raise_for_status()
 gsap_url = response.json()['distribution']['url']
 # expect the first sheet to be metadata, followed by the latest lineup data sheet
@@ -89,5 +88,4 @@ df_combined
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(df_combined)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.poverty_rate_SPID_GSAP_silver")
+write_table(df_combined, 'poverty_rate_SPID_GSAP_silver')

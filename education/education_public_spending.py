@@ -3,7 +3,10 @@
 
 # COMMAND ----------
 
-import requests
+# MAGIC %run ../utils
+
+# COMMAND ----------
+
 import zipfile
 import io
 import os
@@ -14,7 +17,7 @@ from tempfile import gettempdir
 INDICATOR = 'SE.XPD.TOTL.GD.ZS'
 URL = f'https://api.worldbank.org/v2/en/indicator/{INDICATOR}?downloadformat=csv'
 
-response = requests.get(URL, timeout=60)
+response = http_get(URL, timeout=60)
 
 if response.status_code != 200:
     print('Request returned non-200', response.status_code)
@@ -48,5 +51,4 @@ df
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.edu_gov_spending")
+write_table(df, 'edu_gov_spending')

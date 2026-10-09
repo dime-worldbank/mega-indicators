@@ -3,8 +3,11 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../utils
+
+# COMMAND ----------
+
 import pandas as pd
-import requests
 from io import StringIO
 
 URL = 'https://sdmx.oecd.org/public/rest/data/OECD.EDU.IMEP,DSD_EAG_UOE_FIN@DF_UOE_FIN_SOURCE_GV_PR_NDOM,3.1/.EXP.ISCED11_0+ISCED11_1T8.S1D_NON_EDU.INST_EDU...PT_B1GQ.?format=csv'
@@ -13,7 +16,7 @@ HEADERS = {
 }
 
 # OECD API returns 403: Forbidden if no headers
-response = requests.get(URL, headers=HEADERS, timeout=60)
+response = http_get(URL, headers=HEADERS, timeout=60)
 response.raise_for_status()
 
 # COMMAND ----------
@@ -37,7 +40,7 @@ df_edu_private_exp
 
 # COMMAND ----------
 
-gdp_df = spark.table(f"{INDICATOR_SCHEMA}.gdp").toPandas()
+gdp_df = read_table('gdp')
 gdp_df
 
 # COMMAND ----------
@@ -50,5 +53,4 @@ df_merged
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(df_merged)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.edu_private_spending")
+write_table(df_merged, 'edu_private_spending')

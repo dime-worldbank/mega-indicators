@@ -3,8 +3,11 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../utils
+
+# COMMAND ----------
+
 import pandas as pd
-import requests
 
 # COMMAND ----------
 
@@ -34,7 +37,7 @@ indicators = {
 df = pd.DataFrame()
 for indicator, value in indicators.items():
     url = f"https://ghoapi.azureedge.net/api/{indicator}"
-    resp = requests.get(url, timeout=60)
+    resp = http_get(url, timeout=60)
     resp.raise_for_status()
     ddf = pd.DataFrame(resp.json()['value'])
     ddf = ddf[ddf.SpatialDimType=='COUNTRY'][['SpatialDim', 'ParentLocationCode', 'TimeDim', 'NumericValue']]
@@ -56,7 +59,7 @@ assert num_countries >= 192, f'Expected data from at least 192 countries, got {n
 # COMMAND ----------
 
 # read data from the gdp table in indicator
-df_gdp = spark.sql(f"SELECT * FROM {INDICATOR_SCHEMA}.gdp").toPandas()[['country_name', 'country_code', 'region',  'year', 'gdp_current_lcu']]
+df_gdp = read_table('gdp', columns=['country_name', 'country_code', 'region', 'year', 'gdp_current_lcu'])
 # merge to the previous dataframe
 merged_df = pd.merge(df, df_gdp, on=['country_code', 'year'], how='left')
 # to get CHE get the 'che_percent_gdp' percentage of the value in gdp_current_lcu
@@ -72,11 +75,4 @@ merged_df.sample(3)
 
 # COMMAND ----------
 
-# Write to indicator
-database_name = INDICATOR_SCHEMA
-
-if not spark.catalog.databaseExists(database_name):
-    print(f"Database '{database_name}' does not exist. Creating the database.")
-    spark.sql(f"CREATE DATABASE {database_name}")
-sdf = spark.createDataFrame(merged_df)
-sdf.write.format("delta").mode("overwrite").option("mergeSchema", "true").saveAsTable(f"{database_name}.health_expenditure")
+write_table(merged_df, 'health_expenditure')

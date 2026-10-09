@@ -3,6 +3,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../utils
+
+# COMMAND ----------
+
 # TODO: Add PEFA score extraction step. Currently the data is imported manually for prototyping
 # Data source: https://www.pefa.org/assessments/batch-downloads 
 # Download once for 2016 framework then uploaded to {INDICATOR_SCHEMA}.pefa_2016_bronze,
@@ -51,14 +55,14 @@ COUNTRY_NAME_MAPPING = {
 # pefa's bronze/silver tables keep their medallion names.
 
 def process_pefa_silver(year):
-    pefa_data = spark.table(f'{INDICATOR_SCHEMA}.pefa_{year}_bronze').toPandas()
+    pefa_data = read_table(f'pefa_{year}_bronze')
 
     # Only apply the clean_score to top level PI columns
     pi_columns = [col for col in pefa_data.columns if re.fullmatch(r'PI-\d{2}', col)]
-    pefa_data[pi_columns] = pefa_data[pi_columns].applymap(clean_score)
+    pefa_data[pi_columns] = pefa_data[pi_columns].apply(lambda col: col.map(clean_score))
 
     # Map scores & country
-    pefa_data[pi_columns] = pefa_data[pi_columns].applymap(SCORE_MAPPING.get)
+    pefa_data[pi_columns] = pefa_data[pi_columns].apply(lambda col: col.map(SCORE_MAPPING.get))
     pefa_data['country_name'] = pefa_data['Country'].map(COUNTRY_NAME_MAPPING).fillna(pefa_data['Country'])
 
     # Select relevant columns
@@ -87,11 +91,7 @@ def clean_score(score):
 # COMMAND ----------
 
 def write_pefa_silver_table(df, year):
-    sdf = spark.createDataFrame(df)
-    sdf.write.mode("overwrite")\
-        .option("overwriteSchema", "true")\
-        .saveAsTable(f"{INDICATOR_SCHEMA}.pefa_{year}_silver")
-    return sdf
+    write_table(df, f'pefa_{year}_silver')
 
 # COMMAND ----------
 
@@ -112,7 +112,4 @@ pefa_gold
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(pefa_gold)
-sdf.write.mode("overwrite")\
-    .option("overwriteSchema", "true")\
-    .saveAsTable(f"{INDICATOR_SCHEMA}.pefa_by_pillar")
+write_table(pefa_gold, 'pefa_by_pillar')

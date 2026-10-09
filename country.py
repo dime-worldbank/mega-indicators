@@ -12,11 +12,15 @@
 
 # COMMAND ----------
 
-import pyspark.sql.functions as F
-from pyspark.sql.types import StructType, StructField, DoubleType
-from pyspark.sql import Window
-from shapely.geometry import shape, MultiPolygon, Polygon
+# The country table: World Bank API metadata for every economy, the map's initial view
+# (the centroid of the admin-1 boundaries, and a hand-set zoom) and the currency. Plain
+# pandas on both sides. The currency comes from the corporate reference table where it is
+# reachable (Databricks, or a CSV export of it under DATA_ROOT) and otherwise from the
+# FALLBACK_CURRENCIES dictionary below.
 import json
+
+import pandas as pd
+from shapely.geometry import shape, MultiPolygon, Polygon
 
 # COMMAND ----------
 
@@ -43,11 +47,7 @@ COL_NAMES = [
     "capital_city",
     "is_aggregate"
 ]
-df_cleaned = df.reset_index().rename(columns=COL_NAME_MAP)[COL_NAMES]
-
-# COMMAND ----------
-
-countries = spark.createDataFrame(df_cleaned)
+countries = df.reset_index().rename(columns=COL_NAME_MAP)[COL_NAMES]
 
 # COMMAND ----------
 
@@ -71,14 +71,12 @@ zoom = {
 }
 def get_zoom(country):
     return float(zoom.get(country, 3.0))  # TODO: replace this dict by a function that can compute this from the boundaries
-zoom_udf = udf(get_zoom, DoubleType())
 
 def compute_country_centroid(boundaries_list):
     polygons = []
     for boundary_str in boundaries_list:
-        boundary_json = json.loads(boundary_str)
-        geom = shape(boundary_json)
-        
+        geom = shape(json.loads(boundary_str))
+
         if isinstance(geom, Polygon):
             polygons.append(geom)
         elif isinstance(geom, MultiPolygon):
@@ -90,57 +88,76 @@ def compute_country_centroid(boundaries_list):
         multi_polygon = polygons[0]
 
     centroid = multi_polygon.centroid
-    return (centroid.x, centroid.y) 
+    return (centroid.x, centroid.y)
 
-schema = StructType([
-    StructField("display_lon", DoubleType(), False),
-    StructField("display_lat", DoubleType(), False)
-])
+admin1_boundaries = read_table('admin1_boundaries_gold', columns=['country_name', 'country_code_iso2', 'boundary'])
+if admin1_boundaries.empty:
+    raise RuntimeError('admin1_boundaries_gold is empty: run geo/admin_boundaries_transform_load.py first'
+                       + (f"; with COUNTRY_NAME={COUNTRY_NAME!r} set, that must be the country's spelling in the boundaries file too" if COUNTRY_NAME else ''))
+centroid_df = (admin1_boundaries.groupby('country_name')
+    .agg(country_code_iso2=('country_code_iso2', 'first'), all_boundaries=('boundary', list))
+    .reset_index())
+centroid_df[['display_lon', 'display_lat']] = centroid_df['all_boundaries'].apply(lambda b: pd.Series(compute_country_centroid(b)))
+centroid_df = centroid_df.drop(columns='all_boundaries')
 
-centroid_udf = F.udf(compute_country_centroid, schema)
-
-admin1_boundaries = spark.table(f'{INDICATOR_SCHEMA}.admin1_boundaries_gold')
-grouped_df = admin1_boundaries.groupBy("country_name").agg(F.collect_list("boundary").alias("all_boundaries"), F.first("country_code_iso2").alias("country_code_iso2"))
-
-centroid_df = grouped_df.withColumn("centroid", centroid_udf(F.col("all_boundaries"))) \
-                        .select(F.col("country_name"), F.col("country_code_iso2"), F.col("centroid.display_lon"),  F.col("centroid.display_lat"))
-
-sdf = countries.join(centroid_df, on="country_name", how="left"
-            ).withColumn("zoom", zoom_udf(F.col("country_name")))
+sdf = countries.merge(centroid_df, on='country_name', how='left')
+sdf['zoom'] = sdf['country_name'].map(get_zoom)
 
 # COMMAND ----------
 
 # v_dim_country would be more suitable for currency/country data, but it currently lacks comprehensive data. May switch to this table in the future.
-table_name = "prd_corpdata.dm_reference_gold.v_dim_country_currency_exchange_rate"
-base_df = spark.table(table_name)
-# Define the window partitioned by country
-window_spec = Window.partitionBy("cntry_code").orderBy(F.col("ccy_exch_rate_ref_date").desc())
-# Calculate max date within the window and filter in one go
-currency_df = base_df.withColumn("rn", F.row_number().over(window_spec)) \
-                   .filter(F.col("rn") == 1) \
-                   .drop("rn")
+CURRENCY_TABLE = "prd_corpdata.dm_reference_gold.v_dim_country_currency_exchange_rate"
 
-currency_df = currency_df.select(
-    F.col('cntry_code').alias('country_code'),
-    F.col('ccy_src_name').alias('currency_name'),
-    F.col('ccy_src_code').alias('currency_code'),
-)
+# Fallback off Databricks, when no CSV export of the corporate table is under DATA_ROOT: ISO 4217 currencies of the countries
+# in the pipeline, keyed by ISO3 code (names vary by source, codes do not; the corporate
+# spelling is used where known). Add a country here when it is added to the pipeline.
+FALLBACK_CURRENCIES = {
+    'ALB': ('Lek', 'ALL'),
+    'BDI': ('Burundi Franc', 'BIF'),
+    'BFA': ('C.F.A. Francs BCEAO', 'XOF'),
+    'BGD': ('Taka', 'BDT'),
+    'BTN': ('Ngultrum', 'BTN'),
+    'CHL': ('Chilean Peso', 'CLP'),
+    'COD': ('Congolese Franc', 'CDF'),
+    'COL': ('Colombian Peso', 'COP'),
+    'GHA': ('Ghana Cedi', 'GHS'),
+    'KEN': ('Kenyan Shilling', 'KES'),
+    'LBR': ('Liberian Dollar', 'LRD'),
+    'MOZ': ('Mozambique Metical', 'MZN'),
+    'NGA': ('Naira', 'NGN'),
+    'PAK': ('Pakistan Rupee', 'PKR'),
+    'PRY': ('Guarani', 'PYG'),
+    'TGO': ('C.F.A. Francs BCEAO', 'XOF'),
+    'TUN': ('Tunisian Dinar', 'TND'),
+    'ZAF': ('Rand', 'ZAR'),
+}
+
+if IS_DATABRICKS or table_exists(CURRENCY_TABLE):  # on Databricks an unreadable table fails the run rather than degrading to the fallback
+    base_df = read_table(CURRENCY_TABLE, columns=['cntry_code', 'ccy_src_name', 'ccy_src_code', 'ccy_exch_rate_ref_date'])
+    # The latest row per country, joined on the ISO2 code. A few countries carry two
+    # official currencies on every date (Namibia NAD/ZAR, Eritrea ERN/ETB) and nothing in
+    # the table ranks them, so break the tie on the code, descending, to make the choice
+    # deterministic; this keeps the values the table has had (ZAR, ETB).
+    currency_df = (base_df.sort_values(['ccy_exch_rate_ref_date', 'ccy_src_code'], ascending=[False, False])
+        .drop_duplicates('cntry_code')
+        .rename(columns={'cntry_code': 'country_code', 'ccy_src_name': 'currency_name', 'ccy_src_code': 'currency_code'})
+        [['country_code', 'currency_name', 'currency_code']])
+    joined_df = (sdf.merge(currency_df, left_on='country_code_iso2', right_on='country_code', how='left', suffixes=('', '_currency'))
+        .drop(columns='country_code_currency'))
+else:
+    print(f"{CURRENCY_TABLE} is not available; taking currencies from FALLBACK_CURRENCIES")
+    currency_df = pd.DataFrame([{'country_code': code, 'currency_name': name, 'currency_code': ccy}
+                                for code, (name, ccy) in FALLBACK_CURRENCIES.items()])
+    joined_df = sdf.merge(currency_df, on='country_code', how='left')
 
 # COMMAND ----------
 
-joined_df = (
-    sdf.join(
-        currency_df,
-        sdf.country_code_iso2 == currency_df.country_code,
-        how="left",
-    )
-    .drop(currency_df.country_code)
-    .withColumn('country_code_iso3', F.col('country_code'))
-)
+joined_df['country_code_iso3'] = joined_df['country_code']
+joined_df = joined_df[['country_name', 'country_code', 'longitude', 'latitude', 'region', 'lending_type', 'income_level',
+                       'capital_city', 'is_aggregate', 'country_code_iso2', 'display_lon', 'display_lat', 'zoom',
+                       'currency_name', 'currency_code', 'country_code_iso3']]
+joined_df
 
 # COMMAND ----------
 
-# --- Write to Catalog ---
-TABLE = "country"
-spark.sql(f"USE {INDICATOR_SCHEMA}")
-joined_df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(TABLE)
+write_table(joined_df, 'country')

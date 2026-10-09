@@ -3,28 +3,27 @@
 
 # COMMAND ----------
 
-import requests
+# MAGIC %run ./utils
+
+# COMMAND ----------
+
 import zipfile
 import io
 import pandas as pd
 
 INDICATOR = 'FP.CPI.TOTL'
-URL = 'https://api.worldbank.org/v2/en/indicator/FP.CPI.TOTL?downloadformat=csv'
+URL = f'https://api.worldbank.org/v2/en/indicator/{INDICATOR}?downloadformat=csv'
 
-response = requests.get(URL, timeout=60)
-
-if response.status_code != 200:
-    print('Request returned non-200', response.status_code)
-    exit
+response = http_get(URL, timeout=DEFAULT_TIMEOUT_SECONDS)
+response.raise_for_status()
 
 with zipfile.ZipFile(io.BytesIO(response.content)) as zip_file:
     filenames = zip_file.namelist()
     csv_file_name = next((name for name in filenames if name.startswith(f'API_{INDICATOR}')), None)
-    
+
     if not csv_file_name:
-        print(f"No file starting with 'API_{INDICATOR}' found in the ZIP archive.")
-        exit()
-    
+        raise ValueError(f"No file starting with 'API_{INDICATOR}' found in the ZIP archive: {filenames}")
+
     with zip_file.open(csv_file_name) as csv_file:
         df = pd.read_csv(csv_file, skiprows=3)
 
@@ -33,11 +32,10 @@ df = df.drop(columns=columns_to_drop)
 df = df.melt(id_vars=['Country Name', 'Country Code'], var_name='year', value_name='CPI', ignore_index=False)
 df = df.astype({'year': int})
 
-df.columns = df.columns.str.lower().str.replace('\W', '_', regex=True)
+df.columns = df.columns.str.lower().str.replace(r'\W', '_', regex=True)
 
 df
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").saveAsTable(f"{INDICATOR_SCHEMA}.consumer_price_index")
+write_table(df, 'consumer_price_index')

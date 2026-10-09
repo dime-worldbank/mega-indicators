@@ -35,7 +35,7 @@ avg_df
 
 # COMMAND ----------
 
-wide_df = df.append(avg_df).reset_index()
+wide_df = pd.concat([df, avg_df]).reset_index()
 wide_df
 
 # COMMAND ----------
@@ -54,5 +54,4 @@ long_df
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(long_df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.public_sector_employment_silver")
+write_table(long_df, 'public_sector_employment_silver')

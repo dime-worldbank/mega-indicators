@@ -1,9 +1,9 @@
 # Databricks notebook source
-# MAGIC %run ../subnational_population_extraction_from_census_gov
+# MAGIC %run ../../config
 
 # COMMAND ----------
 
-# MAGIC %run ../../config
+# MAGIC %run ../../utils
 
 # COMMAND ----------
 
@@ -23,12 +23,9 @@ BOUNDARY_REGION_NAME_FIXES = {
 # The shared wb_subnational_population_extract task downloads and versions the
 # World Bank workbook once for all dependent countries. Reusing its silver table
 # prevents every country notebook from making the same network request.
-df_wb_long = (
-    spark.table(f"{INDICATOR_SCHEMA}.wb_subnational_population_silver")
-    .filter(f"country_code = '{COUNTRY_CODE}' AND year BETWEEN 2000 AND 2016")
-    .select("adm1_name", "year", "population")
-    .toPandas()
-)
+df_wb_long = read_table("wb_subnational_population_silver")
+df_wb_long = df_wb_long[(df_wb_long["country_code"] == COUNTRY_CODE) & df_wb_long["year"].between(2000, 2016)]
+df_wb_long = df_wb_long[["adm1_name", "year", "population"]].reset_index(drop=True)
 df_wb_long["country_name"] = COUNTRY_NAME
 df_wb_long["data_source"] = "World Bank Subnational Population Database"
 df_wb_long["year"] = df_wb_long["year"].astype(int)
@@ -138,13 +135,4 @@ assert "Bujumbura Rural" not in set(df_pop["adm1_name"])
 
 # COMMAND ----------
 
-database_name = INDICATOR_SCHEMA
-
-if not spark.catalog.databaseExists(database_name):
-    print(f"Database '{database_name}' does not exist. Creating the database.")
-    spark.sql(f"CREATE DATABASE {database_name}")
-
-sdf = spark.createDataFrame(df_pop)
-sdf.write.mode("overwrite").saveAsTable(
-    f"{database_name}.bdi_subnational_population_silver"
-)
+write_table(df_pop, 'bdi_subnational_population_silver')
