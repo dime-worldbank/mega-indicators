@@ -1,13 +1,13 @@
 # Databricks notebook source
+# MAGIC %pip install openpyxl
+
+# COMMAND ----------
+
 # MAGIC %run ../../config
 
 # COMMAND ----------
 
 # MAGIC %run ../../utils
-
-# COMMAND ----------
-
-# MAGIC %pip install openpyxl
 
 # COMMAND ----------
 

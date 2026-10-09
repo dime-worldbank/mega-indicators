@@ -1,6 +1,7 @@
 """Off-Databricks runtime: config.py's DATA_ROOT fallback, utils.py's CSV-backed table
-IO, and notebooks run the way local_runner.py runs them. Everything runs in a temp
-directory with no network (requests / wbgapi calls are monkeypatched)."""
+IO and environment fallbacks, local_runner.py's list and resume, and notebooks run the
+way the runner runs them. Everything runs in a temp directory with no network
+(requests / wbgapi calls are monkeypatched)."""
 import io
 import json
 import re
@@ -45,13 +46,13 @@ def load_shared():
 
 
 def run_notebook(path):
-    """As local_runner.py does: the notebook with utils' names in scope."""
+    """As local_runner.py does: the notebook with utils' (and config's) names in scope."""
     return runpy.run_path(str(path), init_globals=load_shared(), run_name="__main__")
 
 
 class FakeResponse:
     def __init__(self, content, status_code=200):
-        self.content = content
+        self.content = content.encode("utf-8") if isinstance(content, str) else content
         self.text = content.decode("utf-8", errors="replace") if isinstance(content, bytes) else content
         self.status_code = status_code
         self.headers = {}
@@ -63,6 +64,13 @@ class FakeResponse:
     def json(self):
         import json
         return json.loads(self.text)
+
+
+def stub_http(monkeypatch, fake):
+    """Answer every GET with fake(url, **kwargs): the notebooks' http_get, utils' helpers and
+    wbgapi all go through requests.Session.request (the first two on utils' retrying
+    session, whose adapter and retries are bypassed here)."""
+    monkeypatch.setattr(requests.Session, "request", lambda self, method, url, **kwargs: fake(url, **kwargs))
 
 
 # --- config.py ---------------------------------------------------------------
@@ -109,20 +117,6 @@ def test_write_then_read_table_roundtrip(data_root):
     assert list(ns["read_table"]("t", columns=["year"]).columns) == ["year"]
 
 
-def test_write_table_country_filter(data_root, monkeypatch):
-    frame = pd.DataFrame({"country_name": ["Togo", "Albania", "Togo"], "year": [2020, 2020, 2021]})
-    ns = load_shared()  # COUNTRY_NAME unset: everything is written
-    ns["write_table"](frame, "t")
-    assert len(ns["read_table"]("t")) == 3
-
-    monkeypatch.setenv("COUNTRY_NAME", "Togo")
-    ns = load_shared()
-    ns["write_table"](frame, "t")
-    assert ns["read_table"]("t")["country_name"].tolist() == ["Togo", "Togo"]
-    ns["write_table"](pd.DataFrame({"economy": ["TGO", "ALB"]}), "u")  # no country_name column: untouched
-    assert len(ns["read_table"]("u")) == 2
-
-
 def test_qualified_table_name_maps_to_catalog_schema_dirs(data_root):
     ns = load_shared()
     ns["write_table"](pd.DataFrame({"a": [1]}), "prd_corpdata.dm_reference_gold.fx")
@@ -145,16 +139,16 @@ def test_read_table_null_handling(data_root):
 def test_update_version_flag_reads_env(data_root, monkeypatch):
     ns = load_shared()
     assert ns["update_version_flag"]("census_population_update_version") is False
-    monkeypatch.setenv("CENSUS_POPULATION_UPDATE_VERSION", " True ")
+    monkeypatch.setenv("census_population_update_version", " True ")
     assert ns["update_version_flag"]("census_population_update_version") is True
 
 
 def test_get_secret_reads_env(data_root, monkeypatch):
     ns = load_shared()
-    monkeypatch.delenv("EMBER_ENERGY_KEY", raising=False)
-    with pytest.raises(RuntimeError, match="EMBER_ENERGY_KEY"):
+    monkeypatch.delenv("ember_energy_key", raising=False)
+    with pytest.raises(RuntimeError, match="ember_energy_key"):
         ns["get_secret"]("DIMEBOOSTKEYVAULT", "ember_energy_key")
-    monkeypatch.setenv("EMBER_ENERGY_KEY", "k3y")
+    monkeypatch.setenv("ember_energy_key", "k3y")
     assert ns["get_secret"]("DIMEBOOSTKEYVAULT", "ember_energy_key") == "k3y"
 
 
@@ -166,7 +160,7 @@ def test_versioned_dataframe_fetches_once_then_serves_cache(data_root, monkeypat
         calls.append(url)
         return FakeResponse(b"a,b\n1,2\n")
 
-    monkeypatch.setattr(requests, "get", fake_get)
+    stub_http(monkeypatch, fake_get)
 
     first = ns["versioned_dataframe"]("http://example/x.csv", "x_raw", update_version=False)
     assert list(first.columns) == ["a", "b"]  # fetched_at stripped
@@ -178,6 +172,49 @@ def test_versioned_dataframe_fetches_once_then_serves_cache(data_root, monkeypat
 
     ns["versioned_dataframe"]("http://example/x.csv", "x_raw", update_version=True)
     assert len(calls) == 2, "update_version=True should refetch"
+
+
+def test_http_get_repeats_a_request_whose_body_was_cut_short(data_root, monkeypatch, capsys):
+    """The adapter's retries stop at the response headers; a body cut short after them is the
+    one failure http_get repeats the whole request for. Everything else is the adapter's."""
+    ns = load_shared()
+    monkeypatch.setattr(ns["time"], "sleep", lambda s: None)
+    outcomes = [requests.exceptions.ChunkedEncodingError("cut short"), FakeResponse(b"ok")]
+
+    def fake_get(url, **kwargs):
+        outcome = outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    stub_http(monkeypatch, fake_get)
+    assert ns["http_get"]("http://example/x").text == "ok"
+    assert outcomes == [] and capsys.readouterr().out.count("retry") == 1
+
+    outcomes[:] = [requests.exceptions.ChunkedEncodingError("cut short")] * 3 + [FakeResponse(b"never")]
+    with pytest.raises(requests.exceptions.ChunkedEncodingError):
+        ns["http_get"]("http://example/x")  # retries=2: three attempts, then the error
+    assert len(outcomes) == 1
+
+    outcomes[:] = [requests.exceptions.ConnectionError("reset"), FakeResponse(b"never")]
+    with pytest.raises(requests.exceptions.ConnectionError):
+        ns["http_get"]("http://example/x")  # not http_get's to retry: the adapter already did
+    assert len(outcomes) == 1
+
+    stub_http(monkeypatch, lambda url, **kw: FakeResponse(b"", 503))
+    assert ns["http_get"]("http://example/x").status_code == 503  # the last response, for raise_for_status
+
+
+def test_one_session_retries_transient_failures_but_not_slow_pages_for_long(data_root):
+    """utils' session serves http_get and wbgapi alike; its adapter retries resets and 5xx several
+    times but a read timeout once, and hands back the last response rather than raising."""
+    shared = load_shared()
+    session = wbgapi.requests
+    assert isinstance(session, requests.Session) and session is shared["SESSION"]
+    retry = session.get_adapter("https://api.worldbank.org/v2/country").max_retries
+    assert retry.total >= 3 and 503 in retry.status_forcelist and "GET" in retry.allowed_methods
+    assert retry.read == 1 and retry.raise_on_status is False
+    assert wbgapi.get_options["timeout"] == shared["DEFAULT_TIMEOUT_SECONDS"]
 
 
 def write_country(ns):
@@ -199,66 +236,127 @@ def test_wbgapi_fetch_joins_local_country_table(data_root, monkeypatch):
     ns = load_shared()
     write_country(ns)
     monkeypatch.setattr(wbgapi.data, "DataFrame", fake_wb_dataframe)
-
-    df = ns["wbgapi_fetch"](["S1"], ["v1"], "src", extra_col_names_from_country_table=["income_level"])
+    df = ns["wbgapi_fetch"](["SP.X"], ["v1"], "WB", extra_col_names_from_country_table=["income_level"])
     assert list(df.columns) == ["country_name", "country_code", "region", "income_level", "year", "v1", "data_source"]
     togo_2021 = df[(df.country_code == "TGO") & (df.year == 2021)].iloc[0]
     assert togo_2021.v1 == 11.0 and togo_2021.country_name == "Togo" and togo_2021.income_level == "LIC"
     assert len(df) == 3  # ALB 2021 was blank and dropped
 
 
-# --- local_runner's default list ------------------------------------------------------
+# --- local_runner.py -------------------------------------------------------------------
 
-def test_default_notebooks_exist_and_gdp_runs_before_its_readers():
+def test_default_notebooks_exist_and_producers_run_before_their_readers():
     names = local_runner.NOTEBOOKS
-    missing = [n for n in names if not (REPO / n).is_file()]
+    placeholder = local_runner.SUBNATIONAL_POPULATION
+    missing = [n for n in names if n != placeholder and not (REPO / n).is_file()]
     assert not missing, missing
     assert len(set(names)) == len(names)
     assert names.index("gdp.py") < names.index("health/health_expenditure.py")
+    # country.py reads admin1_boundaries_gold for the map centroids
+    assert names.index("geo/admin_boundaries_transform_load.py") < names.index("country.py")
+    assert names[-1] == "indicator_data_availability.py"
+    # the placeholder resolves to population/<ISO3>/<iso3>_subnational_population.py, which exists for
+    # every country the union stacks, and the union comes after it
+    union = REPO / local_runner.SUBNATIONAL_POPULATION_UNION
+    codes = re.findall(r"'([a-z]{3})'", re.search(r"^country_codes = .*$", union.read_text(), re.M).group())
+    assert len(codes) >= 18
+    assert all((REPO / "population" / code.upper() / f"{code}_subnational_population.py").is_file() for code in codes)
+    assert all((REPO / extract).is_file() for extract in local_runner.SUBNATIONAL_POPULATION_EXTRACTS)
+    assert names.index(placeholder) < names.index(local_runner.SUBNATIONAL_POPULATION_UNION)
 
 
-def test_no_notebook_calls_spark_directly():
-    """Every notebook goes through utils' read_table / write_table, so one storage path serves both sides."""
-    offenders = [str(p) for p in REPO.rglob("*.py")
-                 if "data" not in p.parts and ".pytest_cache" not in p.parts and p.name not in ("utils.py", "config.py") and "tests" not in p.parts
-                 and re.search(r"\bspark\.|\bdbutils\.", p.read_text())]
-    assert offenders == []
+def test_runner_resumes_from_a_notebook(data_root):
+    load_shared()  # no COUNTRY_NAME
+    names = local_runner.NOTEBOOKS
+    assert local_runner.notebooks_from() == names
+    assert local_runner.notebooks_from("gdp.py") == names[names.index("gdp.py"):]
+    assert local_runner.notebooks_from("./gdp.py") == names[names.index("gdp.py"):]
+    assert local_runner.notebooks_from(str(REPO / "gdp.py")) == names[names.index("gdp.py"):]
+    with pytest.raises(SystemExit, match="set COUNTRY_NAME"):  # a per-country notebook is COUNTRY_NAME's step
+        local_runner.notebooks_from("population/TGO/tgo_subnational_population.py")
+    with pytest.raises(SystemExit):
+        local_runner.notebooks_from("nope.py")
 
 
-# --- converted producers, end to end, offline ------------------------------------------
-
-def _census_gov_workbook(country, regions, years):
-    """A census.gov international-programs workbook as _read_census_gov_excel expects it:
-    sheet named by a year, two junk rows, one junk row, the header row, one more junk row, then data."""
-    cols = ["COUNTRY", "ADM1_NAME", "ADM_LEVEL"] + [f"BTOTL_{y}" for y in years]
-    rows = [["x"] * len(cols), ["x"] * len(cols), ["x"] * len(cols), cols, ["x"] * len(cols)]
-    rows.append([country, country, 0] + [0] * len(years))
-    for i, region in enumerate(regions):
-        rows.append([country, region.upper(), 1] + [1000 * (i + 1) + y for y in years])
-    buf = io.BytesIO()
-    with pd.ExcelWriter(buf, engine="openpyxl") as xw:
-        pd.DataFrame(rows).to_excel(xw, sheet_name="2000-2025", header=False, index=False)
-    return buf.getvalue()
-
-
-def test_togo_subnational_population_then_union_run_locally(data_root, monkeypatch):
-    regions = ["Centrale", "Kara", "Maritime", "Plateaux", "Savanes"]
-    years = list(range(2000, 2016))
-    monkeypatch.setattr(requests, "get", lambda url, **kw: FakeResponse(_census_gov_workbook("TOGO", regions, years)))
-    run_notebook(REPO / "population" / "TGO" / "tgo_subnational_population.py")
-
-    with pytest.raises(FileNotFoundError):
-        run_notebook(REPO / "population" / "subnational_population.py")  # a full run needs every listed country
-    monkeypatch.setenv("COUNTRY_NAME", "Togo")
-    run_notebook(REPO / "population" / "subnational_population.py")  # a one-country run stacks what it has
+def test_runner_picks_the_country_population_notebook_from_country_name(data_root, monkeypatch, capsys):
     ns = load_shared()
+    assert local_runner.subnational_population_notebook() is None  # no COUNTRY_NAME
+    ns["write_table"](pd.DataFrame({"country_name": ["Togo", "Nigeria", "Albania"], "country_code": ["TGO", "NGA", "ALB"]}), "country")
+    monkeypatch.setenv("COUNTRY_NAME", "Nigeria")
+    load_shared()
+    assert local_runner.subnational_population_notebook() == "population/NGA/nga_subnational_population.py"
+    with pytest.raises(SystemExit, match="is not COUNTRY_NAME's notebook"):
+        local_runner.notebooks_from("population/TGO/tgo_subnational_population.py")
+    monkeypatch.setenv("COUNTRY_NAME", "Nowhere")
+    load_shared()
+    with pytest.raises(SystemExit, match="not a country_name"):
+        local_runner.subnational_population_notebook()
 
-    silver = ns["read_table"]("tgo_subnational_population_silver")
-    assert list(silver.columns) == ["country_name", "adm1_name", "year", "population", "data_source"]
-    assert silver.country_name.unique().tolist() == ["Togo"] and sorted(silver.adm1_name.unique()) == regions
-    assert len(silver) == 5 * len(years)
-    pd.testing.assert_frame_equal(ns["read_table"]("subnational_population"), silver)
+    ran = []
+    monkeypatch.setattr(local_runner.subprocess, "run",
+                        lambda cmd: (ran.append(str(Path(cmd[-1]).relative_to(REPO))), local_runner.subprocess.CompletedProcess(cmd, 0))[1])
+    union = local_runner.SUBNATIONAL_POPULATION_UNION
+    monkeypatch.delenv("COUNTRY_NAME")
+    load_shared()
+    local_runner.run_in_order([local_runner.SUBNATIONAL_POPULATION, union, "gdp.py"])
+    assert ran == ["gdp.py"]  # without COUNTRY_NAME the two subnational population entries are skipped, loudly
+    assert capsys.readouterr().out.count("skipped, COUNTRY_NAME is not set") == 2
+    monkeypatch.setenv("COUNTRY_NAME", "Togo")
+    load_shared()
+    ran.clear()
+    local_runner.run_in_order([local_runner.SUBNATIONAL_POPULATION, union])
+    assert ran == ["population/TGO/tgo_subnational_population.py", union]  # census.gov: no shared extract
+    names = local_runner.NOTEBOOKS
+    assert local_runner.notebooks_from("population/TGO/tgo_subnational_population.py") == names[names.index(local_runner.SUBNATIONAL_POPULATION):]
+    monkeypatch.setenv("COUNTRY_NAME", "Albania")
+    load_shared()
+    ran.clear()
+    local_runner.run_in_order([local_runner.SUBNATIONAL_POPULATION])
+    assert ran == ["population/wb_subnational_population_extract.py", "population/ALB/alb_subnational_population.py"]
+    assert local_runner.notebooks_from("population/wb_subnational_population_extract.py")[0] == local_runner.SUBNATIONAL_POPULATION
 
+
+def test_runner_checks_country_name_before_writing_anything(data_root, monkeypatch):
+    monkeypatch.setattr(wbgapi.economy, "DataFrame", _wb_economies)
+    load_shared()
+    local_runner.check_country_name()  # unset: nothing to check
+    monkeypatch.setenv("COUNTRY_NAME", "Togo")
+    load_shared()
+    local_runner.check_country_name()
+    monkeypatch.setenv("COUNTRY_NAME", "Democratic Republic of Congo")
+    load_shared()
+    with pytest.raises(SystemExit, match="nothing was written"):
+        local_runner.check_country_name()
+
+
+def test_write_table_country_filter(data_root, monkeypatch):
+    frame = pd.DataFrame({"country_name": ["Togo", "Albania", "Togo"], "year": [2020, 2020, 2021]})
+    ns = load_shared()  # COUNTRY_NAME unset: everything is written
+    ns["write_table"](frame, "t")
+    assert len(ns["read_table"]("t")) == 3
+
+    monkeypatch.setenv("COUNTRY_NAME", "Togo")
+    ns = load_shared()
+    ns["write_table"](frame, "t")
+    assert ns["read_table"]("t")["country_name"].tolist() == ["Togo", "Togo"]
+    ns["write_table"](pd.DataFrame({"economy": ["TGO", "ALB"]}), "u")  # no country_name column: untouched
+    assert len(ns["read_table"]("u")) == 2
+
+
+def test_runner_stops_at_the_first_failure_and_says_how_to_resume(monkeypatch):
+    ran = []
+
+    def fake_run(cmd):
+        ran.append(Path(cmd[-1]).name)
+        return local_runner.subprocess.CompletedProcess(cmd, 1 if cmd[-1].endswith("gdp.py") else 0)
+
+    monkeypatch.setattr(local_runner.subprocess, "run", fake_run)
+    with pytest.raises(SystemExit, match="--from gdp.py"):
+        local_runner.run_in_order(["country.py", "gdp.py", "consumer_price_index.py"])
+    assert ran == ["country.py", "gdp.py"]
+
+
+# --- converted notebooks, end to end, offline ------------------------------------------
 
 def test_public_sector_employment_notebook_runs_locally(data_root):
     ns = load_shared()
@@ -284,7 +382,7 @@ def test_global_data_lab_hdi_notebooks_run_locally(data_root, monkeypatch):
 
     def fake_get(url, params=None, **kw):
         calls.append(url)
-        assert params["token"] == "t0k3n" and "/download/" in url and not url.rstrip("/").endswith("TGO")
+        assert params["token"] == "t0k3n" and "/download/" in url
         dataset = url.split("/download/")[0].rsplit("/", 1)[1]
         year = int(url.split("/download/")[1].split("/")[0])
         head = "Country,ISO_Code,Level,GDLCODE,Region,Year"
@@ -296,13 +394,15 @@ def test_global_data_lab_hdi_notebooks_run_locally(data_root, monkeypatch):
         body = "\n".join(f"{c},{iso},{lvl},{code},{reg},{year},80,70,60,50" for c, iso, reg, code, lvl in rows)
         return FakeResponse(f"{head},lprimary,uprimary,lsecondary,usecondary\n{body}\n")
 
-    monkeypatch.setattr(requests, "get", fake_get)
+    stub_http(monkeypatch, fake_get)
     ns = load_shared()
     ns["write_table"](pd.DataFrame({"country_name": ["Togo", "Nigeria"], "country_code": ["TGO", "NGA"],
                                     "region": ["SSF", "SSF"], "income_level": ["LMC", "LMC"], "is_aggregate": [False, False]}), "country")
     extract = run_notebook(REPO / "human_development" / "global_data_lab_hdi_extract.py")
     run_notebook(REPO / "human_development" / "global_data_lab_hdi_transform_load.py")
 
+    bronze = load_shared()["read_table"]("global_data_lab_hd_index_bronze")
+    assert "Year" in bronze.columns and not bronze.duplicated().any()  # as the API names it; identical downloads collapsed
     gold = load_shared()["read_table"]("global_data_lab_hd_index")
     assert list(gold.columns) == ["country_name", "adm1_name", "year", "education_index", "health_index", "income_index", "attendance", "attendance_6to17yo"]
     assert sorted(gold[gold.country_name == "Togo"].adm1_name.unique()) == ["Maritime", "Total"]  # parenthetical stripped
@@ -384,7 +484,7 @@ def test_subnational_poverty_notebooks_run_locally(data_root, monkeypatch):
             return FakeResponse(json.dumps({"distribution": {"url": "https://datacatalogfiles.worldbank.org/ddh-published/0012345/DR0052555/gsap.xlsx"}}))
         return FakeResponse(files[url])
 
-    monkeypatch.setattr(requests, "get", fake_get)
+    stub_http(monkeypatch, fake_get)
     ns = load_shared()
     ns["write_table"](pd.DataFrame({
         "country_name": ["Togo", "Albania", "Colombia"], "country_code": ["TGO", "ALB", "COL"],
@@ -499,7 +599,7 @@ def _wb_indicator_zip(indicator):
 
 
 def test_consumer_price_index_notebook_runs_locally(data_root, monkeypatch):
-    monkeypatch.setattr(requests, "get", lambda url, **kw: FakeResponse(_wb_indicator_zip("FP.CPI.TOTL")))
+    stub_http(monkeypatch, lambda url, **kw: FakeResponse(_wb_indicator_zip("FP.CPI.TOTL")))
 
     run_notebook(REPO / "consumer_price_index.py")
 
@@ -527,7 +627,7 @@ def test_gdp_then_edu_private_spending_notebooks_chain_locally(data_root, monkey
         "TGO,ISCED11_1T8,2020,1.5\n"
         "ALB,ISCED11_1T8,2021,2.0\n"
     )
-    monkeypatch.setattr(requests, "get", lambda url, **kw: FakeResponse(oecd_csv.encode()))
+    stub_http(monkeypatch, lambda url, **kw: FakeResponse(oecd_csv.encode()))
     run_notebook(REPO / "education" / "education_private_spending.py")
 
     out = pd.read_csv(data_root / "prd_mega" / "indicator" / "edu_private_spending.csv")
@@ -535,3 +635,43 @@ def test_gdp_then_edu_private_spending_notebooks_chain_locally(data_root, monkey
     assert togo.year == 2020 and togo.edu_private_spending_share_gdp == pytest.approx(0.02)
     assert togo.edu_private_spending_current_lcu == pytest.approx(0.02 * 10.0)
     assert "ALB" not in out.country_code.tolist()  # ALB 2021 GDP was blank -> inner merge drops it
+
+
+def test_no_notebook_calls_spark_directly():
+    """Every notebook goes through utils' read_table / write_table, so one storage path serves both sides."""
+    offenders = [str(p) for p in REPO.rglob("*.py")
+                 if "data" not in p.parts and ".pytest_cache" not in p.parts and p.name not in ("utils.py", "config.py") and "tests" not in p.parts
+                 and re.search(r"\bspark\.|\bdbutils\.", p.read_text())]
+    assert offenders == []
+
+
+def _census_gov_workbook(country, regions, years):
+    """A census.gov international-programs workbook as _read_census_gov_excel expects it:
+    sheet named by a year, two junk rows, one junk row, the header row, one more junk row, then data."""
+    cols = ["COUNTRY", "ADM1_NAME", "ADM_LEVEL"] + [f"BTOTL_{y}" for y in years]
+    rows = [["x"] * len(cols), ["x"] * len(cols), ["x"] * len(cols), cols, ["x"] * len(cols)]
+    rows.append([country, country, 0] + [0] * len(years))
+    for i, region in enumerate(regions):
+        rows.append([country, region.upper(), 1] + [1000 * (i + 1) + y for y in years])
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as xw:
+        pd.DataFrame(rows).to_excel(xw, sheet_name="2000-2025", header=False, index=False)
+    return buf.getvalue()
+
+
+def test_togo_subnational_population_notebook_runs_locally(data_root, monkeypatch):
+    regions = ["Centrale", "Kara", "Maritime", "Plateaux", "Savanes"]
+    years = list(range(2000, 2016))
+    stub_http(monkeypatch, lambda url, **kw: FakeResponse(_census_gov_workbook("TOGO", regions, years)))
+    run_notebook(REPO / "population" / "TGO" / "tgo_subnational_population.py")
+
+    silver = load_shared()["read_table"]("tgo_subnational_population_silver")
+    assert list(silver.columns) == ["country_name", "adm1_name", "year", "population", "data_source"]
+    assert silver.country_name.unique().tolist() == ["Togo"] and sorted(silver.adm1_name.unique()) == regions
+    assert len(silver) == 5 * len(years)
+
+    with pytest.raises(FileNotFoundError):
+        run_notebook(REPO / "population" / "subnational_population.py")  # a full run needs every listed country's table
+    monkeypatch.setenv("COUNTRY_NAME", "Togo")
+    run_notebook(REPO / "population" / "subnational_population.py")  # a one-country run stacks what it has
+    pd.testing.assert_frame_equal(load_shared()["read_table"]("subnational_population"), silver)

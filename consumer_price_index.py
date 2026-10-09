@@ -15,7 +15,7 @@ import pandas as pd
 INDICATOR = 'FP.CPI.TOTL'
 URL = f'https://api.worldbank.org/v2/en/indicator/{INDICATOR}?downloadformat=csv'
 
-response = requests.get(URL, timeout=DEFAULT_TIMEOUT_SECONDS)
+response = http_get(URL, timeout=DEFAULT_TIMEOUT_SECONDS)
 response.raise_for_status()
 
 with zipfile.ZipFile(io.BytesIO(response.content)) as zip_file:

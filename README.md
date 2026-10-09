@@ -3,7 +3,7 @@ A collection of notebooks to fetch and store indicator datasets
 
 ## Deployment
 
-The jobs and DLT pipelines are defined as a [Databricks Asset Bundle](https://docs.databricks.com/dev-tools/bundles/)
+The jobs are defined as a [Databricks Asset Bundle](https://docs.databricks.com/dev-tools/bundles/)
 (`databricks.yml` + `resources/`) and deployed with the Databricks CLI. All targets
 (dev, staging, prod) are deployed *and* run as the `RPF-ADBSvc-PROD` service principal,
 so deploys, resource ownership, and monitoring aren't tied to any one person's account.
@@ -42,17 +42,30 @@ schema *and* its own volume, isolated from prod's:
 | `prod` | `prd_mega.indicator` | `vboost4` | The real thing (live schedules + failure emails) |
 
 
-Prod is bound to the existing jobs/pipelines (no duplicates) and deploys to the team's
+Prod is bound to the existing jobs (no duplicates) and deploys to the team's
 `/Workspace/Repos/boostprocessed` folder, with `CAN_MANAGE` granted to the
 `ITSDA-LKHS-DAP-PROD-boostprocessed` group. The GDL token is read from the existing
 `DIMEBOOSTKEYVAULT` secret scope — no setup needed.
+
+The DLT pipelines were replaced by notebooks (`admin_boundaries_transform_load.py`,
+`subnational_poverty_index_transform_load.py`, `global_data_lab_hdi_transform_load.py`,
+`subnational_population.py`, `wwbi_transform_load.py`, `indicator_data_availability.py`).
+The first deploy of this version deletes the pipelines, and Unity Catalog drops the tables a
+deleted pipeline owned; the notebooks recreate them as plain Delta tables when their jobs run,
+and a notebook that runs while a pipeline still owns its table cannot overwrite it. So right
+after that deploy run `indicators_on_demand` (it has no schedule), then `indicators_weekly` and
+`indicators_monthly`, before the dashboard is next read:
+
+```bash
+databricks bundle run indicators_on_demand -t prod -p RPF-ADBSvc-PROD
+```
 
 ## Contributing
 
 To add more indicators, please open a pull request after you've tested your code in Databricks.
 
 - See [consumer_price_index.py](consumer_price_index.py) as a Python example of fetching data from WB API
-- See [global_data_lab_hdi_extract.py](human_development/global_data_lab_hdi_extract.py) for a source that needs an API token (`GDL_API_TOKEN`, a secret on Databricks and an environment variable off it; get one at [globaldatalab.org](https://globaldatalab.org)), 
+- See [global_data_lab_hdi_extract.py](human_development/global_data_lab_hdi_extract.py) for a source that needs an API token (`GDL_API_TOKEN`: the `DIMEBOOSTKEYVAULT` secret on Databricks, the environment variable of the same name otherwise; get one at [globaldatalab.org](https://globaldatalab.org)).
 - If your source is a single external site (a national stats agency, etc.) rather than a
   well-established API, fetch it through `utils.py`'s `versioned_dataframe`/`fetch_raw`
   instead of calling `requests`/`pd.read_csv` directly — it caches the parsed result as a
@@ -60,6 +73,13 @@ To add more indicators, please open a pull request after you've tested your code
   failing the pipeline. See [pry_subnational_population.py](population/PRY/pry_subnational_population.py)
   for a CSV example and [alb_subnational_population.py](population/ALB/alb_subnational_population.py)
   for Excel (`parse=`).
+- For an API, call `utils.py`'s `http_get` rather than `requests.get`: it retries connection
+  errors, timeouts, responses cut short and 429/5xx answers with a backoff, which these
+  sources produce now and then.
+- Read and write tables through `utils.py`'s `read_table` / `write_table` (and
+  `table_exists`, `get_secret`), never `spark.table` / `saveAsTable` / `dbutils` directly: on
+  Databricks they are Delta tables in `INDICATOR_SCHEMA`, off it CSVs under `DATA_ROOT`, so the
+  same notebook runs in both. A test fails if a notebook calls spark or dbutils.
 
 ## Running without Databricks
 
@@ -69,26 +89,27 @@ The notebooks also run as plain Python, with each table stored as a CSV at
 counterpart without a Databricks workspace (e.g. Togo) refreshes the indicator tables.
 
 ```bash
-pip install pandas requests wbgapi openpyxl shapely
+pip install -r requirements.txt   # Python 3.10 or newer
 
 export DATA_ROOT=./data        # tables land under ./data/prd_mega/indicator/
+export GDL_API_TOKEN=...       # the Global Data Lab notebooks need it; get one at https://globaldatalab.org
 export COUNTRY_NAME=Togo       # optional: keep only this country's rows in every table written
 # export BUNDLE_TARGET=dev     # optional: mirror the indicator_dev schema instead
+# export ember_energy_key=...  # only for energy/energy_generation_consumption.py, which the runner does not include
 
 python local_runner.py           # the notebooks in NOTEBOOKS, in order
 python local_runner.py gdp.py    # one notebook
+python local_runner.py --from health/sdg_health.py   # resume: that notebook and the ones after it
 ```
 
 The notebooks are plain Python files; the `# MAGIC %run ./config` / `./utils` cells
 that load the shared helpers on Databricks are comments elsewhere, so `local_runner.py`
 imports `config` and `utils` itself and runs the notebook with their names in scope.
 Any other `%run` is a comment too, so a notebook that needs another helper imports it
-under a guard, as `government_revenue_expenditure.py` does for `imf_sdmx`. The pieces
-that make this work:
+under a guard, as `government_revenue_expenditure.py` does for `imf_sdmx`.
 
-With no argument the runner refreshes the notebooks listed in its `NOTEBOOKS`, which
-are the ones behind the tables the Togo BOOST aggregate and the dashboard read, each
-in its own process. Any other notebook runs one at a time.
+What runs, in which order, and how `--from` and `COUNTRY_NAME` are handled is described
+in [local_runner.py](local_runner.py) itself. The pieces that make this work:
 
 - [config.py](config.py) detects the runtime. On Databricks it resolves the schema
   from the `bundle_target` widget as before; otherwise it reads `DATA_ROOT` (required),
@@ -97,87 +118,28 @@ in its own process. Any other notebook runs one at a time.
 - [utils.py](utils.py) provides `read_table`, `write_table`, `table_exists` and
   `versioned_dataframe`, which use Delta tables on Databricks and CSVs locally. A table
   name is either bare (`gdp`, qualified with `INDICATOR_SCHEMA`) or `catalog.schema.table`.
-  Notebooks should use these instead of `spark.table` / `saveAsTable`; a notebook that
-  still calls `spark` directly has not been converted yet and only runs on Databricks.
-- Job widgets such as `census_population_update_version` are read from the upper-cased
-  environment variable of the same name (`CENSUS_POPULATION_UPDATE_VERSION=true`), and
-  so are secrets (`get_secret("DIMEBOOSTKEYVAULT", "ember_energy_key")` reads `EMBER_ENERGY_KEY`).
-- The other countries' population notebooks under `population/<ISO3>/` run the same way
-  (`COUNTRY_NAME` unset, or set to that country); `population/wb_subnational_population_extract.py`
-  first for the ones that read the World Bank subnational database, and
+- Job widgets such as `census_population_update_version` are read from the environment
+  variable of the same name (`census_population_update_version=true`), and so are
+  secrets: `get_secret("DIMEBOOSTKEYVAULT", "GDL_API_TOKEN")` reads `GDL_API_TOKEN` and
+  `get_secret("DIMEBOOSTKEYVAULT", "ember_energy_key")` reads `ember_energy_key`. A
+  notebook that needs a secret stops with a message naming the variable when it is unset.
+- Any country's population notebook under `population/<ISO3>/` also runs on its own
+  (`COUNTRY_NAME` unset, or set to that country), after `population/wb_subnational_population_extract.py`
+  for the ones that read the World Bank subnational database and
   `population/global_data_lab_subnational_population.py` (needs `GDL_API_TOKEN`) for Congo DR and Liberia.
 - Files a notebook would write to the Unity Catalog volume (downloaded GeoJSON, PDFs)
   go under `$DATA_ROOT/raw_data/`.
 
-`gdp.py` must run before `education/education_private_spending.py` and
-`health/health_expenditure.py`.
-
 Tests for the local runtime live in [tests/](tests/) and run offline: `pytest -v`.
-
-### Tables in PostgreSQL
-
-With `DB_BACKEND=postgres` the same helpers keep the tables in a PostgreSQL database
-instead of CSVs, in the layout the dashboard reads with its own `DB_BACKEND=postgres`:
-`prd_mega.indicator.gdp` is table `gdp` in schema `indicator` of a database named
-`prd_mega`. `DATA_ROOT` is still required, for the files kept outside tables.
-
-```bash
-pip install "psycopg[binary]"
-
-export DB_BACKEND=postgres
-export POSTGRES_DSN=postgresql://user:password@host:5432/prd_mega
-python local_runner.py
-```
-
-- The role in `POSTGRES_DSN` must be allowed to create schemas and tables in the
-  database; the dashboard's read-only role is not enough.
-- Table names are lowercased, as in Unity Catalog; column names are kept as written.
-- A write replaces the table in one transaction.
-- The dashboard caches query results, so clear its cache after a refresh, or it keeps
-  showing the previous figures.
-- The required inputs below then go in the database instead of CSV files, as tables of
-  the same name in the `indicator` schema, e.g. loaded with `write_table`.
-- [postgres_tables.py](postgres_tables.py) has the PostgreSQL code; mega-boost keeps an
-  identical copy for the Togo BOOST scripts.
-- [tests/test_postgres_tables.py](tests/test_postgres_tables.py) runs against a test
-  database named `prd_mega` given in `TEST_POSTGRES_DSN`, and is skipped without one.
 
 ### Required inputs
 
 The PEFA scores cannot be fetched from an API. Before running, put the two tables in the table store
 as CSV files named after the table, at `$DATA_ROOT/prd_mega/indicator/<table>.csv`;
-with `DATA_ROOT=./data` that is `./data/prd_mega/indicator/country.csv`. Nulls may be
+with `DATA_ROOT=./data` that is `./data/prd_mega/indicator/pefa_2016_bronze.csv`. Nulls may be
 blank or `null`.
 
 | Table | Where it comes from | Columns |
 |---|---|---|
 | `pefa_2016_bronze` | [pefa.org](https://www.pefa.org/assessments/batch-downloads), Assessments, Batch downloads: Framework "2016 Framework", Country Togo, Type National, Status Final, Download. Save as CSV with the header as downloaded. | `Country`, `Year`, `Framework`, `PI-01` to `PI-31`; other columns are ignored |
 | `pefa_2011_bronze` | Same, with Framework "2011 Framework". | `Country`, `Year`, `Framework`, `PI-01` to `PI-28` |
-
-### What runs locally
-
-| Notebook | Table(s) written |
-|---|---|
-| `country.py` | `country` (World Bank API metadata; map centroids from `admin1_boundaries_gold`, so run the boundaries notebooks first for those; currency from the corporate table where reachable, else a dictionary in the notebook) |
-| `consumer_price_index.py` | `consumer_price_index` |
-| `gdp.py` | `gdp` |
-| `population/national_population.py` | `population` |
-| `poverty/poverty.py` | `poverty_rate` |
-| `education/education_spending_icp.py` | `edu_spending` |
-| `education/learning_poverty.py` | `learning_poverty_rate` |
-| `education/education_sdg.py` | `youth_literacy_rate_unesco` |
-| `education/education_private_spending.py` | `edu_private_spending` (reads `gdp`) |
-| `education/education_public_spending.py` | `edu_gov_spending` |
-| `education/completion_rates.py`, `pupil_teacher_ratio.py`, `school_basic_services.py`, `teacher_salaries.py` | `completion_rates`, `pupil_teacher_ratio`, `school_basic_services`, `teacher_salaries` |
-| `health/health_expenditure.py` | `health_expenditure` (reads `gdp`) |
-| `health/sdg_health.py` | `maternal_mortality_ratio_WHO`, `universal_health_coverage_index_GHO` |
-| `public_finance/government_revenue_expenditure.py` | `government_revenue_expenditure` |
-| `public_finance/togo/togo_finance_report_transform_load_dlt.py` | `togo_revenue_budget` |
-| `pefa/pefa_transform_load.py` | `pefa_by_pillar` (reads the hand-uploaded `pefa_2011_bronze`, `pefa_2016_bronze`) |
-| `energy/energy_generation_consumption.py` | `energy_generation` (needs `EMBER_ENERGY_KEY`) |
-| `public_sector_employment/wwbi_extract.py` then `public_sector_employment/wwbi_transform_load.py` | `public_sector_employment_silver`, then `public_sector_employment` (with regional means; plain pandas on both sides, it replaced the DLT pipeline) |
-| `population/TGO/tgo_subnational_population.py` then `population/subnational_population.py` | `tgo_subnational_population_silver`, then `subnational_population` (the countries listed in the notebook stacked; with `COUNTRY_NAME` set, only the silver tables present; plain pandas on both sides, it replaced the DLT pipeline) |
-| `poverty/subnational_poverty/subnational_poverty_index_extract_transform.py` then `subnational_poverty_index_transform_load.py` | `poverty_rate_SPID_GSAP_silver`, then `subnational_poverty_rate` (plain pandas on both sides; it replaced the DLT pipeline) |
-| `human_development/global_data_lab_hdi_extract.py` then `global_data_lab_hdi_transform_load.py` | `global_data_lab_hd_index_bronze`, `global_data_lab_hd_index_silver`, then `global_data_lab_hd_index` (needs `GDL_API_TOKEN`; about 70 API calls; plain pandas on both sides, it replaced the R notebook and the DLT pipeline) |
-| `indicator_data_availability.py` (last) | `indicator_data_availability`: earliest and latest year per indicator and country, for the dashboard's source notes (plain pandas on both sides; it replaced the DLT SQL view) |
-| `geo/admin_boundaries_extract.py` then `geo/admin_boundaries_transform_load.py` | `admin1_boundaries_bronze`/`_silver`/`_gold` and `admin0_disputed_boundaries_bronze`/`_silver`/`_gold`, with the region-name corrections and the Albania and Ghana polygon unions (plain pandas with shapely on both sides; it replaced the DLT pipeline). The extract downloads two GeoJSON files, 254 MB and 174 MB; loading them takes about 3 GB of memory. |

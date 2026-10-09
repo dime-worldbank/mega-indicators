@@ -199,7 +199,6 @@ bronze['country_name'] = bronze['country_name'].replace('Democratic Republic of 
 bronze['admin1_region'] = [correct_admin1_names.get((code, raw), raw) for code, raw in zip(bronze['country_code'], bronze['admin1_region_raw'])]
 print(f"Number of ENTRIES: {len(bronze)}")
 write_table(bronze, 'admin1_boundaries_bronze')
-
 # COMMAND ----------
 
 # Harmonize for Albania (and you can call for other countries as needed)
@@ -214,10 +213,8 @@ silver = pd.concat([
     gha_bronze_mod[SILVER_COLUMNS],
 ], ignore_index=True)
 write_table(silver, 'admin1_boundaries_silver')
-
 gold = silver.rename(columns={'C': 'country_code_iso2'})[['country_name', 'country_code', 'country_code_iso2', 'admin1_region', 'boundary']]
 write_table(gold, 'admin1_boundaries_gold')
-
 # COMMAND ----------
 
 # Disputed areas: the 'Non-determined legal status area' features of the Admin 0 file,
@@ -231,11 +228,9 @@ admin0 = geojson_frame(ADMIN0_GEOJSON)
 admin0 = admin0.rename(columns={"WB_REGION": "region_code", "ISO_A2": "country_code_iso2", "NAM_0": "region_name"}).fillna('')
 disputed_bronze = admin0[admin0['WB_STATUS'] == 'Non-determined legal status area']
 write_table(disputed_bronze, 'admin0_disputed_boundaries_bronze')
-
 disputed_region_country = pd.DataFrame(
     [{'region_name': region, 'country': country} for region, countries in disputed_area_country_map.items() for country in countries])
 disputed_silver = disputed_bronze.merge(disputed_region_country, on='region_name', how='inner')
 write_table(disputed_silver, 'admin0_disputed_boundaries_silver')
-
 disputed_gold = disputed_silver.rename(columns={'country': 'country_name'})[['country_name', 'region_name', 'boundary', 'country_code_iso2']]
 write_table(disputed_gold, 'admin0_disputed_boundaries_gold')

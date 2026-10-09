@@ -4,8 +4,7 @@
 # environment) BUNDLE_TARGET (default prod) picks the same schema name, and DATA_ROOT
 # names a directory under which every table is a CSV at <catalog>/<schema>/<table>.csv
 # (DATA_ROOT=./data gives ./data/prd_mega/indicator/gdp.csv). utils.py's read_table /
-# write_table hide the difference from the notebooks, and local_runner.py runs a
-# notebook with its %run includes locally.
+# write_table hide the difference from the notebooks.
 import os
 
 IS_DATABRICKS = "DATABRICKS_RUNTIME_VERSION" in os.environ

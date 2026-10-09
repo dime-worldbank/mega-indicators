@@ -1,9 +1,9 @@
 # Databricks notebook source
-# MAGIC %run ../subnational_population_extraction_from_census_gov
+# MAGIC %run ../../config
 
 # COMMAND ----------
 
-# MAGIC %run ../../config
+# MAGIC %run ../../utils
 
 # COMMAND ----------
 

@@ -91,6 +91,9 @@ def compute_country_centroid(boundaries_list):
     return (centroid.x, centroid.y)
 
 admin1_boundaries = read_table('admin1_boundaries_gold', columns=['country_name', 'country_code_iso2', 'boundary'])
+if admin1_boundaries.empty:
+    raise RuntimeError('admin1_boundaries_gold is empty: run geo/admin_boundaries_transform_load.py first'
+                       + (f"; with COUNTRY_NAME={COUNTRY_NAME!r} set, that must be the country's spelling in the boundaries file too" if COUNTRY_NAME else ''))
 centroid_df = (admin1_boundaries.groupby('country_name')
     .agg(country_code_iso2=('country_code_iso2', 'first'), all_boundaries=('boundary', list))
     .reset_index())
@@ -105,7 +108,7 @@ sdf['zoom'] = sdf['country_name'].map(get_zoom)
 # v_dim_country would be more suitable for currency/country data, but it currently lacks comprehensive data. May switch to this table in the future.
 CURRENCY_TABLE = "prd_corpdata.dm_reference_gold.v_dim_country_currency_exchange_rate"
 
-# Fallback where the corporate table is not reachable: ISO 4217 currencies of the countries
+# Fallback off Databricks, when no CSV export of the corporate table is under DATA_ROOT: ISO 4217 currencies of the countries
 # in the pipeline, keyed by ISO3 code (names vary by source, codes do not; the corporate
 # spelling is used where known). Add a country here when it is added to the pipeline.
 FALLBACK_CURRENCIES = {
@@ -129,7 +132,7 @@ FALLBACK_CURRENCIES = {
     'ZAF': ('Rand', 'ZAR'),
 }
 
-if table_exists(CURRENCY_TABLE):
+if IS_DATABRICKS or table_exists(CURRENCY_TABLE):  # on Databricks an unreadable table fails the run rather than degrading to the fallback
     base_df = read_table(CURRENCY_TABLE, columns=['cntry_code', 'ccy_src_name', 'ccy_src_code', 'ccy_exch_rate_ref_date'])
     # the latest row per country, joined on the ISO2 code
     currency_df = (base_df.sort_values('ccy_exch_rate_ref_date', ascending=False)
