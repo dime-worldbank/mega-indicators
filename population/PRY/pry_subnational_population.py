@@ -7,10 +7,6 @@
 
 # COMMAND ----------
 
-import pandas as pd
-
-# COMMAND ----------
-
 URL = 'https://www.ine.gov.py/microdatos/cuadro/b7dc2DEP01-Paraguay-Poblacion-total-por-anio-calendario-segun-sexo-y-departamento-2000-2025.csv'
 
 RAW_TABLE_NAME = 'pry_population_raw'
@@ -54,14 +50,7 @@ assert num_departments == 18, f'Expect 18 distinct departments, got {num_departm
 
 # COMMAND ----------
 
-database_name = INDICATOR_SCHEMA
-
-if not spark.catalog.databaseExists(database_name):
-    print(f"Database '{database_name}' does not exist. Creating the database.")
-    spark.sql(f"CREATE DATABASE {database_name}")
-
 # COMMAND ----------
 
-sdf = spark.createDataFrame(df_pop)
-sdf.write.mode("overwrite").saveAsTable(f"{database_name}.pry_subnational_population_silver")
+write_table(df_pop, 'pry_subnational_population_silver')
 

@@ -35,5 +35,4 @@ df
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.poverty_rate")
+write_table(df, 'poverty_rate')

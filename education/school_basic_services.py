@@ -34,5 +34,4 @@ df
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.school_basic_services")
+write_table(df, 'school_basic_services')

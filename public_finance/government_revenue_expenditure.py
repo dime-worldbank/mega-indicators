@@ -3,6 +3,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../utils
+
+# COMMAND ----------
+
 import pandas as pd
 import requests
 from requests.adapters import HTTPAdapter
@@ -11,6 +15,11 @@ from urllib3.util.retry import Retry
 # COMMAND ----------
 
 # MAGIC %run ./imf_sdmx
+
+# COMMAND ----------
+
+if '_parse_payload' not in globals():  # off Databricks the %run above is a comment
+    from public_finance.imf_sdmx import _parse_payload, _weo_annotate_forecast
 
 # COMMAND ----------
 
@@ -102,10 +111,9 @@ SOURCES = [
 
 # COMMAND ----------
 
-country_df = (spark.table(f'{INDICATOR_SCHEMA}.country')
-    .filter("is_aggregate = false OR is_aggregate IS NULL")
-    .select('country_name', 'country_code', 'region')
-    .toPandas())
+country_df = read_table('country', columns=['country_name', 'country_code', 'region', 'is_aggregate'])
+# Drop regional/income aggregates (WLD, SSF, ...); a null flag counts as a country.
+country_df = country_df[country_df['is_aggregate'].ne(True)].drop(columns='is_aggregate')
 country_codes = country_df['country_code'].dropna().unique().tolist()
 
 combined_df = pd.concat([fetch_sdmx(country_codes, **source) for source in SOURCES], ignore_index=True)
@@ -124,5 +132,4 @@ merged_df.sample(5)
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(merged_df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.government_revenue_expenditure")
+write_table(merged_df, 'government_revenue_expenditure')

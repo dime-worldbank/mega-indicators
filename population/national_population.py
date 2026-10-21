@@ -3,11 +3,14 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../utils
+
+# COMMAND ----------
+
 # MAGIC %run ../config
 
 # COMMAND ----------
 
-import wbgapi as wb
 import pandas as pd
 
 # COMMAND ----------
@@ -35,7 +38,7 @@ merged_df
 
 # COMMAND ----------
 
-country_df = spark.table(f'{INDICATOR_SCHEMA}.country').select('country_name', 'country_code', 'region').toPandas()
+country_df = read_table('country', columns=['country_name', 'country_code', 'region'])
 country_df
 
 # COMMAND ----------
@@ -45,5 +48,4 @@ pop_df
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(pop_df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.population")
+write_table(pop_df, 'population')

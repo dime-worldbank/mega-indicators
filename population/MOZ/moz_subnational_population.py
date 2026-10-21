@@ -3,20 +3,31 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../../utils
+
+# COMMAND ----------
+
 import unicodedata
+from io import BytesIO
 import pandas as pd
 
 # COMMAND ----------
 
+def _fetch_csv(url, **kwargs):
+    """pd.read_csv(url) has no way to pass a timeout — fetch explicitly instead."""
+    resp = http_get(url, timeout=60)
+    resp.raise_for_status()
+    return pd.read_csv(BytesIO(resp.content), **kwargs)
+
 POP_07_16_URL = 'https://raw.githubusercontent.com/weilu/mega-indicators/main/population/MOZ/moz_pop_2007-2016.csv'
-pop_07_16 = pd.read_csv(POP_07_16_URL, usecols=['region', 'Date', 'Value'])
+pop_07_16 = _fetch_csv(POP_07_16_URL, usecols=['region', 'Date', 'Value'])
 pop_07_16['data_source'] = 'https://mozambique.opendataforafrica.org/RDM2016'
 pop_07_16
 
 # COMMAND ----------
 
 POP_17_50_URL = 'https://raw.githubusercontent.com/weilu/mega-indicators/main/population/MOZ/moz_pop_2017-2050.csv'
-pop_17_50 = pd.read_csv(POP_17_50_URL, usecols=['província', 'Date', 'Value'])
+pop_17_50 = _fetch_csv(POP_17_50_URL, usecols=['província', 'Date', 'Value'])
 pop_17_50.rename(columns={'província': 'region'}, inplace=True)
 pop_17_50['data_source'] = 'https://mozambique.opendataforafrica.org/bumjrrg'
 pop_17_50
@@ -51,13 +62,6 @@ for region, group in df.groupby('adm1_name')['year']:
 
 # COMMAND ----------
 
-database_name = INDICATOR_SCHEMA
-
-if not spark.catalog.databaseExists(database_name):
-    print(f"Database '{database_name}' does not exist. Creating the database.")
-    spark.sql(f"CREATE DATABASE {database_name}")
-
 # COMMAND ----------
 
-sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{database_name}.moz_subnational_population_silver")
+write_table(df, 'moz_subnational_population_silver')
