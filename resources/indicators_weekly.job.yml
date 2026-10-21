@@ -32,10 +32,10 @@ resources:
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
           notebook_path: ../education/education_sdg.py
-      - task_key: edu_pupil_teacher_ratio
+      - task_key: edu_students_and_teachers
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
-          notebook_path: ../education/pupil_teacher_ratio.py
+          notebook_path: ../education/students_and_teachers.py
       - task_key: edu_school_basic_services
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
@@ -89,7 +89,7 @@ resources:
       - task_key: indicator_data_availability
         depends_on:
         - task_key: edu_learning_poverty
-        - task_key: edu_pupil_teacher_ratio
+        - task_key: edu_students_and_teachers
         - task_key: edu_school_basic_services
         - task_key: edu_teacher_salaries
         - task_key: edu_completion_rates

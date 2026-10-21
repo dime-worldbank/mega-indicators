@@ -44,9 +44,9 @@ NOTEBOOKS = [
     'poverty/subnational_poverty/subnational_poverty_index_transform_load.py',
     'human_development/global_data_lab_hdi_extract.py',  # needs GDL_API_TOKEN
     'human_development/global_data_lab_hdi_transform_load.py',
-    'education/completion_rates.py',  # these four only feed indicator_data_availability
-    'education/pupil_teacher_ratio.py',
+    'education/completion_rates.py',  # these education tables are not inputs to the other notebooks (most feed indicator_data_availability)
     'education/school_basic_services.py',
+    'education/students_and_teachers.py',
     'education/teacher_salaries.py',
     'indicator_data_availability.py',  # summarises the tables above (the subnational population step below is not among them)
 ]
