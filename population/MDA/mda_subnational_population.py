@@ -48,9 +48,8 @@ ADM1_PREFIXES = ('MUN.', 'R-UL', 'UTA')
 
 # BOOST spending for Moldova is reported at the four statistical regions, not at raions, so
 # the raion totals are aggregated up to match. Same grouping as moldova_district_to_region
-# in geo/admin_boundaries_dlt.py, but keyed on the NBS spellings: the capital is 'Chisinau'
-# here because clean_adm1_name strips the 'MUN.' prefix, whereas the World Bank geojson
-# calls it 'Chisinau Municipality'. Gagauzia is folded into South, as it is there.
+# in geo/admin_boundaries_transform_load.py, keyed on the NBS spellings (clean_adm1_name
+# strips the 'MUN.' prefix from the capital). Gagauzia is folded into South, as it is there.
 ADM1_TO_REGION = {
     raion: region
     for region, raions in {
@@ -149,5 +148,4 @@ for adm1_name, group in df_pop.groupby('adm1_name')['year']:
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(df_pop)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.mda_subnational_population_silver")
+write_table(df_pop, 'mda_subnational_population_silver')

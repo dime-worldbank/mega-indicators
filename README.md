@@ -113,7 +113,8 @@ in [local_runner.py](local_runner.py) itself. The pieces that make this work:
 - Any country's population notebook under `population/<ISO3>/` also runs on its own
   (`COUNTRY_NAME` unset, or set to that country), after `population/wb_subnational_population_extract.py`
   for the ones that read the World Bank subnational database and
-  `population/global_data_lab_subnational_population.py` (needs `GDL_API_TOKEN`) for Congo DR and Liberia.
+  `population/global_data_lab_subnational_population.py` (needs `GDL_API_TOKEN`) for Congo DR and Liberia,
+  and `population/MDA/mda_subnational_population_extract.py` for Moldova.
 - Files a notebook would write to the Unity Catalog volume (downloaded GeoJSON, PDFs)
   go under `$DATA_ROOT/raw_data/`.
 

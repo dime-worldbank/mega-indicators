@@ -51,26 +51,28 @@ NOTEBOOKS = [
     'indicator_data_availability.py',  # summarises the tables above (the subnational population step below is not among them)
 ]
 
-# The subnational population step: the shared extract the country's notebook reads, if any,
+# The subnational population step: the extract the country's notebook reads, if any,
 # population/<ISO3>/<iso3>_subnational_population.py, then the union of the per-country tables.
 # It runs for the one country COUNTRY_NAME names, after NOTEBOOKS; without COUNTRY_NAME the
 # union would want every country's table, and those are built one country at a time.
 SUBNATIONAL_POPULATION_UNION = 'population/subnational_population.py'
 WB_SUBNATIONAL_EXTRACT = 'population/wb_subnational_population_extract.py'
 GDL_SUBNATIONAL_EXTRACT = 'population/global_data_lab_subnational_population.py'  # needs GDL_API_TOKEN
+MDA_SUBNATIONAL_EXTRACT = 'population/MDA/mda_subnational_population_extract.py'  # Moldova's own: the NBS workbook
 # ISO3 code of each country with a notebook, by its name in the World Bank API (what
 # COUNTRY_NAME is set to, and what write_table filters rows on)
 COUNTRIES = {
     'Albania': 'ALB', 'Bangladesh': 'BGD', 'Bhutan': 'BTN', 'Burkina Faso': 'BFA', 'Burundi': 'BDI',
     'Chile': 'CHL', 'Colombia': 'COL', 'Congo, Dem. Rep.': 'COD', 'Ghana': 'GHA', 'Kenya': 'KEN',
-    'Liberia': 'LBR', 'Mozambique': 'MOZ', 'Nigeria': 'NGA', 'Pakistan': 'PAK', 'Paraguay': 'PRY',
-    'South Africa': 'ZAF', 'Togo': 'TGO', 'Tunisia': 'TUN',
+    'Liberia': 'LBR', 'Moldova': 'MDA', 'Mozambique': 'MOZ', 'Nigeria': 'NGA', 'Pakistan': 'PAK',
+    'Paraguay': 'PRY', 'South Africa': 'ZAF', 'Togo': 'TGO', 'Tunisia': 'TUN',
 }
-# the shared extract a country's notebook reads; the other notebooks fetch their own source
+# the extract a country's notebook reads, shared or its own; the other notebooks fetch their own source
 EXTRACTS = {
     'ALB': WB_SUBNATIONAL_EXTRACT, 'BDI': WB_SUBNATIONAL_EXTRACT, 'BTN': WB_SUBNATIONAL_EXTRACT,
     'CHL': WB_SUBNATIONAL_EXTRACT, 'TUN': WB_SUBNATIONAL_EXTRACT, 'ZAF': WB_SUBNATIONAL_EXTRACT,
     'COD': GDL_SUBNATIONAL_EXTRACT, 'LBR': GDL_SUBNATIONAL_EXTRACT,
+    'MDA': MDA_SUBNATIONAL_EXTRACT,
 }
 
 HERE = Path(__file__).resolve().parent

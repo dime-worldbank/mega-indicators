@@ -8,7 +8,6 @@
 # COMMAND ----------
 
 import os
-import requests
 
 VOLUME_PATH = f'{VOLUME_ROOT_PATH}/auxiliary_data/population/mda/'
 
@@ -25,7 +24,7 @@ EXCEL_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetm
 os.makedirs(VOLUME_PATH, exist_ok=True)
 
 for filename, url in URLS.items():
-    resp = requests.get(url, timeout=60)
+    resp = http_get(url)
     resp.raise_for_status()
     content_type = resp.headers.get('content-type', '')
     if EXCEL_CONTENT_TYPE not in content_type:

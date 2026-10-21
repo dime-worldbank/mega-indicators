@@ -14,8 +14,8 @@
 # Admin-1 boundaries, and the admin-0 disputed areas, from the World Bank Official
 # Boundaries GeoJSON files that admin_boundaries_extract.py downloads: one row per region
 # with the boundary as GeoJSON text, region names corrected to match the BOOST data, and
-# the Albania and Ghana regions merged into the units BOOST reports on. Plain pandas with
-# shapely on both sides.
+# the Albania, Ghana and Moldova regions merged into the units BOOST reports on. Plain
+# pandas with shapely on both sides.
 import json
 
 import pandas as pd
@@ -168,9 +168,10 @@ albania_region_to_county = {
 # Moldova raion (district) to statistical region. These are the National Bureau of
 # Statistics development regions, except that Gagauzia — officially a region of its own —
 # is folded into South, the only geographic fit when the target is four regions. The 35
-# raions mapped here match EXPECTED_ADM1_COUNT in mda_subnational_population.py, which rolls
-# the population up to the same four regions. Bender and Transnistria belong to no region
-# and are absent from the NBS estimates, so they are left unmapped and keep their own names.
+# units mapped here (the capital under two spellings) match EXPECTED_ADM1_COUNT in
+# mda_subnational_population.py, which rolls the population up to the same four regions.
+# Bender and Transnistria belong to no region and are absent from the NBS estimates, so
+# they are left unmapped and keep their own names.
 moldova_district_to_region = {
     'Balti': 'North',
     'Briceni': 'North',
@@ -206,6 +207,9 @@ moldova_district_to_region = {
     'Stefan Voda': 'South',
     'Taraclia': 'South',
     'Unitate Teritoriala Autonoma Gagauzia': 'South',
+    # The capital: 'Chisinau' in the public World Bank file; the longer form is kept in
+    # case the DDH volume copy spells it that way.
+    'Chisinau': 'Chisinau',
     'Chisinau Municipality': 'Chisinau',
 }
 
@@ -230,38 +234,6 @@ def geojson_frame(path):
         boundaries = json.load(f)
     df = pd.DataFrame([x['properties'] for x in boundaries['features']])
     df['boundary'] = [json.dumps(x['geometry']) for x in boundaries['features']]
-    df['admin1_region'] = df.apply(lambda x: correct_admin1_names.
-    get((x['country_code'], x['admin1_region_raw']), x['admin1_region_raw']), axis=1)
-    bronze = spark.createDataFrame(df)
-    return bronze
-
-@dlt.table(name='admin1_boundaries_silver')
-def admin1_boundaries_silver():
-    bronze = dlt.read('admin1_boundaries_bronze')
-    print(f"Number of ENTRIES: {bronze.toPandas().shape[0]}")
-    # Harmonize for Albania (and you can call for other countries as needed)
-    alb_bronze_mod = harmonize_admin1_regions(bronze, 'Albania', albania_region_to_county)
-    print(f"Number of rows in the ALBANIA dataframe: {alb_bronze_mod.toPandas().shape[0]}")
-    gha_bronze_mod = harmonize_admin1_regions(bronze, 'Ghana', ghana_regions_new_to_old_map)
-    print(f"Number of rows in the Ghana dataframe: {gha_bronze_mod.toPandas().shape[0]}")
-    mda_bronze_mod = harmonize_admin1_regions(bronze, 'Moldova', moldova_district_to_region)
-    print(f"Number of rows in the Moldova dataframe: {mda_bronze_mod.toPandas().shape[0]}")
-    common_columns = list(set(bronze.columns).intersection(set(alb_bronze_mod.columns)))
-    bronze_filtered = bronze.filter(~col('country_name').isin(['Albania', "Ghana", "Moldova"])).select(common_columns)
-    dfs = [bronze_filtered] + [alb_bronze_mod.select(common_columns), gha_bronze_mod.select(common_columns), mda_bronze_mod.select(common_columns)]
-    silver = reduce(lambda df1, df2: df1.unionByName(df2), dfs)
-    return silver
-
-@dlt.table(name=f'admin1_boundaries_gold')
-def admin1_boundaries_gold():
-    return (dlt.read(f'admin1_boundaries_silver')
-        .select('country_name',
-                'country_code',
-                col('C').alias('country_code_iso2'),
-                'admin1_region',
-                'boundary',
-                )
-    )
     return df
 
 # COMMAND ----------
@@ -281,11 +253,14 @@ alb_bronze_mod = harmonize_admin1_regions(bronze, 'Albania', albania_region_to_c
 print(f"Number of rows in the ALBANIA dataframe: {len(alb_bronze_mod)}")
 gha_bronze_mod = harmonize_admin1_regions(bronze, 'Ghana', ghana_regions_new_to_old_map)
 print(f"Number of rows in the Ghana dataframe: {len(gha_bronze_mod)}")
+mda_bronze_mod = harmonize_admin1_regions(bronze, 'Moldova', moldova_district_to_region)
+print(f"Number of rows in the Moldova dataframe: {len(mda_bronze_mod)}")
 SILVER_COLUMNS = ['country_name', 'country_code', 'C', 'region_code', 'admin1_region', 'boundary']
 silver = pd.concat([
-    bronze[~bronze['country_name'].isin(['Albania', 'Ghana'])][SILVER_COLUMNS],
+    bronze[~bronze['country_name'].isin(['Albania', 'Ghana', 'Moldova'])][SILVER_COLUMNS],
     alb_bronze_mod[SILVER_COLUMNS],
     gha_bronze_mod[SILVER_COLUMNS],
+    mda_bronze_mod[SILVER_COLUMNS],
 ], ignore_index=True)
 write_table(silver, 'admin1_boundaries_silver')
 gold = silver.rename(columns={'C': 'country_code_iso2'})[['country_name', 'country_code', 'country_code_iso2', 'admin1_region', 'boundary']]
