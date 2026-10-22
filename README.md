@@ -89,9 +89,9 @@ python local_runner.py gdp.py    # one notebook
 python local_runner.py --from health/sdg_health.py   # resume: that notebook and the ones after it
 ```
 
-The notebooks are plain Python files; the `# MAGIC %run ./config` / `./utils` cells
-that load the shared helpers on Databricks are comments elsewhere, so `local_runner.py`
-imports `config` and `utils` itself and runs the notebook with their names in scope.
+The notebooks are plain Python files; the `# MAGIC %run` cells that load `config`, `utils`
+and `geo/admin1_harmonization` on Databricks are comments elsewhere, so `local_runner.py`
+imports those itself and runs the notebook with their names in scope.
 Any other `%run` is a comment too, so a notebook that needs another helper imports it
 under a guard, as `government_revenue_expenditure.py` does for `imf_sdmx`.
 
@@ -113,7 +113,8 @@ in [local_runner.py](local_runner.py) itself. The pieces that make this work:
 - Any country's population notebook under `population/<ISO3>/` also runs on its own
   (`COUNTRY_NAME` unset, or set to that country), after `population/wb_subnational_population_extract.py`
   for the ones that read the World Bank subnational database and
-  `population/global_data_lab_subnational_population.py` (needs `GDL_API_TOKEN`) for Congo DR and Liberia.
+  `population/global_data_lab_subnational_population.py` (needs `GDL_API_TOKEN`) for Congo DR and Liberia,
+  and `population/MDA/mda_subnational_population_extract.py` for Moldova.
 - Files a notebook would write to the Unity Catalog volume (downloaded GeoJSON, PDFs)
   go under `$DATA_ROOT/raw_data/`.
 

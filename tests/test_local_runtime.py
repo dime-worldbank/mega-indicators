@@ -38,11 +38,13 @@ def load_config():
 
 
 def load_shared():
-    """utils (and config) freshly imported against the current environment."""
+    """What local_runner.py puts in a notebook's scope: utils (and config) freshly imported
+    against the current environment, and the geo/admin1_harmonization tables."""
     for name in ("utils", "config"):
         sys.modules.pop(name, None)
     import utils
-    return vars(utils)
+    from geo import admin1_harmonization
+    return {**vars(utils), **{k: v for k, v in vars(admin1_harmonization).items() if not k.startswith("_")}}
 
 
 def run_notebook(path):
@@ -273,6 +275,8 @@ def test_runner_adds_the_country_population_step_for_country_name(monkeypatch, c
     assert local_runner.notebooks()[-3:] == ["population/wb_subnational_population_extract.py", "population/ALB/alb_subnational_population.py", union]
     monkeypatch.setenv("COUNTRY_NAME", "Congo, Dem. Rep.")
     assert local_runner.notebooks()[-3] == "population/global_data_lab_subnational_population.py"
+    monkeypatch.setenv("COUNTRY_NAME", "Moldova")  # its own extract: the NBS workbook
+    assert local_runner.notebooks()[-3:] == ["population/MDA/mda_subnational_population_extract.py", "population/MDA/mda_subnational_population.py", union]
     monkeypatch.setenv("COUNTRY_NAME", "Democratic Republic of Congo")  # not the World Bank spelling
     with pytest.raises(SystemExit, match="Congo, Dem. Rep."):
         local_runner.notebooks()
@@ -472,7 +476,8 @@ def _square(x0, y0, size=1):
 
 def test_admin_boundaries_notebook_runs_locally(data_root):
     """Name corrections, the DRC rename, Albania districts unioned into a county, Ghana's new
-    regions into an old one, and the Ilemi Triangle attributed to both claimants."""
+    regions into an old one, Moldova raions into a statistical region (a unit outside every
+    region kept as is), and the Ilemi Triangle attributed to both claimants."""
     from shapely.geometry import shape
     ns = load_shared()
     raw = Path(ns["VOLUME_ROOT_PATH"]) / "auxiliary_data"
@@ -490,6 +495,9 @@ def test_admin_boundaries_notebook_runs_locally(data_root):
         feature("Albania", "ALB", "AL", "Berat", _square(40, 0)),
         feature("Ghana", "GHA", "GH", "Bono", _square(50, 0)),        # both map to Brong Ahafo
         feature("Ghana", "GHA", "GH", "Ahafo", _square(51, 0)),
+        feature("Moldova", "MDA", "MD", "Cahul", _square(60, 0)),      # both map to South
+        feature("Moldova", "MDA", "MD", "Taraclia", _square(61, 0)),
+        feature("Moldova", "MDA", "MD", "Transnistria", _square(70, 0)),  # in no region: unchanged
     ]}))
     (raw / "admin0geoboundaries" / "World Bank Official Boundaries - Admin 0_all_layers.geojson").write_text(json.dumps({"type": "FeatureCollection", "features": [
         {"type": "Feature", "properties": {"NAM_0": "Ilemi Triangle", "ISO_A2": "", "WB_REGION": "AFR", "WB_STATUS": "Non-determined legal status area"}, "geometry": _square(60, 0)},
@@ -499,15 +507,17 @@ def test_admin_boundaries_notebook_runs_locally(data_root):
     run_notebook(REPO / "geo" / "admin_boundaries_transform_load.py")
 
     r = ns["read_table"]
-    assert len(r("admin1_boundaries_bronze")) == 8
+    assert len(r("admin1_boundaries_bronze")) == 11
     gold = r("admin1_boundaries_gold")
     assert list(gold.columns) == ["country_name", "country_code", "country_code_iso2", "admin1_region", "boundary"]
     by = gold.set_index(["country_name", "admin1_region"])
     assert ("Congo, Dem. Rep.", "Ville Province De Kinshasa") in by.index and ("Nigeria", "Nasarawa") in by.index
-    assert ("Togo", "Kara") in by.index and len(gold) == 6
+    assert ("Togo", "Kara") in by.index and len(gold) == 8
     assert sorted(gold[gold.country_name == "Albania"].admin1_region) == ["Berat", "Korce"]
     assert shape(json.loads(by.loc[("Albania", "Korce"), "boundary"])).area == 2.0  # two unit squares unioned
     assert gold[gold.country_name == "Ghana"].admin1_region.tolist() == ["Brong Ahafo"]
+    assert sorted(gold[gold.country_name == "Moldova"].admin1_region) == ["South", "Transnistria"]
+    assert shape(json.loads(by.loc[("Moldova", "South"), "boundary"])).area == 2.0
     disputed = r("admin0_disputed_boundaries_gold")
     assert list(disputed.columns) == ["country_name", "region_name", "boundary", "country_code_iso2"]
     assert sorted(zip(disputed.country_name, disputed.region_name)) == [("Kenya", "Ilemi Triangle"), ("South Sudan", "Ilemi Triangle")]

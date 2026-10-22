@@ -11,11 +11,15 @@
 
 # COMMAND ----------
 
+# MAGIC %run ./admin1_harmonization
+
+# COMMAND ----------
+
 # Admin-1 boundaries, and the admin-0 disputed areas, from the World Bank Official
 # Boundaries GeoJSON files that admin_boundaries_extract.py downloads: one row per region
 # with the boundary as GeoJSON text, region names corrected to match the BOOST data, and
-# the Albania and Ghana regions merged into the units BOOST reports on. Plain pandas with
-# shapely on both sides.
+# the Albania, Ghana and Moldova regions merged into the units BOOST reports on. Plain
+# pandas with shapely on both sides.
 import json
 
 import pandas as pd
@@ -165,6 +169,9 @@ albania_region_to_county = {
     'Delvine': 'Vlore'
 }
 
+# Moldova raions to statistical regions (shared with the population notebook); Transnistria
+# and Bender are in no region and keep their own names.
+moldova_district_to_region = {**MOLDOVA_UNIT_TO_REGION, **MOLDOVA_BOUNDARY_ALIASES}
 
 def union_polygons(polygon_list):
     polygons = [shape(json.loads(p)) for p in polygon_list]
@@ -206,11 +213,14 @@ alb_bronze_mod = harmonize_admin1_regions(bronze, 'Albania', albania_region_to_c
 print(f"Number of rows in the ALBANIA dataframe: {len(alb_bronze_mod)}")
 gha_bronze_mod = harmonize_admin1_regions(bronze, 'Ghana', ghana_regions_new_to_old_map)
 print(f"Number of rows in the Ghana dataframe: {len(gha_bronze_mod)}")
+mda_bronze_mod = harmonize_admin1_regions(bronze, 'Moldova', moldova_district_to_region)
+print(f"Number of rows in the Moldova dataframe: {len(mda_bronze_mod)}")
 SILVER_COLUMNS = ['country_name', 'country_code', 'C', 'region_code', 'admin1_region', 'boundary']
 silver = pd.concat([
-    bronze[~bronze['country_name'].isin(['Albania', 'Ghana'])][SILVER_COLUMNS],
+    bronze[~bronze['country_name'].isin(['Albania', 'Ghana', 'Moldova'])][SILVER_COLUMNS],
     alb_bronze_mod[SILVER_COLUMNS],
     gha_bronze_mod[SILVER_COLUMNS],
+    mda_bronze_mod[SILVER_COLUMNS],
 ], ignore_index=True)
 write_table(silver, 'admin1_boundaries_silver')
 gold = silver.rename(columns={'C': 'country_code_iso2'})[['country_name', 'country_code', 'country_code_iso2', 'admin1_region', 'boundary']]
