@@ -24,6 +24,9 @@ EXCEL_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetm
 os.makedirs(VOLUME_PATH, exist_ok=True)
 
 for filename, url in URLS.items():
+    if os.path.exists(VOLUME_PATH + filename):
+        print(f"Skipping {filename}, as it already exists")
+        continue
     resp = http_get(url)
     resp.raise_for_status()
     content_type = resp.headers.get('content-type', '')
