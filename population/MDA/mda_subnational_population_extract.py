@@ -11,27 +11,23 @@ import os
 
 VOLUME_PATH = f'{VOLUME_ROOT_PATH}/auxiliary_data/population/mda/'
 
-# Population with usual residence by locality (village/commune, town/municipality),
-# published by the National Bureau of Statistics of the Republic of Moldova.
-# One sheet per year. When the NBS publishes a workbook covering later years, add
-# its URL here and update EXPECTED_YEARS in mda_subnational_population.py.
-URLS = {
-    'Populatia_sate_comune_orase_2014-2023.xlsx': 'https://statistica.gov.md/files/files/serii_de_timp/populatie/numarul_PRO_profil_teritorial/Populatia_sate_comune_orase_2014-2023.xlsx',
-}
+# NBS population by locality: one cumulative workbook, a sheet per year. A new edition
+# replaces it: update FILENAME here and NBS_FILENAME / LAST_YEAR in mda_subnational_population.py.
+FILENAME = 'Populatia_sate_comune_orase_2014-2023.xlsx'
+URL = f'https://statistica.gov.md/files/files/serii_de_timp/populatie/numarul_PRO_profil_teritorial/{FILENAME}'
 
 EXCEL_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 os.makedirs(VOLUME_PATH, exist_ok=True)
 
-for filename, url in URLS.items():
-    if os.path.exists(VOLUME_PATH + filename):
-        print(f"Skipping {filename}, as it already exists")
-        continue
-    resp = http_get(url)
+if os.path.exists(VOLUME_PATH + FILENAME):
+    print(f"Skipping {FILENAME}, as it already exists")
+else:
+    resp = http_get(URL)
     resp.raise_for_status()
     content_type = resp.headers.get('content-type', '')
     if EXCEL_CONTENT_TYPE not in content_type:
         raise ValueError(f"Expected an xlsx, got {content_type}")
-    with open(VOLUME_PATH + filename, 'wb') as f:
+    with open(VOLUME_PATH + FILENAME, 'wb') as f:
         f.write(resp.content)
-    print(f"✓ {filename} ({len(resp.content)} bytes)")
+    print(f"✓ {FILENAME} ({len(resp.content)} bytes)")

@@ -3,7 +3,7 @@
 The notebooks are plain Python files. On Databricks their `# MAGIC %run ./config` and
 `# MAGIC %run ./utils` cells load those two files into the notebook's namespace; off
 Databricks every `# MAGIC` line is a comment, so this script imports utils (which
-imports config) and runs the notebook with those names in scope.
+imports config) and geo/admin1_harmonization and runs the notebook with those names in scope.
 
 With no argument it runs NOTEBOOKS below, in order, each in its own process (some
 notebooks change module state such as `wb.db`, and on Databricks every task starts
@@ -116,6 +116,7 @@ def run_in_order(names):
 
 if __name__ == '__main__':
     from utils import *  # what the %run cells provide on Databricks
+    from geo.admin1_harmonization import *
     args = sys.argv[1:]
     if not args:
         run_in_order(notebooks())

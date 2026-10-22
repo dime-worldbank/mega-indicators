@@ -11,6 +11,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ./admin1_harmonization
+
+# COMMAND ----------
+
 # Admin-1 boundaries, and the admin-0 disputed areas, from the World Bank Official
 # Boundaries GeoJSON files that admin_boundaries_extract.py downloads: one row per region
 # with the boundary as GeoJSON text, region names corrected to match the BOOST data, and
@@ -165,53 +169,9 @@ albania_region_to_county = {
     'Delvine': 'Vlore'
 }
 
-# Moldova raion (district) to statistical region. These are the National Bureau of
-# Statistics development regions, except that Gagauzia — officially a region of its own —
-# is folded into South, the only geographic fit when the target is four regions. The 35
-# units mapped here (the capital under two spellings) match EXPECTED_ADM1_COUNT in
-# mda_subnational_population.py, which rolls the population up to the same four regions.
-# Bender and Transnistria belong to no region and are absent from the NBS estimates, so
-# they are left unmapped and keep their own names.
-moldova_district_to_region = {
-    'Balti': 'North',
-    'Briceni': 'North',
-    'Donduseni': 'North',
-    'Drochia': 'North',
-    'Edinet': 'North',
-    'Falesti': 'North',
-    'Floresti': 'North',
-    'Glodeni': 'North',
-    'Ocnita': 'North',
-    'Riscani': 'North',
-    'Singerei': 'North',
-    'Soroca': 'North',
-    'Anenii Noi': 'Center',
-    'Calarasi': 'Center',
-    'Criuleni': 'Center',
-    'Dubasari': 'Center',
-    'Hincesti': 'Center',
-    'Ialoveni': 'Center',
-    'Nisporeni': 'Center',
-    'Orhei': 'Center',
-    'Rezina': 'Center',
-    'Soldanesti': 'Center',
-    'Straseni': 'Center',
-    'Telenesti': 'Center',
-    'Ungheni': 'Center',
-    'Basarabeasca': 'South',
-    'Cahul': 'South',
-    'Cantemir': 'South',
-    'Causeni': 'South',
-    'Cimislia': 'South',
-    'Leova': 'South',
-    'Stefan Voda': 'South',
-    'Taraclia': 'South',
-    'Unitate Teritoriala Autonoma Gagauzia': 'South',
-    # The capital: 'Chisinau' in the public World Bank file; the longer form is kept in
-    # case the DDH volume copy spells it that way.
-    'Chisinau': 'Chisinau',
-    'Chisinau Municipality': 'Chisinau',
-}
+# Moldova raions to statistical regions (shared with the population notebook); Transnistria
+# and Bender are in no region and keep their own names.
+moldova_district_to_region = {**MOLDOVA_UNIT_TO_REGION, **MOLDOVA_BOUNDARY_ALIASES}
 
 def union_polygons(polygon_list):
     polygons = [shape(json.loads(p)) for p in polygon_list]

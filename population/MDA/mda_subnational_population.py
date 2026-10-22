@@ -11,6 +11,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../../geo/admin1_harmonization
+
+# COMMAND ----------
+
 import unicodedata
 
 import pandas as pd
@@ -18,16 +22,18 @@ import pandas as pd
 COUNTRY_NAME = "Moldova"
 COUNTRY_CODE = "MDA"
 
-# Population with usual residence by locality (village/commune, town/municipality),
-# published by the National Bureau of Statistics of the Republic of Moldova.
-# Downloaded to the volume by mda_subnational_population_extract.py.
-NBS_POPULATION_PATH = f'{VOLUME_ROOT_PATH}/auxiliary_data/population/mda/Populatia_sate_comune_orase_2014-2023.xlsx'
+# NBS population by locality, one cumulative workbook with a sheet per year, downloaded by
+# mda_subnational_population_extract.py. A new edition replaces it: update NBS_FILENAME and
+# LAST_YEAR here and FILENAME there.
+NBS_FILENAME = 'Populatia_sate_comune_orase_2014-2023.xlsx'
+NBS_POPULATION_PATH = f'{VOLUME_ROOT_PATH}/auxiliary_data/population/mda/{NBS_FILENAME}'
 NBS_SOURCE = "National Bureau of Statistics of the Republic of Moldova"
 
-# 32 raions + 2 municipalities (Chisinau, Balti) + the autonomous region of Gagauzia.
-# Excludes Transnistria and Bender, which are not covered by the NBS estimates.
-EXPECTED_ADM1_COUNT = 35
-EXPECTED_YEARS = list(range(2014, 2024))
+# 32 raions, Chisinau, Balti and Gagauzia; Transnistria and Bender are not in the NBS estimates
+EXPECTED_ADM1_COUNT = len(MOLDOVA_UNIT_TO_REGION)
+FIRST_YEAR, LAST_YEAR = 2014, 2023  # as the filename says
+assert f'{FIRST_YEAR}-{LAST_YEAR}' in NBS_FILENAME, 'FIRST_YEAR/LAST_YEAR must match the range in NBS_FILENAME'
+EXPECTED_YEARS = list(range(FIRST_YEAR, LAST_YEAR + 1))
 
 # Each yearly sheet has 5 header/title rows, then one row per locality, then footnotes.
 HEADER_ROWS = 5
@@ -46,25 +52,10 @@ ADM1_NAME_OVERRIDES = {
 # Prefixes denoting the type of the adm1 unit: municipality, raion, autonomous region
 ADM1_PREFIXES = ('MUN.', 'R-UL', 'UTA')
 
-# BOOST spending for Moldova is reported at the four statistical regions, not at raions, so
-# the raion totals are aggregated up to match. Same grouping as moldova_district_to_region
-# in geo/admin_boundaries_transform_load.py, keyed on the NBS spellings (clean_adm1_name
-# strips the 'MUN.' prefix from the capital). Gagauzia is folded into South, as it is there.
-ADM1_TO_REGION = {
-    raion: region
-    for region, raions in {
-        'North': ['Balti', 'Briceni', 'Donduseni', 'Drochia', 'Edinet', 'Falesti',
-                  'Floresti', 'Glodeni', 'Ocnita', 'Riscani', 'Singerei', 'Soroca'],
-        'Center': ['Anenii Noi', 'Calarasi', 'Criuleni', 'Dubasari', 'Hincesti', 'Ialoveni',
-                   'Nisporeni', 'Orhei', 'Rezina', 'Soldanesti', 'Straseni', 'Telenesti',
-                   'Ungheni'],
-        'South': ['Basarabeasca', 'Cahul', 'Cantemir', 'Causeni', 'Cimislia', 'Leova',
-                  'Stefan Voda', 'Taraclia', 'Unitate Teritoriala Autonoma Gagauzia'],
-        'Chisinau': ['Chisinau'],
-    }.items()
-    for raion in raions
-}
-EXPECTED_REGION_COUNT = 4
+# BOOST reports Moldova at the four statistical regions, so raions are rolled up with the
+# grouping shared with the boundaries notebook (clean_adm1_name yields its spellings).
+ADM1_TO_REGION = MOLDOVA_UNIT_TO_REGION
+EXPECTED_REGION_COUNT = len(MOLDOVA_REGIONS)
 
 
 def remove_accents(input_str: str) -> str:

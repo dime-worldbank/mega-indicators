@@ -38,11 +38,13 @@ def load_config():
 
 
 def load_shared():
-    """utils (and config) freshly imported against the current environment."""
+    """What local_runner.py puts in a notebook's scope: utils (and config) freshly imported
+    against the current environment, and the geo/admin1_harmonization tables."""
     for name in ("utils", "config"):
         sys.modules.pop(name, None)
     import utils
-    return vars(utils)
+    from geo import admin1_harmonization
+    return {**vars(utils), **{k: v for k, v in vars(admin1_harmonization).items() if not k.startswith("_")}}
 
 
 def run_notebook(path):

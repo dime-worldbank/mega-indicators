@@ -89,9 +89,9 @@ python local_runner.py gdp.py    # one notebook
 python local_runner.py --from health/sdg_health.py   # resume: that notebook and the ones after it
 ```
 
-The notebooks are plain Python files; the `# MAGIC %run ./config` / `./utils` cells
-that load the shared helpers on Databricks are comments elsewhere, so `local_runner.py`
-imports `config` and `utils` itself and runs the notebook with their names in scope.
+The notebooks are plain Python files; the `# MAGIC %run` cells that load `config`, `utils`
+and `geo/admin1_harmonization` on Databricks are comments elsewhere, so `local_runner.py`
+imports those itself and runs the notebook with their names in scope.
 Any other `%run` is a comment too, so a notebook that needs another helper imports it
 under a guard, as `government_revenue_expenditure.py` does for `imf_sdmx`.
 
