@@ -11,7 +11,6 @@
 
 # COMMAND ----------
 
-import requests
 import pandas as pd
 import numpy as np
 from io import BytesIO
@@ -20,7 +19,7 @@ import re
 # COMMAND ----------
 
 spid_resource_url = 'https://ddh-openapi.worldbank.org/resources/DR0092191'
-response = requests.get(spid_resource_url)
+response = http_get(spid_resource_url, timeout=DEFAULT_TIMEOUT_SECONDS)
 response.raise_for_status()
 spid_url = response.json()['distribution']['url']
 # Prefer the mounted DDH volume; fall back to the URL (see ddh_bytes in utils).
@@ -32,7 +31,7 @@ df_SPID
 # COMMAND ----------
 
 gsap_resource_url = 'https://ddh-openapi.worldbank.org/resources/DR0052555'
-response = requests.get(gsap_resource_url)
+response = http_get(gsap_resource_url, timeout=DEFAULT_TIMEOUT_SECONDS)
 response.raise_for_status()
 gsap_url = response.json()['distribution']['url']
 # expect the first sheet to be metadata, followed by the latest lineup data sheet
@@ -87,6 +86,4 @@ for df_source, table in [(df_SPID_to_merge, 'poverty_rate_spid_silver'),
                          (df_GSAP_to_merge, 'poverty_rate_gsap_silver')]:
     out = (df_source.rename(columns=RENAME)
            .sort_values(['country_code', 'year', 'region_name']))
-    (spark.createDataFrame(out)
-        .write.mode("overwrite").option("overwriteSchema", "true")
-        .saveAsTable(f"{INDICATOR_SCHEMA}.{table}"))
+    write_table(out, table)

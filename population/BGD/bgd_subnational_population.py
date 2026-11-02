@@ -1,9 +1,9 @@
 # Databricks notebook source
-# MAGIC %run ../subnational_population_extraction_from_census_gov
+# MAGIC %run ../../config
 
 # COMMAND ----------
 
-# MAGIC %run ../../config
+# MAGIC %run ../../utils
 
 # COMMAND ----------
 
@@ -46,11 +46,4 @@ assert num_adm1_units==8
 
 # COMMAND ----------
 
-database_name = INDICATOR_SCHEMA
-
-if not spark.catalog.databaseExists(database_name):
-    print(f"Database '{database_name}' does not exist. Creating the database.")
-    spark.sql(f"CREATE DATABASE {database_name}")
-
-sdf = spark.createDataFrame(df_pop)
-sdf.write.mode("overwrite").saveAsTable(f"{database_name}.bgd_subnational_population_silver")
+write_table(df_pop, 'bgd_subnational_population_silver')

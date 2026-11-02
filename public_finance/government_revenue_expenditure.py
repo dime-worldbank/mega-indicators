@@ -3,6 +3,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../utils
+
+# COMMAND ----------
+
 import pandas as pd
 import requests
 from requests.adapters import HTTPAdapter
@@ -11,6 +15,11 @@ from urllib3.util.retry import Retry
 # COMMAND ----------
 
 # MAGIC %run ./imf_sdmx
+
+# COMMAND ----------
+
+if '_parse_payload' not in globals():  # off Databricks the %run above is a comment
+    from public_finance.imf_sdmx import _parse_payload, _weo_annotate_forecast
 
 # COMMAND ----------
 
@@ -101,10 +110,9 @@ SOURCES = [
 
 # COMMAND ----------
 
-country_df = (spark.table(f'{INDICATOR_SCHEMA}.country')
-    .filter("is_aggregate = false OR is_aggregate IS NULL")
-    .select('country_name', 'country_code', 'region')
-    .toPandas())
+country_df = read_table('country', columns=['country_name', 'country_code', 'region', 'is_aggregate'])
+# Drop regional/income aggregates (WLD, SSF, ...); a null flag counts as a country.
+country_df = country_df[country_df['is_aggregate'].ne(True)].drop(columns='is_aggregate')
 country_codes = country_df['country_code'].dropna().unique().tolist()
 
 BASE_COLUMNS = ['country_name', 'country_code', 'region', 'year',
@@ -114,6 +122,7 @@ BASE_COLUMNS = ['country_name', 'country_code', 'region', 'year',
 
 # Write each single-source split table (no source column — the source is the
 # table's identity, via indicator_source). is_forecast is kept only for WEO.
+split_dfs = {}
 for source in SOURCES:
     df = fetch_sdmx(country_codes, source['flow'], source['key_template'],
                     source['indicators'], source.get('post_process'))
@@ -123,22 +132,21 @@ for source in SOURCES:
         columns.append('is_forecast')
     merged = (pd.merge(df, country_df, on='country_code', how='inner')[columns]
         .sort_values(['country_name', 'year']))
-    (spark.createDataFrame(merged)
-        .write.mode("overwrite").option("overwriteSchema", "true")
-        .saveAsTable(f"{INDICATOR_SCHEMA}.{source['table']}"))
+    write_table(merged, source['table'])
+    split_dfs[source['table']] = merged
 
 # COMMAND ----------
 
-# Combined view built from the split tables, adding a clean source_id FK (replaces
+# Combined table built from the split tables, adding a clean source_id FK (replaces
 # the free-text data_source). GFS has no is_forecast, so it defaults to False.
-combined_df = spark.sql(f"""
-    SELECT country_name, country_code, region, year, is_forecast,
-           revenue_current_lcu, expenditure_current_lcu, 'imf_weo' AS source_id
-    FROM {INDICATOR_SCHEMA}.government_revenue_expenditure_weo
-    UNION ALL
-    SELECT country_name, country_code, region, year, FALSE AS is_forecast,
-           revenue_current_lcu, expenditure_current_lcu, 'imf_gfs' AS source_id
-    FROM {INDICATOR_SCHEMA}.government_revenue_expenditure_gfs
-""")
-(combined_df.write.mode("overwrite").option("overwriteSchema", "true")
-    .saveAsTable(f"{INDICATOR_SCHEMA}.government_revenue_expenditure"))
+COMBINED_COLUMNS = ['country_name', 'country_code', 'region', 'year', 'is_forecast',
+                    'revenue_current_lcu', 'expenditure_current_lcu', 'source_id']
+combined_df = pd.concat([
+    split_dfs['government_revenue_expenditure_weo'].assign(source_id='imf_weo'),
+    split_dfs['government_revenue_expenditure_gfs'].assign(is_forecast=False, source_id='imf_gfs'),
+], ignore_index=True)[COMBINED_COLUMNS]
+combined_df.sample(5)
+
+# COMMAND ----------
+
+write_table(combined_df, 'government_revenue_expenditure')

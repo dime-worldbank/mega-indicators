@@ -11,11 +11,11 @@ from zipfile import ZipFile
 import pandas as pd
 
 # One shared download for every country whose subnational population comes from this WB
-# database (btn/tun/chl/zaf/alb depend on this task and filter their own country_code
+# database (btn/tun/chl/zaf/alb/bdi depend on this task and filter their own country_code
 # out of the result, instead of each downloading and parsing the same file).
 ZIP_URL = "https://databank.worldbank.org/data/download/Subnational-Population_EXCEL.zip"
 POPULATION_INDICATOR_CODE = "SP.POP.TOTL"
-COUNTRY_CODES = ["BTN", "TUN", "CHL", "ZAF", "ALB"]
+COUNTRY_CODES = ["BTN", "TUN", "CHL", "ZAF", "ALB", "BDI"]
 
 def _read_wb_zip_excel(buf):
     with ZipFile(buf) as zip_file:
@@ -45,5 +45,4 @@ df_long['year'] = df_long['year'].astype('int')
 
 # COMMAND ----------
 
-sdf = spark.createDataFrame(df_long)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.wb_subnational_population_silver")
+write_table(df_long, 'wb_subnational_population_silver')

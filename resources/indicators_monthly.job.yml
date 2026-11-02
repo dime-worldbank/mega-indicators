@@ -24,17 +24,17 @@ resources:
       - task_key: gdl_subnat_human_development_index_E
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
-          notebook_path: ../human_development/global_data_lab_hdi_extract.r
+          notebook_path: ../human_development/global_data_lab_hdi_extract.py
       - task_key: gdl_subnat_hdi_TL
         depends_on:
         - task_key: gdl_subnat_human_development_index_E
-        pipeline_task:
-          full_refresh: true
-          pipeline_id: ${resources.pipelines.subnational_human_development_index_uc.id}
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../human_development/global_data_lab_hdi_transform_load.py
       - task_key: gdl_subnational_population
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
-          notebook_path: ../population/global_data_lab_subnational_population.r
+          notebook_path: ../population/global_data_lab_subnational_population.py
       - task_key: wb_subnational_population_extract
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
@@ -55,6 +55,12 @@ resources:
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
           notebook_path: ../population/BGD/bgd_subnational_population.py
+      - task_key: subnational_population_bdi
+        depends_on:
+        - task_key: wb_subnational_population_extract
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/BDI/bdi_subnational_population.py
       - task_key: subnational_population_btn
         depends_on:
         - task_key: wb_subnational_population_extract
@@ -129,11 +135,24 @@ resources:
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
           notebook_path: ../population/TGO/tgo_subnational_population.py
+      # Moldova has its own extract rather than sharing wb_subnational_population_extract:
+      # the figures come from the national statistics bureau, as one workbook per download.
+      - task_key: subnational_population_mda_extract
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/MDA/mda_subnational_population_extract.py
+      - task_key: subnational_population_mda
+        depends_on:
+        - task_key: subnational_population_mda_extract
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/MDA/mda_subnational_population.py
       - task_key: subnational_population
         depends_on:
         - task_key: subnational_population_bfa
         - task_key: subnational_population_moz
         - task_key: subnational_population_bgd
+        - task_key: subnational_population_bdi
         - task_key: subnational_population_lbr
         - task_key: subnational_population_ken
         - task_key: subnational_population_col
@@ -148,6 +167,8 @@ resources:
         - task_key: subnational_population_alb
         - task_key: subnational_population_gha
         - task_key: subnational_population_tgo
-        pipeline_task:
-          pipeline_id: ${resources.pipelines.subnational_population_agg_uc.id}
+        - task_key: subnational_population_mda
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../population/subnational_population.py
       performance_target: PERFORMANCE_OPTIMIZED

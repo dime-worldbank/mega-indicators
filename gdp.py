@@ -26,5 +26,4 @@ col_names = [
 
 df = wbgapi_fetch(indicators, col_names)
 
-sdf = spark.createDataFrame(df)
-sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{INDICATOR_SCHEMA}.gdp")
+write_table(df, 'gdp')
