@@ -80,6 +80,9 @@ BY_COUNTRY = [
     ('subnational_population', 'imputed',                   'Albania'),
     ('subnational_population', 'moz_ine',                   'Mozambique'),
     ('subnational_population', 'pry_ine',                   'Paraguay'),
+    ('subnational_population', 'wb_subnational_population',  'Burundi'),
+    ('subnational_population', 'census_gov',                'Burundi'),
+    ('subnational_population', 'mda_nbs',                   'Moldova'),
 ]
 
 indicator_source = pd.concat([

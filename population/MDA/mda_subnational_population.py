@@ -27,7 +27,6 @@ COUNTRY_CODE = "MDA"
 # LAST_YEAR here and FILENAME there.
 NBS_FILENAME = 'Populatia_sate_comune_orase_2014-2023.xlsx'
 NBS_POPULATION_PATH = f'{VOLUME_ROOT_PATH}/auxiliary_data/population/mda/{NBS_FILENAME}'
-NBS_SOURCE = "National Bureau of Statistics of the Republic of Moldova"
 
 # 32 raions, Chisinau, Balti and Gagauzia; Transnistria and Bender are not in the NBS estimates
 EXPECTED_ADM1_COUNT = len(MOLDOVA_UNIT_TO_REGION)
@@ -118,10 +117,9 @@ for year in sheet_years:
 
 df_pop = pd.concat(yearly_dfs, ignore_index=True)
 df_pop['country_name'] = COUNTRY_NAME
-df_pop['data_source'] = NBS_SOURCE
 df_pop['population'] = df_pop.population.round().astype(int)
 
-columns_ordered = ['country_name', 'adm1_name', 'year', 'population', 'data_source']
+columns_ordered = ['country_name', 'adm1_name', 'year', 'population']
 df_pop = df_pop.reindex(columns=columns_ordered).sort_values(['adm1_name', 'year']).reset_index(drop=True)
 df_pop
 

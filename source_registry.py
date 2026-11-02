@@ -38,6 +38,7 @@ SOURCES = [
     ('alb_instat',                'Population by prefecture',                                           'INSTAT',           'https://www.instat.gov.al/'),
     ('moz_ine',                   'Population projections',                                             'INE Mozambique',   'https://mozambique.opendataforafrica.org/'),
     ('pry_ine',                   'Population by department',                                           'INE Paraguay',     'https://www.ine.gov.py/'),
+    ('mda_nbs',                   'Population by region',                                               'NBS Moldova',      'https://statistica.gov.md/'),
     ('imputed',                   'Interpolated between adjacent years',                                 None, None),
 ]
 
