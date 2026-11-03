@@ -48,6 +48,8 @@ NOTEBOOKS = [
     'education/pupil_teacher_ratio.py',
     'education/school_basic_services.py',
     'education/teacher_salaries.py',
+    'source_registry.py',  # static source metadata, read by the dashboard
+    'indicator_source.py',
     'indicator_data_availability.py',  # summarises the tables above (the subnational population step below is not among them)
 ]
 

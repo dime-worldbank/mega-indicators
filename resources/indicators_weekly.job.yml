@@ -76,6 +76,16 @@ resources:
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
           notebook_path: ../public_sector_employment/wwbi_transform_load.py
+      # Static source metadata (no upstream table): the source registry and the
+      # indicator -> source bridge that replace the per-row data_source columns.
+      - task_key: source_registry
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../source_registry.py
+      - task_key: indicator_source
+        existing_cluster_id: ${var.shared_cluster_id}
+        notebook_task:
+          notebook_path: ../indicator_source.py
       # Aggregates 12 indicator tables into indicator_data_availability. Eight are
       # produced here; the rest come from monthly (global_data_lab_hd_index) and
       # on_demand (pefa_by_pillar, subnational_poverty_rate), whose year ranges move

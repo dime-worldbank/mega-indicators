@@ -7,7 +7,7 @@
 
 # COMMAND ----------
 
-# Subnational poverty rate per region and year from the SPID/GSAP silver table. Region
+# Subnational poverty rate per region and year from the SPID and GSAP silver tables. Region
 # names are aligned to admin1_boundaries_gold with the fixes below, and the poverty line
 # follows the country's income group, as for the national poverty_rate. Plain pandas on
 # both sides.
@@ -110,26 +110,38 @@ def initcap(name):
 
 # COMMAND ----------
 
-silver = read_table('poverty_rate_SPID_GSAP_silver')
 countries = read_table('country', columns=['country_name', 'country_code', 'income_level'])
 fixes = pd.DataFrame(REGION_NAME_FIXES, columns=['country_code', 'region_name', 'country_fixed_region_name'])
 
-df = silver.merge(fixes, on=['country_code', 'region_name'], how='left')
-# explicit fixes win over the COL initcap default
-default_name = np.where(df['country_code'] == 'COL', df['region_name'].map(initcap), df['region_name'])
-df['region_name'] = df['country_fixed_region_name'].fillna(pd.Series(default_name, index=df.index))
-df = df.drop(columns='country_fixed_region_name')
-df = df.merge(countries, on='country_code', how='inner')  # TODO: change to left & investigate dropped
+def poverty_rate(silver):
+    """Transform one source's already single-source silver table (no data_source)."""
+    df = silver.merge(fixes, on=['country_code', 'region_name'], how='left')
+    # explicit fixes win over the COL initcap default
+    default_name = np.where(df['country_code'] == 'COL', df['region_name'].map(initcap), df['region_name'])
+    df['region_name'] = df['country_fixed_region_name'].fillna(pd.Series(default_name, index=df.index))
+    df = df.drop(columns='country_fixed_region_name')
+    df = df.merge(countries, on='country_code', how='inner')  # TODO: change to left & investigate dropped
 
-df['poverty_rate'] = np.select(
-    [df['income_level'].isin(['LIC', 'INX']),  # INX: income classification is not assigned or not applicable
-     df['income_level'] == 'LMC',
-     df['income_level'].isin(['UMC', 'HIC'])],
-    [df['poor300'], df['poor420'], df['poor830']],
-    np.nan,
-)
-assert df['poverty_rate'].notna().all(), 'poverty rates for country income level should be present'
+    df['poverty_rate'] = np.select(
+        [df['income_level'].isin(['LIC', 'INX']),  # INX: income classification is not assigned or not applicable
+         df['income_level'] == 'LMC',
+         df['income_level'].isin(['UMC', 'HIC'])],
+        [df['poor300'], df['poor420'], df['poor830']],
+        np.nan,
+    )
+    assert df['poverty_rate'].notna().all(), 'poverty rates for country income level should be present'
+    return df
 
+spid = poverty_rate(read_table('poverty_rate_spid_silver'))
+gsap = poverty_rate(read_table('poverty_rate_gsap_silver'))
+write_table(spid, 'subnational_poverty_rate_spid')
+write_table(gsap, 'subnational_poverty_rate_gsap')
+
+# COMMAND ----------
+
+# Combined table over the split tables, adding a clean source_id FK (replaces the
+# free-text data_source). Year span is per (country, region) across both sources.
+df = pd.concat([spid.assign(source_id='pip_spid'), gsap.assign(source_id='pip_gsap')], ignore_index=True)
 by_region = df.groupby(['country_name', 'region_name'])['year']
 df['earliest_year'] = by_region.transform('min')
 df['latest_year'] = by_region.transform('max')

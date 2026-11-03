@@ -11,7 +11,6 @@
 ddf_pop = read_table('wb_subnational_population_silver')
 ddf_pop = ddf_pop[ddf_pop['country_code'] == 'TUN'].drop(columns='country_code').reset_index(drop=True)
 ddf_pop['country_name'] = 'Tunisia'
-ddf_pop['data_source'] = 'WB subnational population database'
 
 # COMMAND ----------
 

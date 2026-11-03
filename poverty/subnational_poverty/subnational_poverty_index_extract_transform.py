@@ -60,16 +60,14 @@ inconsistent.sort_values(['deviation'], ascending=False)
 
 # COMMAND ----------
 
-COL_NAMES = ['code', 'sample', 'year', 'survname', 'poor300', 'poor420', 'poor830', 'data_source']
+COL_NAMES = ['code', 'sample', 'year', 'survname', 'poor300', 'poor420', 'poor830']
 df_SPID_without_gsap_year = df_SPID.loc[df_SPID.year != gsap_lineup_year]
-df_SPID_without_gsap_year['data_source'] = 'SPID'
 df_SPID_to_merge = df_SPID_without_gsap_year[COL_NAMES]
 df_SPID_to_merge
 
 # COMMAND ----------
 
 df_GSAP_renamed = df_GSAP.rename(columns=lambda x: re.sub('_ln', '', x)).rename(columns={'lineupyear': 'year'})
-df_GSAP_renamed['data_source'] = 'GSAP'
 df_GSAP_to_merge = df_GSAP_renamed[COL_NAMES]
 df_GSAP_to_merge
 
@@ -81,11 +79,11 @@ assert merged.shape[0] == df_SPID_to_merge.shape[0] + df_GSAP.shape[0]
 
 # COMMAND ----------
 
-df_combined = pd.concat([df_SPID_to_merge, df_GSAP_to_merge], ignore_index=True, sort=False)
-df_combined.sort_values(['code', 'year', 'sample'], inplace=True)
-df_combined.rename(columns={'code': 'country_code', 'sample': 'region_name'}, inplace=True)
-df_combined
-
-# COMMAND ----------
-
-write_table(df_combined, 'poverty_rate_SPID_GSAP_silver')
+# Write each source to its own table (no data_source column — the source is the
+# table's identity).
+RENAME = {'code': 'country_code', 'sample': 'region_name'}
+for df_source, table in [(df_SPID_to_merge, 'poverty_rate_spid_silver'),
+                         (df_GSAP_to_merge, 'poverty_rate_gsap_silver')]:
+    out = (df_source.rename(columns=RENAME)
+           .sort_values(['country_code', 'year', 'region_name']))
+    write_table(out, table)
