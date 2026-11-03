@@ -4,3 +4,6 @@
 
 # Local-mode table store (DATA_ROOT=./data in the README example)
 /data/
+
+# Editor settings
+.vscode/
