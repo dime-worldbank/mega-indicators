@@ -169,7 +169,7 @@ def _wb_dataframe_with_retry(series, attempts=3, backoff=2.0):
             print(f'wbgapi: {series} failed mid-fetch; retry {i + 1}/{attempts - 1} in {wait}s', flush=True)
             time.sleep(wait)
 
-def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_country_table=None, how: str = 'inner'):
+def wbgapi_fetch(indicators, col_names, extra_col_names_from_country_table=None, how: str = 'inner'):
     if extra_col_names_from_country_table is None:
         extra_col_names_from_country_table = []
     if how not in {'inner', 'outer', 'left', 'right'}:
@@ -188,10 +188,8 @@ def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_countr
     for df in long_dfs[1:]:
         merged_df = pd.merge(merged_df, df, on=['economy', 'year'], how=how)
 
-    merged_df['data_source'] = data_source
-
     country_df = read_table('country', columns=['country_name', 'country_code', 'region', *extra_col_names_from_country_table])
-    df = pd.merge(merged_df, country_df, left_on='economy', right_on='country_code', how='left')[['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names, 'data_source']]
+    df = pd.merge(merged_df, country_df, left_on='economy', right_on='country_code', how='left')[['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names]]
 
     return df
 
@@ -199,7 +197,7 @@ def wbgapi_fetch(indicators, col_names, data_source, extra_col_names_from_countr
 
 UIS_API_URL = 'https://api.uis.unesco.org/api/public/data/indicators'
 
-def uis_fetch(series_to_col_name, data_source, extra_col_names_from_country_table=None, how: str = 'inner', start: int = None, stop: int = None):
+def uis_fetch(series_to_col_name, extra_col_names_from_country_table=None, how: str = 'inner', start: int = None, stop: int = None):
     """Fetch indicators straight from the UNESCO Institute for Statistics (UIS) API.
 
     Mirrors wbgapi_fetch's output (one row per country-year, one column per
@@ -226,7 +224,7 @@ def uis_fetch(series_to_col_name, data_source, extra_col_names_from_country_tabl
     payload = resp.json()
     raw_df = pd.DataFrame.from_records(payload.get('records', []))
     if raw_df.empty:
-        cols = ['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names, 'data_source']
+        cols = ['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names]
         return pd.DataFrame(columns=cols)
 
     long_dfs = []
@@ -240,10 +238,9 @@ def uis_fetch(series_to_col_name, data_source, extra_col_names_from_country_tabl
         merged_df = pd.merge(merged_df, df, on=['geoUnit', 'year'], how=how)
 
     merged_df = merged_df.astype({'year': 'int'})
-    merged_df['data_source'] = data_source
 
     country_df = read_table('country', columns=['country_name', 'country_code', 'region', *extra_col_names_from_country_table])
-    df = pd.merge(merged_df, country_df, left_on='geoUnit', right_on='country_code', how='inner')[['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names, 'data_source']]
+    df = pd.merge(merged_df, country_df, left_on='geoUnit', right_on='country_code', how='inner')[['country_name', 'country_code', 'region', *extra_col_names_from_country_table, 'year', *col_names]]
 
     return df
 
@@ -341,10 +338,9 @@ def get_pop_from_census_gov(country_filename, timeseries='pepfar', update_versio
     df_pop['year'] = df_pop['year'].str.extract(r'(\d+)').astype(int)
     df_pop.columns = ['country_name', 'adm1_name', 'year', 'population']
 
-    # Modifications to the admin1 and county name and add data_source
+    # Modifications to the admin1 and county name
     df_pop['country_name'] = df_pop['country_name'].str.title()
     df_pop['adm1_name'] = df_pop['adm1_name'].str.replace(r'[-/]+', ' ', regex=True).str.title()
-    df_pop['data_source'] = url
     df_pop = df_pop.astype({'year': 'int', 'population': 'int'})
     df_pop = df_pop.sort_values(['adm1_name', 'year'], ignore_index=True)
 

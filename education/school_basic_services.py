@@ -26,10 +26,8 @@ series_to_col_name = {
     'SCHBSP.3.WWATA': 'schools_with_basic_water_upper_secondary',
 }
 
-data_source = 'UNESCO Institute for Statistics (UIS)'
-
 # outer join so a country-year is kept even if it reports only some indicators
-df = uis_fetch(series_to_col_name, data_source, how='outer')
+df = uis_fetch(series_to_col_name, how='outer')
 df
 
 # COMMAND ----------

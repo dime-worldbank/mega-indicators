@@ -21,8 +21,7 @@ employment = (read_table('public_sector_employment_silver')
 regional_means = (employment.groupby(['region', 'year'], as_index=False)
     .agg(wage_percent_gdp=('wage_percent_gdp', 'mean'),
          wage_percent_expenditure=('wage_percent_expenditure', 'mean'),
-         wage_premium=('wage_premium', 'mean'),
-         data_source=('data_source', 'first'))
+         wage_premium=('wage_premium', 'mean'))
     .rename(columns={'region': 'country_code'})
     .merge(countries, on='country_code', how='inner'))
 

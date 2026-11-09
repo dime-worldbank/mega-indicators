@@ -238,8 +238,8 @@ def test_wbgapi_fetch_joins_local_country_table(data_root, monkeypatch):
     ns = load_shared()
     write_country(ns)
     monkeypatch.setattr(wbgapi.data, "DataFrame", fake_wb_dataframe)
-    df = ns["wbgapi_fetch"](["SP.X"], ["v1"], "WB", extra_col_names_from_country_table=["income_level"])
-    assert list(df.columns) == ["country_name", "country_code", "region", "income_level", "year", "v1", "data_source"]
+    df = ns["wbgapi_fetch"](["SP.X"], ["v1"], extra_col_names_from_country_table=["income_level"])
+    assert list(df.columns) == ["country_name", "country_code", "region", "income_level", "year", "v1"]
     togo_2021 = df[(df.country_code == "TGO") & (df.year == 2021)].iloc[0]
     assert togo_2021.v1 == 11.0 and togo_2021.country_name == "Togo" and togo_2021.income_level == "LIC"
     assert len(df) == 3  # ALB 2021 was blank and dropped
@@ -331,11 +331,11 @@ def test_public_sector_employment_notebook_runs_locally(data_root):
     ns["write_table"](pd.DataFrame({"country_name": ["Togo", "Nigeria", "Sub-Saharan Africa"], "country_code": ["TGO", "NGA", "SSF"],
                                     "region": ["SSF", "SSF", None]}), "country")
     ns["write_table"](pd.DataFrame({"economy": ["TGO", "NGA", "XXX"], "year": [2020] * 3, "wage_percent_gdp": [6.0, 4.0, 1.0],
-                                    "wage_percent_expenditure": [30.0, 20.0, 1.0], "wage_premium": [0.1, None, 1.0], "data_source": ["WWBI"] * 3}),
+                                    "wage_percent_expenditure": [30.0, 20.0, 1.0], "wage_premium": [0.1, None, 1.0]}),
                      "public_sector_employment_silver")
     run_notebook(REPO / "public_sector_employment" / "wwbi_transform_load.py")
     out = ns["read_table"]("public_sector_employment")
-    assert list(out.columns) == ["country_code", "year", "wage_percent_gdp", "wage_percent_expenditure", "wage_premium", "data_source", "country_name", "region"]
+    assert list(out.columns) == ["country_code", "year", "wage_percent_gdp", "wage_percent_expenditure", "wage_premium", "country_name", "region"]
     assert sorted(out.country_code) == ["NGA", "SSF", "TGO"]  # XXX is not in country; SSF is the regional mean
     ssf = out.set_index("country_code").loc["SSF"]
     assert (ssf.wage_percent_gdp, ssf.wage_percent_expenditure, ssf.wage_premium, ssf.country_name) == (5.0, 25.0, 0.1, "Sub-Saharan Africa")
@@ -408,7 +408,7 @@ def test_indicator_data_availability_notebook_runs_locally(data_root):
     run_notebook(REPO / "indicator_data_availability.py")
 
     out = ns["read_table"]("indicator_data_availability")
-    assert list(out.columns) == ["country_name", "indicator_key", "earliest_year", "latest_year", "source_url"]
+    assert list(out.columns) == ["country_name", "indicator_key", "earliest_year", "latest_year", "years"]
     assert len(out) == 12 and out.earliest_year.dtype.kind == "i"
     span = out.set_index("indicator_key")[["earliest_year", "latest_year"]].apply(tuple, axis=1).to_dict()
     assert span["global_data_lab_hd_index"] == (2000, 2020)  # 2010 dropped: health_index null
@@ -418,8 +418,22 @@ def test_indicator_data_availability_notebook_runs_locally(data_root):
     assert span["pupil_teacher_ratio"] == (2000, 2010)
     assert span["teacher_salaries"] == (2010, 2020) and span["completion_rates"] == (2000, 2010)
     assert span["learning_poverty_rate"] == (2015, 2019) and span["pefa_by_pillar"] == (2008, 2016)
-    assert out.source_url.str.startswith("https://").all()
+    years = out.set_index("indicator_key").years  # a list per row; the CSV store keeps its repr
+    assert years["global_data_lab_hd_index"] == "[2000, 2020]" and years["pupil_teacher_ratio"] == "[2000, 2010]"
 
+
+
+def test_source_registry_and_indicator_source_run_locally(data_root):
+    """Every source the bridge points at is in the registry, and a source is either for every
+    country or for named ones."""
+    run_notebook(REPO / "source_registry.py")
+    run_notebook(REPO / "indicator_source.py")
+    r = load_shared()["read_table"]
+    registry, bridge = r("source_registry"), r("indicator_source")
+    assert registry.source_id.is_unique
+    assert set(bridge.source_id) <= set(registry.source_id)
+    assert not bridge.duplicated().any()
+    assert bridge[bridge.country_name.notna()].indicator_key.unique().tolist() == ["subnational_population"]
 
 def _excel(sheets):
     buf = io.BytesIO()
@@ -463,7 +477,7 @@ def test_subnational_poverty_notebooks_run_locally(data_root, monkeypatch):
 
     gold = load_shared()["read_table"]("subnational_poverty_rate").sort_values(["country_code", "region_name", "year"])
     togo = gold[gold.country_code == "TGO"]
-    assert togo.year.tolist() == [2018, 2024] and togo.data_source.tolist() == ["SPID", "GSAP"]
+    assert togo.year.tolist() == [2018, 2024] and togo.source_id.tolist() == ["pip_spid", "pip_gsap"]
     assert togo.poverty_rate.tolist() == [0.6, 0.51]  # LMC: the 4.20 line; 2024 from GSAP replaces SPID's
     assert togo.earliest_year.unique().tolist() == [2018] and togo.latest_year.unique().tolist() == [2024]
     assert gold[gold.country_code == "ALB"].poverty_rate.tolist() == [0.31]  # UMC: the 8.30 line
@@ -641,7 +655,7 @@ def test_togo_subnational_population_notebook_runs_locally(data_root, monkeypatc
     run_notebook(REPO / "population" / "TGO" / "tgo_subnational_population.py")
 
     silver = load_shared()["read_table"]("tgo_subnational_population_silver")
-    assert list(silver.columns) == ["country_name", "adm1_name", "year", "population", "data_source"]
+    assert list(silver.columns) == ["country_name", "adm1_name", "year", "population"]
     assert silver.country_name.unique().tolist() == ["Togo"] and sorted(silver.adm1_name.unique()) == regions
     assert len(silver) == 5 * len(years)
 

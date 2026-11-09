@@ -27,7 +27,6 @@ df_wb_long = read_table("wb_subnational_population_silver")
 df_wb_long = df_wb_long[(df_wb_long["country_code"] == COUNTRY_CODE) & df_wb_long["year"].between(2000, 2016)]
 df_wb_long = df_wb_long[["adm1_name", "year", "population"]].reset_index(drop=True)
 df_wb_long["country_name"] = COUNTRY_NAME
-df_wb_long["data_source"] = "World Bank Subnational Population Database"
 df_wb_long["year"] = df_wb_long["year"].astype(int)
 
 # COMMAND ----------
@@ -83,21 +82,15 @@ wb_bururi["rumonge_population"] = (
     wb_bururi["population"] - wb_bururi["bururi_population"]
 )
 
-allocation_source = (
-    "World Bank Subnational Population Database; Bururi/Rumonge split using "
-    "Census.gov provincial shares"
-)
 historic_bururi = wb_bururi[["country_name", "year", "bururi_population"]].rename(
     columns={"bururi_population": "population"}
 )
 historic_bururi["adm1_name"] = "Bururi"
-historic_bururi["data_source"] = allocation_source
 
 historic_rumonge = wb_bururi[
     ["country_name", "year", "rumonge_population"]
 ].rename(columns={"rumonge_population": "population"})
 historic_rumonge["adm1_name"] = "Rumonge"
-historic_rumonge["data_source"] = allocation_source
 
 df_wb_18 = pd.concat(
     [
@@ -115,7 +108,7 @@ assert (
 ).equals(wb_bururi["population"])
 
 df_pop = pd.concat([df_wb_18, df_census_recent], ignore_index=True)
-df_pop = df_pop[["country_name", "adm1_name", "year", "population", "data_source"]]
+df_pop = df_pop[["country_name", "adm1_name", "year", "population"]]
 df_pop = df_pop.sort_values(["adm1_name", "year"]).reset_index(drop=True)
 df_pop["year"] = df_pop["year"].astype(int)
 df_pop["population"] = df_pop["population"].astype(int)
