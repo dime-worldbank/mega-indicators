@@ -40,10 +40,6 @@ resources:
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
           notebook_path: ../education/school_basic_services.py
-      - task_key: edu_teacher_salaries
-        existing_cluster_id: ${var.shared_cluster_id}
-        notebook_task:
-          notebook_path: ../education/teacher_salaries.py
       - task_key: edu_completion_rates
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
@@ -86,7 +82,7 @@ resources:
         existing_cluster_id: ${var.shared_cluster_id}
         notebook_task:
           notebook_path: ../indicator_source.py
-      # Aggregates 12 indicator tables into indicator_data_availability. Eight are
+      # Aggregates 11 indicator tables into indicator_data_availability. Seven are
       # produced here; the rest come from monthly (global_data_lab_hd_index) and
       # on_demand (pefa_by_pillar, subnational_poverty_rate), whose year ranges move
       # rarely enough that picking them up on the next weekly run is close enough.
@@ -101,7 +97,6 @@ resources:
         - task_key: edu_learning_poverty
         - task_key: edu_pupil_teacher_ratio
         - task_key: edu_school_basic_services
-        - task_key: edu_teacher_salaries
         - task_key: edu_completion_rates
         - task_key: health_sdg
         - task_key: health_expenditure

@@ -402,21 +402,20 @@ def test_indicator_data_availability_notebook_runs_locally(data_root):
         "schools_with_internet_primary", "schools_with_internet_lower_secondary", "schools_with_internet_upper_secondary",
         "schools_with_computers_primary", "schools_with_computers_lower_secondary", "schools_with_computers_upper_secondary",
         "schools_with_basic_water_primary", "schools_with_basic_water_lower_secondary", "schools_with_basic_water_upper_secondary"]}}), "school_basic_services")
-    w(pd.DataFrame({**togo, **{c: [None, 5.0, 6.0] for c in ["teacher_salary_pre_primary", "teacher_salary_primary", "teacher_salary_lower_secondary", "teacher_salary_upper_secondary"]}}), "teacher_salaries")
     w(pd.DataFrame({**togo, **{c: [7.0, 8.0, None] for c in ["completion_rate_primary", "completion_rate_lower_secondary", "completion_rate_upper_secondary"]}}), "completion_rates")
 
     run_notebook(REPO / "indicator_data_availability.py")
 
     out = ns["read_table"]("indicator_data_availability")
     assert list(out.columns) == ["country_name", "indicator_key", "earliest_year", "latest_year", "years"]
-    assert len(out) == 12 and out.earliest_year.dtype.kind == "i"
+    assert len(out) == 11 and out.earliest_year.dtype.kind == "i"
     span = out.set_index("indicator_key")[["earliest_year", "latest_year"]].apply(tuple, axis=1).to_dict()
     assert span["global_data_lab_hd_index"] == (2000, 2020)  # 2010 dropped: health_index null
     assert span["global_data_lab_attendance"] == (2010, 2020)
     assert span["universal_health_coverage_index_gho"] == (2021, 2021)
     assert span["poverty_rate"] == (2011, 2011)
     assert span["pupil_teacher_ratio"] == (2000, 2010)
-    assert span["teacher_salaries"] == (2010, 2020) and span["completion_rates"] == (2000, 2010)
+    assert span["completion_rates"] == (2000, 2010)
     assert span["learning_poverty_rate"] == (2015, 2019) and span["pefa_by_pillar"] == (2008, 2016)
     years = out.set_index("indicator_key").years  # a list per row; the CSV store keeps its repr
     assert years["global_data_lab_hd_index"] == "[2000, 2020]" and years["pupil_teacher_ratio"] == "[2000, 2010]"
