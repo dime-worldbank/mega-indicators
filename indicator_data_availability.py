@@ -33,8 +33,6 @@ INDICATORS = {
          'schools_with_internet_primary', 'schools_with_internet_lower_secondary', 'schools_with_internet_upper_secondary',
          'schools_with_computers_primary', 'schools_with_computers_lower_secondary', 'schools_with_computers_upper_secondary',
          'schools_with_basic_water_primary', 'schools_with_basic_water_lower_secondary', 'schools_with_basic_water_upper_secondary']),
-    'teacher_salaries': ('teacher_salaries', [],
-        ['teacher_salary_pre_primary', 'teacher_salary_primary', 'teacher_salary_lower_secondary', 'teacher_salary_upper_secondary']),
     'completion_rates': ('completion_rates', [],
         ['completion_rate_primary', 'completion_rate_lower_secondary', 'completion_rate_upper_secondary']),
 }

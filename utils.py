@@ -26,7 +26,7 @@ if DB_BACKEND == "postgres":
 elif not IS_DATABRICKS and DB_BACKEND != "csv":
     raise RuntimeError(f"Unknown DB_BACKEND {DB_BACKEND!r}; expected csv or postgres.")
 
-DEFAULT_TIMEOUT_SECONDS = 60
+DEFAULT_TIMEOUT_SECONDS = 360 # temporarily setting it to 6 mins as WBG API server is very slow. consider switching to data360 endpoint
 
 def retrying_session(total=5, read=1, backoff_factor=1):
     """A requests session whose adapter retries GETs on connection errors and 429/5xx

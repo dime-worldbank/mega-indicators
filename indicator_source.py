@@ -48,7 +48,6 @@ ALL_COUNTRIES = [
     ('youth_literacy_rate_unesco',          'uis'),
     ('pupil_teacher_ratio',                 'uis'),
     ('school_basic_services',               'uis'),
-    ('teacher_salaries',                    'uis'),
     ('edu_private_spending',                'oecd_eag'),
     ('edu_spending',                        'world_bank_icp'),
     ('gdp',                                 'wdi_gdp'),
